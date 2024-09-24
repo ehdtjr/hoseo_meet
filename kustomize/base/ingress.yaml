@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hoseo-meet-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: www.campus-meet.shop
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend: 
+          service: 
+            name: hoseo-meet-web-service
+            port: 
+              number: 80
