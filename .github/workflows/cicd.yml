@@ -22,7 +22,9 @@ jobs:
 
       - name: Run linter
         run: |
-          bash /app/scripts/lint.sh
+          cd backend/app/scripts
+          bash lint.sh
+          
   test:
     runs-on: ubuntu-latest
     env:
