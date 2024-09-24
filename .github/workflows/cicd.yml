@@ -1,9 +1,8 @@
-name: Test
+name: CI/CD Workflow
 
 on:
   push:
     branches:
-      - server
       - feat_cicd
       - feature/user-authentication
       - feature/meet-post
@@ -16,10 +15,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up .env file
+        run: echo "${{ secrets.ENV_FILE }}" > .env
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Build Docker images
         uses: docker/build-push-action@v5
         with:
@@ -32,16 +36,36 @@ jobs:
             INSTALL_DEV=true
           outputs: type=docker
 
+      - name: Save Docker image
+        run: docker save app:latest > app_image.tar
+
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v2
+        with:
+          name: docker-image
+          path: app_image.tar
+
   lint:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v2
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load < app_image.tar
+
       - name: Start Docker containers
         run: docker compose up -d
+
       - name: Run linter
         run: docker compose exec -T web bash /app/app/scripts/lint.sh
+
       - name: Cleanup Docker containers
         run: docker compose down -v --remove-orphans
 
@@ -49,21 +73,36 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up .env file
+        run: echo "${{ secrets.ENV_FILE }}" > .env
+
+      - name: Download Docker image
+        uses: actions/download-artifact@v2
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: docker load < app_image.tar
+
       - name: Start Docker containers
         run: docker compose up -d
+
       - name: Run tests
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
         run: |
+          source .env
           docker compose exec -T \
             -e SECRET_KEY \
             -e POSTGRES_PASSWORD \
             -e FIRST_SUPERUSER_PASSWORD \
             -e PYTEST_DISABLE_PLUGIN_AUTOLOAD=True \
             web bash /app/app/scripts/tests-start.sh
+
       - name: Cleanup Docker containers
         run: docker compose down -v --remove-orphans
