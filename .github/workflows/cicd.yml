@@ -52,17 +52,8 @@ jobs:
         docker compose exec -T web bash /app/app/scripts/lint.sh
 
     - name: Run tests
-      env:
-        SECRET_KEY: ${{ secrets.SECRET_KEY }}
-        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-        FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
       run: |
-        docker compose exec -T \
-          -e SECRET_KEY \
-          -e POSTGRES_PASSWORD \
-          -e FIRST_SUPERUSER_PASSWORD \
-          -e PYTEST_DISABLE_PLUGIN_AUTOLOAD=True \
-          web bash /app/app/scripts/tests-start.sh
+        docker compose exec -T web bash /app/app/scripts/tests-start.sh
 
     - name: Cleanup Docker containers
       run: docker compose down -v --remove-orphans
