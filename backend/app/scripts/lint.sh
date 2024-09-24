@@ -9,7 +9,7 @@ cd "$(dirname "$0")/../.."
 CHANGES_FILE="./detailed_lint_changes.txt"
 > $CHANGES_FILE
 
-# mypy app
+mypy app
 
 echo -e "\n=== Ruff Check: Initial Issues ===" >> $CHANGES_FILE
 ruff check . --show-fixes >> $CHANGES_FILE 2>&1 || true
