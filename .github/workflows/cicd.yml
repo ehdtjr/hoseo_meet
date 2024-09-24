@@ -1,0 +1,65 @@
+name: CiCd
+
+on:
+  push:
+    branches:
+      - main
+      - server
+      - feat_cicd
+      - feature/*
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Run linter
+        run: |
+          bash /app/app/scripts/lint.sh
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+      COMPOSE_DOCKER_CLI_BUILD: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker images
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          load: true
+          tags: app:latest
+          build-args: |
+            INSTALL_DEV=true
+
+      - name: Start Docker containers
+        run: docker compose up -d
+
+      # - name: Run tests
+      #   env:
+      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      #     POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      #     FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
+      #   run: |
+      #     docker compose exec -T \
+      #       -e SECRET_KEY \
+      #       -e POSTGRES_PASSWORD \
+      #       -e FIRST_SUPERUSER_PASSWORD \
+      #       -e PYTEST_DISABLE_PLUGIN_AUTOLOAD=True \
+      #       web bash /app/app/scripts/tests-start.sh
+      - name: Cleanup Docker containers
+        run: docker compose down -v --remove-orphans
