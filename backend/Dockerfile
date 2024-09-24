@@ -1,4 +1,5 @@
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.10
+# tiangolo/uvicorn-gunicorn-fastapi 사용시 Gunicorn 이 80번 포트를 자동으로 할당?
+FROM --platform=linux/amd64 tiangolo/uvicorn-gunicorn-fastapi:python3.10 
 
 WORKDIR /app/
 
@@ -17,12 +18,11 @@ RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; els
 
 ENV PYTHONPATH=/app
 
-COPY ./scripts/ /app/
-
-COPY ./alembic.ini /app/
-
-COPY ./prestart.sh /app/
-
-COPY ./tests-start.sh /app/
-
 COPY ./app /app/app
+COPY ./app/scripts /app/app/scripts
+
+# Ensure the entrypoint script is executable
+RUN chmod +x /start.sh
+
+# Set the default command to run the application
+CMD ["/start.sh"]
