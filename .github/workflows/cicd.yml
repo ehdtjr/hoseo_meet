@@ -20,11 +20,16 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Install dependencies
+        run: |
+          cd backend
+          poetry install
+
       - name: Run linter
         run: |
           cd backend/app/scripts
           bash lint.sh
-          
+
   test:
     runs-on: ubuntu-latest
     env:
@@ -51,17 +56,17 @@ jobs:
       - name: Start Docker containers
         run: docker compose up -d
 
-      # - name: Run tests
-      #   env:
-      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      #     POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      #     FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
-      #   run: |
-      #     docker compose exec -T \
-      #       -e SECRET_KEY \
-      #       -e POSTGRES_PASSWORD \
-      #       -e FIRST_SUPERUSER_PASSWORD \
-      #       -e PYTEST_DISABLE_PLUGIN_AUTOLOAD=True \
-      #       web bash /app/app/scripts/tests-start.sh
+      - name: Run tests
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          FIRST_SUPERUSER_PASSWORD: ${{ secrets.FIRST_SUPERUSER_PASSWORD }}
+        run: |
+          docker compose exec -T \
+            -e SECRET_KEY \
+            -e POSTGRES_PASSWORD \
+            -e FIRST_SUPERUSER_PASSWORD \
+            -e PYTEST_DISABLE_PLUGIN_AUTOLOAD=True \
+            web bash /app/app/scripts/tests-start.sh
       - name: Cleanup Docker containers
         run: docker compose down -v --remove-orphans
