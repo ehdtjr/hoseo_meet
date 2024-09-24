@@ -1,51 +1,25 @@
-name: CiCd
+name: Test
 
 on:
   push:
     branches:
-      - main
       - server
       - feat_cicd
-      - feature/*
+      - feature/user-authentication
+      - feature/meet-post
+  pull_request:
+    types:
+      - opened
+      - synchronize
 
 jobs:
-  lint:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install Poetry
-        run: |
-          curl -sSL https://install.python-poetry.org | python3 -
-
-      - name: Install dependencies
-        run: |
-          cd backend
-          poetry install
-
-      - name: Run linter
-        run: |
-          cd backend
-          poetry run bash app/scripts/lint.sh
-
-  test:
-    runs-on: ubuntu-latest
-    env:
-      DOCKER_BUILDKIT: 1
-      COMPOSE_DOCKER_CLI_BUILD: 1
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Build Docker images
         uses: docker/build-push-action@v5
         with:
@@ -56,10 +30,29 @@ jobs:
           tags: app:latest
           build-args: |
             INSTALL_DEV=true
+          outputs: type=docker
 
+  lint:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Start Docker containers
         run: docker compose up -d
+      - name: Run linter
+        run: docker compose exec -T web bash /app/app/scripts/lint.sh
+      - name: Cleanup Docker containers
+        run: docker compose down -v --remove-orphans
 
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Start Docker containers
+        run: docker compose up -d
       - name: Run tests
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
