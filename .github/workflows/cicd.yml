@@ -20,6 +20,10 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+
       - name: Install dependencies
         run: |
           cd backend
@@ -27,8 +31,8 @@ jobs:
 
       - name: Run linter
         run: |
-          cd backend/app/scripts
-          bash lint.sh
+          cd backend
+          poetry run bash app/scripts/lint.sh
 
   test:
     runs-on: ubuntu-latest
