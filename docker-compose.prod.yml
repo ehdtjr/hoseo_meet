@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:16
@@ -8,21 +10,16 @@ services:
       - .env
     environment:
       - PGDATA=/var/lib/postgresql/data/pgdata
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
-      - POSTGRES_DB=${POSTGRES_DB?Variable not set}
-
     ports:
       - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   web:
-    build: 
-      context: ./backend
-      args:
-        INSTALL_DEV: "true"
+    image: dskang207/campus_meet-main_server:latest
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-    volumes:
-      - ./backend:/app
     ports:
       - "8000:8000"
     depends_on:
