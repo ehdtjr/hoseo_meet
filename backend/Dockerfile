@@ -1,5 +1,5 @@
-# Use the base image without specifying the platform
-FROM tiangolo/uvicorn-gunicorn-fastapi:python3.10
+# tiangolo/uvicorn-gunicorn-fastapi 사용시 Gunicorn 이 80번 포트를 자동으로 할당?
+FROM --platform=linux/amd64 tiangolo/uvicorn-gunicorn-fastapi:python3.10 
 
 WORKDIR /app/
 
@@ -14,7 +14,7 @@ COPY ./pyproject.toml ./poetry.lock* /app/
 
 # Allow installing dev dependencies to run tests
 ARG INSTALL_DEV=false
-RUN if [ "$INSTALL_DEV" = "true" ] ; then poetry install --no-root ; else poetry install --no-root --only main ; fi
+RUN bash -c "if [ $INSTALL_DEV == 'true' ] ; then poetry install --no-root ; else poetry install --no-root --only main ; fi"
 
 ENV PYTHONPATH=/app
 
