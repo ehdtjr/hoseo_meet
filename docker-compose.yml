@@ -21,6 +21,7 @@ services:
           memory: 1G  # 데이터베이스에 1GB 메모리 제한 설정
 
   web:
+    image: dskang207/campus_meet-main_server:latest
     build: 
       context: ./backend
       args:
