@@ -1,6 +1,6 @@
 {
-    "name": "app",
-    "short_name": "app",
+    "name": "hoseomeet",
+    "short_name": "hoseomeet",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
