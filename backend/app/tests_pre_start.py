@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from sqlalchemy import text
 from tenacity import after_log, before_log, retry, stop_after_attempt, wait_fixed
 
-from app.core.db import engine, async_session
+from app.core.db import engine, async_session_maker
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ wait_seconds = 1
 )
 async def init(db_engine: AsyncEngine) -> None:
     try:
-        async with async_session() as session:
+        async with async_session_maker() as session:
             async with session.begin():
                 await session.execute(text("SELECT 1"))
     except Exception as e:

@@ -35,8 +35,6 @@ dependencies:
   google_maps_flutter: ^2.2.0  # 최신 버전 확인 후 추가
   intl: ^0.17.0
   sliding_up_panel: ^2.0.0 #슬라이드 패널
-  http: ^0.13.4
-  web_socket_channel: ^2.1.0  # 최신 버전 추가
 
 flutter_native_splash:
   color: "#E72410"
@@ -71,7 +69,6 @@ flutter:
     - assets/img/
     - assets/img/icon/
     - assets/img/icon/mainpage/
-    - assets/img/info/
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
