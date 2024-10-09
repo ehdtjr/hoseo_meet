@@ -1,41 +1,49 @@
-import enum
-import uuid
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID
-from sqlalchemy import Column, String, DateTime, Enum, Float, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
+from typing import List
 
-from sqlalchemy.orm import relationship
+from fastapi_users.db import SQLAlchemyBaseUserTable
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, \
+    func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 
 
-# GenderEnum 정의
-class GenderEnum(enum.Enum):
-    male = "male"
-    female = "female"
-
-
 # User 모델 정의
-class User(SQLAlchemyBaseUserTableUUID, Base):
-    __tablename__ = "user"
+class User(SQLAlchemyBaseUserTable, Base):
+    __tablename__ = "user"  # 테이블 이름 지정
 
-    name = Column(String, nullable=False)
-    gender: Column[GenderEnum] = Column(Enum(GenderEnum), nullable=False)
-    profile = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True,
+                                    autoincrement=True)
+    name: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    gender: Mapped[str] = mapped_column(String(length=20), nullable=False)
+    profile: Mapped[str] = mapped_column(String(length=1024), nullable=True)
+    is_online: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True),
+                                                 server_default=func.now())
 
     # 관계 설정
-    meet_post = relationship("MeetPost", back_populates="author")
+    locations: Mapped[List["UserLocation"]] = relationship("UserLocation",
+                                                           back_populates="user")
+    subscriptions: Mapped[List["Subscription"]] = relationship("Subscription",
+                                                               back_populates="user")
+    messages: Mapped[List["Message"]] = relationship("Message",
+                                                     back_populates="sender")
+    user_messages: Mapped[List["UserMessage"]] = relationship("UserMessage",
+                                                              back_populates="user")
+    streams: Mapped[List["Stream"]] = relationship("Stream",
+                                                   back_populates="creator")
 
 
 # UserLocation 모델 정의
 class UserLocation(Base):
     __tablename__ = "user_location"  # 테이블 이름 지정
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("user.id"), nullable=False, index=True
-    )
-    lat = Column(Float, nullable=False)
-    lng = Column(Float, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True,
+                                    autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lng: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # 관계 설정
+    user: Mapped["User"] = relationship("User", back_populates="locations")

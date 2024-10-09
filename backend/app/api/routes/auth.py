@@ -5,7 +5,6 @@ from app.service.email import EmailVerificationService, get_email_verification_s
 from app.schemas.user import UserRead, UserCreate, UserUpdate
 from app.core.security import fastapi_users
 from app.service.user import UserManager, get_user_manager
-from app.models.user import User  # User 모델 import 추가
 
 router = APIRouter()
 
@@ -25,12 +24,13 @@ async def verify_email(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token."
         )
 
-    # User 타입으로 명시적 캐스팅
-    await user_manager.activate_user(User.model_validate(user))  # type: ignore
+    # Pydantic 모델로 명시적 캐스팅
     user_data = UserRead.model_validate(user)
+    await user_manager.activate_user(user_data.id)
     return {"message": "Email verified successfully", "user": user_data}
 
 
+# 인증 및 사용자 관련 라우터 추가
 router.include_router(
     fastapi_users.get_auth_router(auth_backend), prefix="/jwt", tags=["auth"]
 )
