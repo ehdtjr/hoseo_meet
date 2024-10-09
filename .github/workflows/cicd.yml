@@ -48,11 +48,11 @@ jobs:
 
     - name: Run linter
       run: |
-        docker compose exec -T web bash /app/app/scripts/lint.sh
+        docker compose --env-file ./backend/.env exec -T web bash /app/app/scripts/lint.sh
 
     - name: Run tests
       run: |
-        docker compose exec -T web bash /app/app/scripts/tests-start.sh
+        docker compose --env-file ./backend/.env exec -T web bash /app/app/scripts/tests-start.sh
 
     - name: Cleanup Docker containers
       run: docker compose down -v --remove-orphans
