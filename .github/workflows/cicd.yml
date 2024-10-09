@@ -26,9 +26,6 @@ jobs:
     - name: Set up .env file
       run: echo "${{ secrets.ENV_FILE }}" > ./backend/.env
 
-    - name: Check .env file contents
-      run: cat ./backend/.env
-
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
@@ -47,7 +44,7 @@ jobs:
         outputs: type=docker
 
     - name: Start Docker containers
-      run: docker compose up -d
+      run: docker compose --env-file ./backend/.env up -d
 
     - name: Run linter
       run: |
