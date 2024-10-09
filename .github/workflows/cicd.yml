@@ -5,9 +5,8 @@ on:
     branches:
       - main
       - server
-      - feat_cicd
-      - feature/user-authentication
-      - feature/meet-post
+      - feature/new-feature
+      - frontend
   pull_request:
     types:
       - opened
