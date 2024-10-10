@@ -1,24 +1,26 @@
-from typing import List, Optional
+from typing import List
+from typing import Optional
 
-from sqlalchemy import and_, insert, select
 from sqlalchemy import func
+from sqlalchemy import insert
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.future import select
+from sqlalchemy.orm import joinedload
+from sqlalchemy.sql import and_
 
 from app.crud.base import CRUDBase
 from app.models import Recipient
 from app.models.message import Message, UserMessage
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase, \
     UserMessageCreate
+from app.schemas.recipient import RecipientType
 
 
 class MessageQueryBuilder:
     def __init__(self, db: AsyncSession):
         self.db = db
-        self.query = select(UserMessage).join(Message,
-                                              UserMessage.message_id ==
-                                              Message.id)
+        self.query = select(Message)
         self.filter_conditions = []
         self.anchor_id = None
 
@@ -30,18 +32,19 @@ class MessageQueryBuilder:
     async def filter_by_stream_id(self, stream_id: int):
         """특정 스트림에 속하는 메시지 필터링"""
         recipient_subquery = select(Recipient.id).where(
-            Recipient.type == 2,  # 스트림 타입을 기준으로 필터링
+            Recipient.type == RecipientType.STREAM.value,  # 스트림 타입을 기준으로 필터링
             Recipient.type_id == stream_id
-        )
+        ).subquery()
         self.filter_conditions.append(
-            Message.recipient_id.in_(recipient_subquery))
+            Message.recipient_id.in_(recipient_subquery)
+        )
         return self
 
     async def filter_by_last_received(self, user_id: int, last_message_id: int):
-        # 유저 기준으로, 특정 메시지 ID보다 큰 메시지 필터링
+        """유저 기준으로, 특정 메시지 ID보다 큰 메시지 필터링"""
         self.filter_conditions.append(
             (UserMessage.user_id == user_id) & (
-                    UserMessage.message_id > last_message_id)
+                        UserMessage.message_id > last_message_id)
         )
         return self
 
@@ -51,49 +54,37 @@ class MessageQueryBuilder:
             raise ValueError("Anchor id is not set")
 
         # 필터 조건 적용
+        query = self.query
         if self.filter_conditions:
-            self.query = self.query.where(and_(*self.filter_conditions))
-
-        # 앵커 이전 메시지 가져오기 (selectinload로 message 미리 로드)
-        before_query = (
-            self.query.where(UserMessage.message_id < self.anchor_id)
-            .options(selectinload(UserMessage.message))  # 메시지 즉시 로드
-            .order_by(UserMessage.message_id.desc())
-            .limit(num_before)
-        )
-        user_messages_before = list(
-            (await self.db.execute(before_query)).scalars()
-        )
-        user_messages_before.reverse()
+            query = query.where(and_(*self.filter_conditions))
 
         # 앵커 메시지 가져오기 (미리 message 객체 로드)
-        anchor_query = (
-            self.query.where(UserMessage.message_id == self.anchor_id)
-            .options(selectinload(UserMessage.message))  # 메시지 즉시 로드
+        anchor_query = query.where(Message.id == self.anchor_id).options(
+            joinedload(Message.user_messages)  # 올바른 엔티티 로딩 옵션
         )
         anchor_message = await self.db.scalar(anchor_query)
+        if not anchor_message:
+            return []
 
-        # 앵커 이후 메시지 가져오기 (미리 message 객체 로드)
+        # 앵커 이전 메시지 가져오기
+        before_query = (
+            query.where(Message.id < self.anchor_id)
+            .order_by(Message.id.desc())
+            .limit(num_before)
+        )
+        messages_before = list((await self.db.execute(before_query)).scalars())
+        messages_before.reverse()
+
+        # 앵커 이후 메시지 가져오기
         after_query = (
-            self.query.where(UserMessage.message_id > self.anchor_id)
-            .options(selectinload(UserMessage.message))  # 메시지 즉시 로드
-            .order_by(UserMessage.message_id.asc())
+            query.where(Message.id > self.anchor_id)
+            .order_by(Message.id.asc())
             .limit(num_after)
         )
-        user_messages_after = list(
-            (await self.db.execute(after_query)).scalars()
-        )
-
-        # 모든 UserMessage에서 Message 객체 추출
-        messages_before = [user_message.message for user_message in
-                           user_messages_before]
-        messages_after = [user_message.message for user_message in
-                          user_messages_after]
-        anchor_message_obj = anchor_message.message if anchor_message else None
+        messages_after = list((await self.db.execute(after_query)).scalars())
 
         # 이전 메시지 + 앵커 메시지 + 이후 메시지로 리스트 구성
-        all_messages = messages_before + (
-            [anchor_message_obj] if anchor_message_obj else []) + messages_after
+        all_messages = messages_before + [anchor_message] + messages_after
         return all_messages
 
 
@@ -330,3 +321,4 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
 
 def get_user_message_crud() -> UserMessageCRUDProtocol:
     return UserMessageCRUD()
+
