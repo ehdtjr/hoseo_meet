@@ -1,31 +1,18 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  db:
-    image: postgres:16
-    restart: always
-    volumes:
-      - app-db-data:/var/lib/postgresql/data/pgdata
-    env_file:
-      - .env
-    environment:
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    ports:
-      - "5432:5432"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
   web:
-    image: dskang207/campus_meet-main_server:latest
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    build:
+      context: ./backend
+      args:
+        INSTALL_DEV: "true"
+    command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000" ]
+    volumes:
+      - ./backend:/app
     ports:
       - "8000:8000"
-    depends_on:
-      - db
     env_file:
-      - .env
+      - backend/.env
     environment:
       - DOMAIN=${DOMAIN}
       - ENVIRONMENT=${ENVIRONMENT}
@@ -36,11 +23,10 @@ services:
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - POSTGRES_SERVER=db
+      - POSTGRES_SERVER=${POSTGRES_SERVER}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER?Variable not set}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-
-volumes:
-  app-db-data:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
