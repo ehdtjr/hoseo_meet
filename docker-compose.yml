@@ -4,6 +4,8 @@ services:
     restart: always
     volumes:
       - app-db-data:/var/lib/postgresql/data/pgdata
+      - /etc/localtime:/etc/localtime:ro  # 호스트 시스템의 시간을 공유
+
     env_file:
       - backend/.env
     environment:
