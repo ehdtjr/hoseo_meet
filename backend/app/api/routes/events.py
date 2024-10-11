@@ -35,13 +35,13 @@ async def connect_event(
 ):
     ws_connected = True
     user = await websocket_authenticator.authenticate(websocket)
+    await websocket_manager.connect(websocket)
 
     # 사용자 상태를 '온라인'으로 업데이트
     update_data = UserUpdate(id=user.id, is_online=True)
     await user_crud.update(db, user_in=update_data)
 
     # WebSocket 연결 설정
-    await websocket_manager.connect(websocket)
     queue_key = f"queue:{user.id}"
     last_event_id = websocket.query_params.get('last_event_id', '$')
 
