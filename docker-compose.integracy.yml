@@ -2,9 +2,10 @@ services:
   db:
     image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:postgres-16
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mysecretpassword
-      POSTGRES_DB: mydatabase
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_DB=${POSTGRES_DB?Variable not set}
     ports:
       - "5432:5432"
     restart: always
