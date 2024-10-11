@@ -1,9 +1,8 @@
 import asyncio
-import asyncio
 import json
 import logging
 
-from aioredis import Redis
+from aioredis.exceptions import ConnectionError as ServerConnectionError
 from fastapi import APIRouter, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.websockets import WebSocket, WebSocketDisconnect
@@ -26,43 +25,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-@router.websocket("/connect")
-async def connect_event(
-        websocket: WebSocket,
-        redis: Redis = Depends(get_redis),
-        db: AsyncSession = Depends(get_async_session),
-        user_crud: UserCRUDProtocol = Depends(get_user_crud),
-        websocket_authenticator: WebSocketAuthenticator = Depends(
-            get_socket_authenticator)
-):
-    ws_connected = True
-    user = await websocket_authenticator.authenticate(websocket)
-    await websocket_manager.connect(websocket)
-
-    # 사용자 상태를 '온라인'으로 업데이트
-    update_data = UserUpdate(id=user.id, is_online=True)
-    await user_crud.update(db, user_in=update_data)
-
-    # WebSocket 연결 설정
-    queue_key = f"queue:{user.id}"
+async def ws_send(websocket: WebSocket, queue_key: str,
+                  disconnect_event: asyncio.Event):
+    pool = await get_redis()
     last_event_id = websocket.query_params.get('last_event_id', '$')
 
-    async def receive_messages():
-        nonlocal ws_connected
-        try:
-            while ws_connected:
-                message = await websocket.receive_text()
-                logger.info(f"받은 메시지: {message}")
-        except (ConnectionClosedError, ConnectionClosedOK, WebSocketDisconnect):
-            logger.info("WebSocket 연결이 종료되었습니다.")
-            ws_connected = False
-
-    async def read_redis_events():
-        nonlocal ws_connected, last_event_id
-        try:
-            while ws_connected and redis:
-                events = await redis.xread(streams={queue_key: last_event_id},
-                                           block=0, count=100)
+    try:
+        while pool and not disconnect_event.is_set():
+            try:
+                events = await pool.xread(streams={queue_key: last_event_id},
+                                          block=0, count=100)
                 if events:
                     for stream_name, event_list in events:
                         for event_id, event_data in event_list:
@@ -83,23 +55,63 @@ async def connect_event(
                             await websocket_manager.send_message(
                                 event_data_json, websocket)
                             last_event_id = event_id
+            except (
+                    ConnectionClosedError, ConnectionClosedOK,
+                    WebSocketDisconnect, ServerConnectionError):
+                disconnect_event.set()
+
+            except Exception as e:
+                logger.error(f"send 예상치 못한 오류 발생: {e}")
+                disconnect_event.set()
+    finally:
+        logger.error(f"redis 연결이 종료되었습니다.")
+        disconnect_event.set()
+        await redis_client.close_connection()
+
+
+async def ws_receive(websocket: WebSocket, disconnect_event: asyncio.Event):
+    while not disconnect_event.is_set():
+        try:
+            message = await websocket.receive_text()
+            # 메시지를 처리하는 로직을 여기에 추가할 수 있습니다.
+        except (ConnectionClosedError, ConnectionClosedOK, WebSocketDisconnect):
+            logger.info("클라이언트 연결이 종료되었습니다.")
+            disconnect_event.set()
+            await redis_client.close_connection()
         except Exception as e:
-            logger.error(f"Redis 이벤트 처리 중 오류 발생: {e}")
-            ws_connected = False
+            logger.error(f"receive 예상치 못한 오류 발생: {e}")
+            disconnect_event.set()
+            await redis_client.close_connection()
+
+
+@router.websocket("/connect")
+async def connect_event(
+        websocket: WebSocket,
+        db: AsyncSession = Depends(get_async_session),
+        user_crud: UserCRUDProtocol = Depends(get_user_crud),
+        websocket_authenticator: WebSocketAuthenticator = Depends(
+            get_socket_authenticator)
+):
+    user = await websocket_authenticator.authenticate(websocket)
+    await websocket_manager.connect(websocket)
+
+    # 사용자 상태를 '온라인'으로 업데이트
+    update_data = UserUpdate(id=user.id, is_online=True)
+    await user_crud.update(db, user_in=update_data)
+
+    # disconnect_event 생성
+    disconnect_event = asyncio.Event()
 
     try:
-        # WebSocket 수신 및 Redis 읽기를 병렬로 실행
-        receive_task = asyncio.create_task(receive_messages())
-        redis_task = asyncio.create_task(read_redis_events())
-
-        # 두 작업이 완료될 때까지 대기
-        await asyncio.gather(receive_task, redis_task)
-
+        # WebSocket 연결 설정
+        queue_key = f"queue:{user.id}"
+        await asyncio.gather(
+            ws_receive(websocket, disconnect_event),
+            ws_send(websocket, queue_key, disconnect_event)
+        )
     finally:
-        # 종료 시 리소스 정리
-        logger.info("WebSocket 연결 종료 및 정리 중.")
+        # WebSocket 연결이 종료되면 사용자 상태를 '오프라인'으로 업데이트
+        update_data = UserUpdate(id=user.id, is_online=False)
+        await user_crud.update(db, user_in=update_data)
+        logger.info(f"사용자 {user.id}의 상태를 오프라인으로 업데이트했습니다.")
         websocket_manager.disconnect(websocket)
-        await redis_client.close_connection()
-        if user:
-            update_data = UserUpdate(id=user.id, is_online=False)
-            await user_crud.update(db, user_in=update_data)
