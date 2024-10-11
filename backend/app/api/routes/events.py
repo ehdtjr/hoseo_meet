@@ -1,3 +1,5 @@
+import asyncio
+import asyncio
 import json
 import logging
 
@@ -45,20 +47,20 @@ async def connect_event(
     queue_key = f"queue:{user.id}"
     last_event_id = websocket.query_params.get('last_event_id', '$')
 
-    try:
-        while ws_connected and redis:
-            try:
-                # WebSocket 상태 로깅
-                logger.info(f"WebSocket 상태: {websocket.client_state}")
-                logger.info(f"WebSocket 연결 중: {ws_connected}")
+    async def receive_messages():
+        nonlocal ws_connected
+        try:
+            while ws_connected:
+                message = await websocket.receive_text()
+                logger.info(f"받은 메시지: {message}")
+        except (ConnectionClosedError, ConnectionClosedOK, WebSocketDisconnect):
+            logger.info("WebSocket 연결이 종료되었습니다.")
+            ws_connected = False
 
-                # 클라이언트로부터 메시지를 수신하여 연결 상태를 확인
-                try:
-                    await websocket.receive_text()
-                except WebSocketDisconnect:
-                    logger.info("WebSocket 연결이 끊어졌습니다.")
-                    break
-
+    async def read_redis_events():
+        nonlocal ws_connected, last_event_id
+        try:
+            while ws_connected and redis:
                 events = await redis.xread(streams={queue_key: last_event_id},
                                            block=0, count=100)
                 if events:
@@ -81,16 +83,17 @@ async def connect_event(
                             await websocket_manager.send_message(
                                 event_data_json, websocket)
                             last_event_id = event_id
+        except Exception as e:
+            logger.error(f"Redis 이벤트 처리 중 오류 발생: {e}")
+            ws_connected = False
 
-            except (
-                    ConnectionClosedError, ConnectionClosedOK,
-                    WebSocketDisconnect):
-                logger.info("WebSocket 연결이 종료되었습니다.")
-                ws_connected = False
+    try:
+        # WebSocket 수신 및 Redis 읽기를 병렬로 실행
+        receive_task = asyncio.create_task(receive_messages())
+        redis_task = asyncio.create_task(read_redis_events())
 
-            except Exception as e:
-                logger.error(f"예상치 못한 오류 발생: {e}")
-                ws_connected = False
+        # 두 작업이 완료될 때까지 대기
+        await asyncio.gather(receive_task, redis_task)
 
     finally:
         # 종료 시 리소스 정리
