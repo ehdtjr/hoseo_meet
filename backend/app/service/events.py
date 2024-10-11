@@ -1,6 +1,10 @@
 import json
+import logging
 
 from aioredis import Redis
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # 이벤트 전송 함수
