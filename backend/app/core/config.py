@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
     BASE_DIR: ClassVar[Path] = Path(__file__).resolve().parent.parent
 
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def server_host(self) -> str:
