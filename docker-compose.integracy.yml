@@ -1,36 +1,30 @@
 services:
   db:
-    image: public.ecr.aws/u8i2f6l2/integration/db:postgres-16
+    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:postgres-16
     environment:
       POSTGRES_USER: myuser
       POSTGRES_PASSWORD: mysecretpassword
       POSTGRES_DB: mydatabase
     ports:
       - "5432:5432"
-    volumes:
-      - app-db-data:/var/lib/postgresql/data
     restart: always
     env_file:
-      - .env  # 여기에 .env 파일 설정
+      - .env
 
   redis:
-    image: public.ecr.aws/u8i2f6l2/integration/db:redis-latest
+    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:redis-latest
     ports:
       - "6379:6379"
     restart: always
-    env_file:
-      - .env  # 여기에 .env 파일 설정
 
   celery-worker:
-    image: public.ecr.aws/u8i2f6l2/integration/db:worker-latest
-    build:
-      context: ./backend
+    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:worker-latest
+    command: [ "celery", "-A", "app.celery.worker", "worker", "--loglevel=info" ]
     depends_on:
-      - db
       - redis
-    restart: always
+      - db
     env_file:
-      - .env  # 여기에 .env 파일 설정
+      - .env
     environment:
       - POSTGRES_SERVER=db
       - POSTGRES_PORT=${POSTGRES_PORT}
@@ -41,13 +35,13 @@ services:
       - REDIS_PORT=6379
 
   celery-beat:
-    image: public.ecr.aws/u8i2f6l2/integration/db:beat-latest
+    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:beat-latest
+    command: [ "celery", "-A", "app.celery.worker", "beat", "--loglevel=info" ]
     depends_on:
-      - db
       - redis
-    restart: always
+      - db
     env_file:
-      - .env  # 여기에 .env 파일 설정
+      - .env
     environment:
       - POSTGRES_SERVER=db
       - POSTGRES_PORT=${POSTGRES_PORT}

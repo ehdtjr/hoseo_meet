@@ -3,6 +3,7 @@ version: "3.8"
 services:
   db:
     image: postgres:16
+    platform: linux/amd64
     restart: always
     volumes:
       - app-db-data:/var/lib/postgresql/data/pgdata
@@ -18,14 +19,16 @@ services:
 
   redis:
     image: redis:latest
+    platform: linux/amd64
     restart: always
     ports:
       - "6379:6379"
 
   celery-worker:
-    image: public.ecr.aws/u8i2f6l2/integration/db:worker-latest
+    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:worker-latest
     build:
       context: ./backend
+    platform: linux/amd64
     command: [ "celery", "-A", "app.celery.worker", "worker", "--loglevel=info" ]
     volumes:
       - ./backend:/app
@@ -44,9 +47,10 @@ services:
       - REDIS_PORT=6379
 
   celery-beat:
-    image: public.ecr.aws/u8i2f6l2/integration/db:beat-latest
+    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:beat-latest
     build:
       context: ./backend
+    platform: linux/amd64
     command: [ "celery", "-A", "app.celery.worker", "beat", "--loglevel=info" ]
     volumes:
       - ./backend:/app
