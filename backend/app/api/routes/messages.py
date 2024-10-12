@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_redis
 from app.core.db import get_async_session
+from app.core.exceptions import PermissionDeniedException
 from app.core.security import current_active_user
 from app.models import User
 from app.schemas.message import MessageBase, UpdateUserMessageFlagsRequest
@@ -57,6 +58,11 @@ async def send_message_to_stream(
                                                   user.id, stream_id,
                                                   message_content)
         return {"message": "Message sent successfully"}
+
+    except PermissionDeniedException:
+        raise HTTPException(status_code=403,
+                            detail="You are not allowed to send messages to "
+                                   "this stream")
     except Exception as e:
         raise HTTPException(status_code=400,
                             detail=f"Message sending failed: {str(e)}")
