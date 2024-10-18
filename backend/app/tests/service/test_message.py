@@ -16,11 +16,13 @@ class TestMessageService(BaseTest):
         self.user_message_crud = AsyncMock()
         self.recipient_crud = AsyncMock()
         self.subscription_crud = AsyncMock()
+        self.user_crud = AsyncMock()
 
         from app.service.message import MessageService
         self.service = MessageService(
             message_crud=self.message_crud,
             user_message_crud=self.user_message_crud,
+            user_crud= self.user_crud,
             recipient_crud=self.recipient_crud,
             subscription_crud=self.subscription_crud,
         )
