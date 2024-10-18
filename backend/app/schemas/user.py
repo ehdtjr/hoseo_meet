@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi_users import schemas
+from pydantic import BaseModel, ConfigDict
 
 
 class UserRead(schemas.BaseUser):
@@ -24,3 +25,21 @@ class UserUpdate(schemas.BaseUserUpdate):
     name: Optional[str] = None
     profile: Optional[str] = None
     is_online: Optional[bool] = None
+
+
+class UserFCMTokenRequest(BaseModel):
+    fcm_token: str
+
+
+class UserFCMTokenBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    fcm_token: str
+
+class UserFCMTokenCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: int
+    fcm_token: str

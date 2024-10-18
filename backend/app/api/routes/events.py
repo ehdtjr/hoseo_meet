@@ -72,8 +72,7 @@ async def ws_send(websocket: WebSocket, queue_key: str,
 async def ws_receive(websocket: WebSocket, disconnect_event: asyncio.Event):
     while not disconnect_event.is_set():
         try:
-            message = await websocket.receive_text()
-            # 메시지를 처리하는 로직을 여기에 추가할 수 있습니다.
+            await websocket.receive_text()
         except (ConnectionClosedError, ConnectionClosedOK, WebSocketDisconnect):
             logger.info("클라이언트 연결이 종료되었습니다.")
             disconnect_event.set()

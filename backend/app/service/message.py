@@ -5,13 +5,15 @@ from aioredis import Redis
 from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.exceptions import PermissionDeniedException
 from app.crud.message import MessageCRUDProtocol, UserMessageCRUDProtocol, \
     get_message_crud, get_user_message_crud
 from app.crud.recipient import RecipientCRUDProtocol, get_recipient_crud
 from app.crud.stream import SubscriptionCRUDProtocol, get_subscription_crud
+from app.crud.user_crud import UserCRUDProtocol, get_user_crud
 from app.models.message import MessageType
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase
-from app.service.events import send_event
+from app.service.events import create_send_event_manager
 
 
 class MessageServiceProtocol(Protocol):
@@ -35,24 +37,44 @@ class MessageServiceProtocol(Protocol):
         pass
 
 
+async def _create_message_data(sender_id: int, recipient_id: int,
+                               message_content: str) -> MessageCreate:
+    """MessageCreate 데이터를 생성하는 헬퍼 메서드"""
+    message_create_data = {
+        "sender_id": sender_id,
+        "type": MessageType.NORMAL,
+        "recipient_id": recipient_id,
+        "content": message_content
+    }
+    return MessageCreate.model_validate(message_create_data)
+
+
 class MessageService(MessageServiceProtocol):
     def __init__(self, message_crud: MessageCRUDProtocol,
                  user_message_crud: UserMessageCRUDProtocol,
+                 user_crud: UserCRUDProtocol,
                  recipient_crud: RecipientCRUDProtocol,
                  subscription_crud: SubscriptionCRUDProtocol):
         self.message_crud = message_crud
         self.user_message_crud = user_message_crud
+        self.user_crud = user_crud
         self.recipient_crud = recipient_crud
         self.subscription_crud = subscription_crud
 
     async def send_message_stream(self, db: AsyncSession, redis: Redis,
                                   sender_id: int, stream_id: int,
                                   message_content: str) -> None:
+
+        if await self._check_stream_permission(db, sender_id,
+                                               stream_id) is False:
+            raise PermissionDeniedException(
+                "You are not permitted to send messages to this stream")
+
         recipient = await self.recipient_crud.get_by_type_id(db, stream_id)
 
-        message_create = await self._create_message_data(sender_id,
-                                                         recipient.id,
-                                                         message_content)
+        message_create = await _create_message_data(sender_id,
+                                                    recipient.id,
+                                                    message_content)
         message = await self.message_crud.create(db, message_create)
 
         subscribers = await self.subscription_crud.get_subscribers(db,
@@ -65,20 +87,10 @@ class MessageService(MessageServiceProtocol):
         event_data = await self._create_event_data(message, stream_id)
 
         await asyncio.gather(
-            *[send_event(redis, subscriber, event_data) for subscriber in
-              subscribers]
+            *[self._send_event_to_subscribers(db, redis, subscriber, event_data)
+              for
+              subscriber in subscribers]
         )
-
-    async def _create_message_data(self, sender_id: int, recipient_id: int,
-                                   message_content: str) -> MessageCreate:
-        """MessageCreate 데이터를 생성하는 헬퍼 메서드"""
-        message_create_data = {
-            "sender_id": sender_id,
-            "type": MessageType.NORMAL,
-            "recipient_id": recipient_id,
-            "content": message_content
-        }
-        return MessageCreate.model_validate(message_create_data)
 
     async def _create_event_data(self, message: MessageBase,
                                  stream_id: int) -> dict:
@@ -95,6 +107,13 @@ class MessageService(MessageServiceProtocol):
                 "is_read": False
             }
         }
+
+    async def _send_event_to_subscribers(self, db: AsyncSession, redis: Redis,
+                                         subscriber_id:
+                                         int, event_data: dict) -> None:
+        user = await self.user_crud.get(db, subscriber_id)
+        event_manager = await create_send_event_manager(db, redis, user)
+        await event_manager.send_event(event_data)
 
     async def get_stream_messages(self, db: AsyncSession,
                                   user_id: int,
@@ -185,5 +204,6 @@ class MessageService(MessageServiceProtocol):
 def get_message_service() -> MessageServiceProtocol:
     return MessageService(get_message_crud(),
                           get_user_message_crud(),
+                          get_user_crud(),
                           get_recipient_crud(),
                           get_subscription_crud())

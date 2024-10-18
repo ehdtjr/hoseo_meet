@@ -25,6 +25,8 @@ class User(SQLAlchemyBaseUserTable, Base):
     # 관계 설정
     locations: Mapped[List["UserLocation"]] = relationship("UserLocation",
                                                            back_populates="user")
+    fcm_token: Mapped["UserFCMToken"] = relationship("UserFCMToken",
+                                                     back_populates="user")
     subscriptions: Mapped[List["Subscription"]] = relationship("Subscription",
                                                                back_populates="user")
     messages: Mapped[List["Message"]] = relationship("Message",
@@ -47,3 +49,14 @@ class UserLocation(Base):
 
     # 관계 설정
     user: Mapped["User"] = relationship("User", back_populates="locations")
+
+
+class UserFCMToken(Base):
+    __tablename__ = "user_fcm_token"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True,
+                                    autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    fcm_token: Mapped[str] = mapped_column(String(length=255), nullable=False)
+
+    user: Mapped["User"] = relationship("User", back_populates="fcm_token")
