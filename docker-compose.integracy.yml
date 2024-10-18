@@ -6,6 +6,9 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
       - POSTGRES_USER=${POSTGRES_USER?Variable not set}
       - POSTGRES_DB=${POSTGRES_DB?Variable not set}
+    volumes:
+      - app-db-data:/var/lib/postgresql/data/pgdata
+      - /etc/localtime:/etc/localtime:ro  # 호스트 시스템의 시간을 공유
     ports:
       - "5432:5432"
     restart: always
@@ -17,40 +20,6 @@ services:
     ports:
       - "6379:6379"
     restart: always
-
-  celery-worker:
-    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:worker-latest
-    command: [ "celery", "-A", "app.celery.worker", "worker", "--loglevel=info" ]
-    depends_on:
-      - redis
-      - db
-    env_file:
-      - .env
-    environment:
-      - POSTGRES_SERVER=db
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-
-  celery-beat:
-    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:beat-latest
-    command: [ "celery", "-A", "app.celery.worker", "beat", "--loglevel=info" ]
-    depends_on:
-      - redis
-      - db
-    env_file:
-      - .env
-    environment:
-      - POSTGRES_SERVER=db
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
 
 volumes:
   app-db-data:

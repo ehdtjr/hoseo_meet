@@ -30,3 +30,35 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+
+  celery-worker:
+    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:worker-latest
+    command: [ "celery", "-A", "app.celery.worker", "worker", "--loglevel=info" ]
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  celery-beat:
+    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:beat-latest
+    command: [ "celery", "-A", "app.celery.worker", "beat", "--loglevel=info" ]
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
