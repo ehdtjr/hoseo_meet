@@ -1,8 +1,9 @@
 import secrets
 import warnings
 from pathlib import Path
-from typing import Annotated, Any, Literal, ClassVar
+from typing import Annotated, Any, ClassVar, Literal
 
+from dotenv import load_dotenv
 from pydantic import (
     AnyUrl,
     BeforeValidator,
@@ -14,8 +15,6 @@ from pydantic import (
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
-
-from dotenv import load_dotenv
 
 # .env 파일 로드
 load_dotenv()
@@ -77,6 +76,8 @@ class Settings(BaseSettings):
     #  redis settings
     REDIS_HOST: str
     REDIS_PORT: int = 6379
+
+
     @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"

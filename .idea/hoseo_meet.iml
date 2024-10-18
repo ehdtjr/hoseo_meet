@@ -7,7 +7,7 @@
       <excludeFolder url="file://$MODULE_DIR$/backend/app/alembic" />
       <excludeFolder url="file://$MODULE_DIR$/frontend/app/assets" />
     </content>
-    <orderEntry type="jdk" jdkName="Poetry (hoseo_meet)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Poetry (hoseo_meet) (2)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">
@@ -16,8 +16,5 @@
   <component name="PyDocumentationSettings">
     <option name="format" value="PLAIN" />
     <option name="myDocStringFormat" value="Plain" />
-  </component>
-  <component name="TestRunnerService">
-    <option name="PROJECT_TEST_RUNNER" value="py.test" />
   </component>
 </module>
