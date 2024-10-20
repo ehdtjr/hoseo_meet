@@ -321,4 +321,3 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
 
 def get_user_message_crud() -> UserMessageCRUDProtocol:
     return UserMessageCRUD()
-

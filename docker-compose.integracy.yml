@@ -1,0 +1,25 @@
+services:
+  db:
+    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:postgres-16
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_DB=${POSTGRES_DB?Variable not set}
+    volumes:
+      - app-db-data:/var/lib/postgresql/data/pgdata
+      - /etc/localtime:/etc/localtime:ro  # 호스트 시스템의 시간을 공유
+    ports:
+      - "5432:5432"
+    restart: always
+    env_file:
+      - .env
+
+  redis:
+    image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:redis-latest
+    ports:
+      - "6379:6379"
+    restart: always
+
+volumes:
+  app-db-data:

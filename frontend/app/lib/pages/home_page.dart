@@ -181,7 +181,6 @@ class _HomePageState extends State<HomePage> {
               ],
             ), // 패널 뒤에 있는 지도나 다른 내용
           ),
-
         ],
       ),
     );

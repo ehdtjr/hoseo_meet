@@ -13,7 +13,6 @@ from app.models import *  # noqa
 # access to the values within the .ini file in use.
 config = context.config
 
-
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 def get_url():
@@ -28,7 +27,6 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
-
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

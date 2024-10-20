@@ -1,0 +1,11 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hoseo-meet-web
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: hoseo-meet-web
+        image: contest87-container-registry.kr.ncr.ntruss.com/hoseo-meet-web:latest
