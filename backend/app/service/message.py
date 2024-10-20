@@ -126,7 +126,6 @@ class MessageService(MessageServiceProtocol):
 
         anchor_id: int = await self._convert_anchor_to_id(db, anchor, user_id,
                                                           stream_id)
-
         messages: List[
             MessageBase] = await self.message_crud.get_stream_messages(
             db, stream_id, anchor_id, num_before, num_after)

@@ -1,0 +1,58 @@
+name: CI/CD Workflow
+
+on:
+  push:
+    branches:
+      - main
+      - server
+      - feature/new-feature
+      - frontend
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up .env file
+      run: echo "${{ secrets.ENV_FILE }}" > ./backend/.env
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker images
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile
+        push: false
+        load: true
+        tags: app:latest
+        build-args: |
+          INSTALL_DEV=true
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+        outputs: type=docker
+
+    - name: Start Docker containers
+      run: docker compose --env-file ./backend/.env up -d
+
+    - name: Run linter
+      run: |
+        docker compose --env-file ./backend/.env exec -T web bash /app/app/scripts/lint.sh
+
+    - name: Run tests
+      run: |
+        docker compose --env-file ./backend/.env exec -T web bash /app/app/scripts/tests-start.sh
+
+    - name: Cleanup Docker containers
+      run: docker compose down -v --remove-orphans

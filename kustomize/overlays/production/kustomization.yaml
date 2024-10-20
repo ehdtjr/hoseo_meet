@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - path: dev-specific-patch.yaml
+    target:
+      kind: Deployment
+      name: hoseo-meet-web  # 여기에 실제 Deployment 이름을 넣으세요

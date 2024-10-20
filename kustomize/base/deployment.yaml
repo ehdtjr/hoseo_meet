@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hoseo-meet-web
+  labels:
+    app: hoseo-meet-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hoseo-meet-web
+  template:
+    metadata:
+      labels:
+        app: hoseo-meet-web
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: hoseo-meet-web
+        image: contest87-container-registry.kr.ncr.ntruss.com/hoseo-meet-web:latest
+        ports:
+        - containerPort: 80  # 애플리케이션이 사용하는 포트
+        resources:
+          requests:
+            cpu: 50m  # 0.05 vCPU
+            memory: 256Mi
+          limits:
+            cpu: 500m  # 0.5 vCPU
+            memory: 1Gi
+        envFrom:
+        - secretRef:
+            name: hoseo-meet-web-secrets
