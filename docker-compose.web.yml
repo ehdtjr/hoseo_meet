@@ -33,11 +33,14 @@ services:
 
   celery-worker:
     image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:worker-latest
+    build:
+      context: ./backend
+    platform: linux/amd64
     command: [ "celery", "-A", "app.celery.worker", "worker", "--loglevel=info" ]
     volumes:
       - ./backend:/app
     env_file:
-      - .env
+      - backend/.env
     environment:
       - POSTGRES_SERVER=db
       - POSTGRES_PORT=${POSTGRES_PORT}
@@ -49,11 +52,14 @@ services:
 
   celery-beat:
     image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:beat-latest
+    build:
+      context: ./backend
+    platform: linux/amd64
     command: [ "celery", "-A", "app.celery.worker", "beat", "--loglevel=info" ]
     volumes:
       - ./backend:/app
     env_file:
-      - .env
+      - backend/.env
     environment:
       - POSTGRES_SERVER=db
       - POSTGRES_PORT=${POSTGRES_PORT}
