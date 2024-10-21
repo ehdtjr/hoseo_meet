@@ -1,6 +1,6 @@
 from typing import Any, AsyncGenerator, Optional
 
-from fastapi import (Depends, Request)
+from fastapi import (Depends, HTTPException, Request, status)
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users import BaseUserManager, IntegerIDMixin, models, schemas
 from fastapi_users.db import SQLAlchemyUserDatabase
@@ -29,7 +29,10 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
     ) -> Optional[models.UP]:
         user = await super().authenticate(credentials)
         if user and not user.is_verified:
-            return None
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="이메일 인증이 필요합니다. 이메일을 확인해주세요."
+            )
         return user
 
     async def create(
