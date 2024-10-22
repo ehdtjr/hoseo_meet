@@ -19,7 +19,7 @@ class EmailServiceProtocol(Protocol):
 
 class EmailService(EmailServiceProtocol):
     email_domain = settings.UNIVERSITY_EMAIL_DOMAIN
-    send_email_domain = f"{settings.DOMAIN}:8000"
+    send_email_domain = f"{settings.DOMAIN}"
 
     def __init__(
         self,
