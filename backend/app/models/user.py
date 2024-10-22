@@ -35,6 +35,8 @@ class User(SQLAlchemyBaseUserTable, Base):
                                                               back_populates="user")
     streams: Mapped[List["Stream"]] = relationship("Stream",
                                                    back_populates="creator")
+    meet_posts: Mapped[List["MeetPost"]] = relationship("MeetPost",
+        back_populates="author")
 
 
 # UserLocation 모델 정의
