@@ -8,16 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.db import Base
 
 
-class MeetPostType(PyEnum):
-    """
-    모임, 배달, 택시 카풀
-    """
-    MEET = "meet"
-    DELIVERY = "delivery"
-    TAXI = "taxi"
-    CARPOOL = "carpool"
-
-
 class MeetPost(Base):
     __tablename__ = "meet_post"
 
@@ -25,7 +15,7 @@ class MeetPost(Base):
 
     author_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(50), nullable=False)
-    type: Mapped[MeetPostType] = mapped_column(Enum(MeetPostType), nullable=False)
+    type: Mapped[str] = mapped_column(String(50), nullable=False)
     content: Mapped[str] = mapped_column(String(200), nullable=False)
 
     page_view: Mapped[int] = mapped_column(Integer, default=0)

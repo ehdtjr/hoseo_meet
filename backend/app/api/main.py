@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
-from app.api.routes import auth, events, messages, stream, users
+from app.api.routes import auth, events, meet_post_routes, messages, stream, \
+    users
 
 api_router = APIRouter()
 
@@ -10,3 +11,5 @@ api_router.include_router(events.router, prefix="/events", tags=["events"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(messages.router, prefix="/messages",
                           tags=["messages"])
+api_router.include_router(meet_post_routes.router, prefix="/meet_post",
+tags=["meet_post"])

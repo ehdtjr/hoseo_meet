@@ -1,7 +1,5 @@
 from app.crud.meet_post_crud import get_meet_post_crud
-from app.crud.message import get_message_crud
 from app.models import MeetPost, User
-from app.models.meet_post import MeetPostType
 from app.schemas.meet_post_schemas import MeetPostCreate
 from app.tests.conftest import BaseTest
 
@@ -42,7 +40,7 @@ class TestMeetPostCRUD(BaseTest):
         self.assertEqual(meet_post_in_db.id, meet_post.id)
         self.assertEqual(meet_post_in_db.author_id, user_id)
         self.assertEqual(meet_post_in_db.title, "Test MeetPost")
-        self.assertEqual(meet_post_in_db.type, MeetPostType.MEET)
+        self.assertEqual(meet_post_in_db.type, "meet")
         self.assertEqual(meet_post_in_db.content, "Test MeetPost Content")
         self.assertEqual(meet_post_in_db.max_people, 3)
 
@@ -68,7 +66,7 @@ class TestMeetPostCRUD(BaseTest):
         meet_post_data = {
             "author_id": user_id,
             "title": "Test MeetPost",
-            "type": MeetPostType.MEET,
+            "type": "meet",
             "content": "Test MeetPost Content",
             "max_people": 3
         }
@@ -142,7 +140,7 @@ async def test_update(self):
     self.assertEqual(updated_meet_post_in_db.id, meet_post_id)
     self.assertEqual(updated_meet_post_in_db.author_id, user_id)
     self.assertEqual(updated_meet_post_in_db.title, "Updated MeetPost")
-    self.assertEqual(updated_meet_post_in_db.type, MeetPostType.MEET)
+    self.assertEqual(updated_meet_post_in_db.type, "meet")
     self.assertEqual(updated_meet_post_in_db.content, "Updated MeetPost Content")
     self.assertEqual(updated_meet_post_in_db.max_people, 5)
 
