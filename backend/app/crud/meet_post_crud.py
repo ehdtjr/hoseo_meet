@@ -6,7 +6,8 @@ from app.schemas.meet_post_schemas import MeetPostBase, MeetPostCreate
 
 
 class MeetPostCRUDProtocol:
-    def create(self, meet_post: MeetPostCreate) -> MeetPostBase:
+    def create(self,db: AsyncSession,
+    meet_post: MeetPostCreate) -> MeetPostBase:
         pass
 
     def read(self, meet_post_id: int) -> MeetPostBase:
@@ -32,3 +33,6 @@ class MeetPostCRUD(CRUDBase[MeetPost, MeetPostBase], MeetPostCRUDProtocol):
     async def update(self, db: AsyncSession, meet_post: MeetPostBase) -> (
     MeetPostBase):
         return await super().update(db, meet_post)
+
+def get_meet_post_crud() -> MeetPostCRUDProtocol:
+    return MeetPostCRUD()
