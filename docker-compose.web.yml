@@ -23,13 +23,13 @@ services:
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - POSTGRES_SERVER=db
+      - POSTGRES_SERVER=${POSTGRES_SERVER}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER?Variable not set}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
 
   celery-worker:
     image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:worker-latest
@@ -42,13 +42,13 @@ services:
     env_file:
       - backend/.env
     environment:
-      - POSTGRES_SERVER=db
+      - POSTGRES_SERVER=${POSTGRES_SERVER}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER?Variable not set}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
 
   celery-beat:
     image: 593793035161.dkr.ecr.ap-northeast-2.amazonaws.com/integration/db:beat-latest
@@ -61,10 +61,10 @@ services:
     env_file:
       - backend/.env
     environment:
-      - POSTGRES_SERVER=db
+      - POSTGRES_SERVER=${POSTGRES_SERVER}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER?Variable not set}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
