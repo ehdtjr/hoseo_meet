@@ -1,4 +1,5 @@
-from app.crud.meet_post_crud import MeetPostCRUD
+from app.crud.meet_post_crud import get_meet_post_crud
+from app.crud.message import get_message_crud
 from app.models import MeetPost, User
 from app.models.meet_post import MeetPostType
 from app.schemas.meet_post_schemas import MeetPostCreate
@@ -24,7 +25,7 @@ class TestMeetPostCRUD(BaseTest):
         user_id = user.id  # ID 저장
 
         # when
-        meet_post_crud = MeetPostCRUD()
+        meet_post_crud = get_meet_post_crud()
         meet_post_data = MeetPostCreate(
             author_id=user_id,
             title="Test MeetPost",
@@ -78,7 +79,7 @@ class TestMeetPostCRUD(BaseTest):
         meet_post_id = meet_post.id
 
         # when
-        meet_post_crud = MeetPostCRUD()
+        meet_post_crud = get_meet_post_crud()
         meet_post = await meet_post_crud.get(self.db, meet_post_id)
         meet_post_in_db = await self.db.get(MeetPost, meet_post_id)
 
@@ -124,7 +125,7 @@ async def test_update(self):
     meet_post_id = meet_post.id
 
     # when
-    meet_post_crud = MeetPostCRUD()
+    meet_post_crud = get_meet_post_crud()
 
     # 기존 객체를 가져와 값을 업데이트
     meet_post_in_db = await self.db.get(MeetPost, meet_post_id)
