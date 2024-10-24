@@ -2,9 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../config.dart';
-import 'authme_service.dart';
+import '../login/authme_service.dart';
 import '../chat/socket_message_service.dart';
-import '../../firebase/create_token.dart'; // FCM 토큰 발급 함수를 import
 
 class AuthService with WidgetsBindingObserver {
   String? _accessToken;
@@ -57,31 +56,17 @@ class AuthService with WidgetsBindingObserver {
       final authMeService = AuthMeService(_accessToken!);
       await authMeService.fetchAndStoreUserId();
 
-      // 소켓 연결을 로그인 후에 한번만 실행
       _socketMessageService = SocketMessageService(_accessToken!);
       await _socketMessageService.connectWebSocket();
-
-      // 로그인 성공 시 FCM 토큰 발급
-      String? fcmToken = await TokenManager.createToken(); // FCM 토큰 발급 호출
-
-      // FCM 토큰이 정상적으로 발급되었는지 확인
-      if (fcmToken != null) {
-        print("로그인 후 FCM 토큰: $fcmToken");
-      } else {
-        print("FCM 토큰 발급 실패 또는 null 반환");
-      }
     }
 
     return response;
   }
 
-  // 소켓 메시지 스트림 접근을 위한 메서드
-  Stream<Map<String, dynamic>> get messageStream => _socketMessageService.messageStream;
-
   String? get accessToken => _accessToken;
 
+  // 부모 클래스의 dispose 호출을 제거합니다.
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _socketMessageService.closeWebSocket(); // WebSocket 종료
   }
 }
