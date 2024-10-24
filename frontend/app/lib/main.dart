@@ -1,7 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:intl/date_symbol_data_local.dart'; // initializeDateFormatting을 위한 import
 import 'screens/splash_screen.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  // Flutter 엔진이 준비되기 전에 비동기 작업을 처리하기 위해 추가
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Firebase 초기화
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // 한국어 로케일 데이터를 초기화합니다.
+  await initializeDateFormatting('ko_KR', null);
+
   runApp(MyApp());
 }
 
@@ -24,4 +37,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-

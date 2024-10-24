@@ -37,6 +37,10 @@ dependencies:
   sliding_up_panel: ^2.0.0 #슬라이드 패널
   http: ^0.13.4
   web_socket_channel: ^2.1.0  # 최신 버전 추가
+  firebase_messaging: ^14.0.3
+  shared_preferences: ^2.0.15
+  firebase_core: ^2.32.0
+
 
 flutter_native_splash:
   color: "#E72410"
@@ -96,7 +100,6 @@ flutter:
           weight: 800
         - asset: assets/fonts/Pretendard-Black.ttf
           weight: 900
-
 
   uses-material-design: true
 

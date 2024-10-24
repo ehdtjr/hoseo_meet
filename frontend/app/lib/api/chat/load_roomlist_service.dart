@@ -31,8 +31,9 @@ class LoadRoomListService {
     );
 
     if (response.statusCode == 200) {
-      // 응답을 JSON으로 디코딩
-      final Map<String, dynamic> responseData = jsonDecode(response.body);
+      // 응답을 UTF-8로 디코딩하여 처리
+      final decodedResponse = utf8.decode(response.bodyBytes); // body 대신 bodyBytes를 사용하여 안전하게 UTF-8 처리
+      final Map<String, dynamic> responseData = jsonDecode(decodedResponse);
 
       // 'subscriptions' 리스트만 추출하여 반환
       return responseData['subscriptions'];

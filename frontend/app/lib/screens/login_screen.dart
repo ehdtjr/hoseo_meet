@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'home_screen.dart'; // 홈 화면 import
 import '../pages/signup/sign_up_page.dart'; // 회원가입 페이지 import
 import '../api/login/login_service.dart'; // AuthService import
 import 'dart:convert'; // jsonDecode 사용을 위해 추가
+import '../../firebase/create_token.dart'; // FCM 토큰 발급 관리 클래스 import
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -12,6 +14,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _tokenController = TextEditingController(); // FCM 토큰을 표시할 컨트롤러
   final AuthService _authService = AuthService();
   String? _accessToken; // 휘발성 토큰
 
@@ -24,6 +27,9 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _tokenController.dispose(); // 컨트롤러 해제
     super.dispose();
   }
 
@@ -136,6 +142,90 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   ),
                   child: Text(
                     '회원가입',
+                    style: TextStyle(
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+              SizedBox(
+                width: buttonWidth,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    // FCM 토큰 발급 버튼 클릭 시
+                    final token = await TokenManager.createToken();
+                    if (token != null) {
+                      _tokenController.text = token; // 발급된 토큰을 텍스트 필드에 출력
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('FCM 토큰 발급 성공')),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('FCM 토큰 발급 실패')),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'FCM 토큰 발급',
+                    style: TextStyle(
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: TextField(
+                  controller: _tokenController,
+                  readOnly: true,
+                  decoration: InputDecoration(
+                    labelText: 'FCM Token',
+                    suffixIcon: IconButton(
+                      icon: Icon(Icons.copy),
+                      onPressed: () {
+                        // 클립보드에 복사
+                        final token = _tokenController.text;
+                        if (token.isNotEmpty) {
+                          Clipboard.setData(ClipboardData(text: token));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('토큰이 복사되었습니다.')),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+              SizedBox(
+                width: buttonWidth,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    // FCM 토큰 삭제 버튼 클릭 시
+                    await TokenManager.deleteToken();
+                    _tokenController.clear(); // 토큰 필드를 비움
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('FCM 토큰이 삭제되었습니다.')),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey,
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    'FCM 토큰 삭제',
                     style: TextStyle(
                       color: Colors.white,
                     ),

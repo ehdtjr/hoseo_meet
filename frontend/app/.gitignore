@@ -42,4 +42,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /assets
+/android/key.properties
 .env
