@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 
 from app.core.exceptions import PermissionDeniedException
 from app.models import Recipient, Stream, User
+from app.schemas.message import UserMessageBase
 from app.schemas.recipient import RecipientType
 from app.tests.conftest import BaseTest
 
@@ -164,3 +165,46 @@ class TestMessageService(BaseTest):
                              "stream")
 
         self.message_crud.create.assert_not_called()
+
+    async def test__convert_anchor_to_id_newest(self):
+        # given
+        newest_message = UserMessageBase(
+            id=1,
+            user_id=1,
+            message_id=3,
+            is_read = False
+        )
+        self.user_message_crud.get_newest_message_in_stream = AsyncMock(
+            return_value=newest_message
+        )
+        # when
+        result = await self.service._convert_anchor_to_id(
+            db=self.db,
+            anchor="newest",
+            user_id=1,
+            stream_id=1
+        )
+        # then
+        self.assertEqual(result, 3)
+
+    async def test__convert_anchor_to_id_first_unread(self):
+        # given
+        first_message = UserMessageBase(
+            id=1,
+            user_id=1,
+            message_id=3,
+            is_read=False
+        )
+        self.user_message_crud.get_first_unread_message_in_stream = AsyncMock(
+            return_value=first_message
+        )
+        # when
+        result = await self.service._convert_anchor_to_id(
+            db=self.db,
+            anchor="first_unread",
+            user_id=1,
+            stream_id=1
+        )
+
+        # then
+        self.assertEqual(result, 3)

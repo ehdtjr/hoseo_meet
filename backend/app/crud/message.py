@@ -201,9 +201,13 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
         query = (
             select(UserMessage)
             .join(Message, UserMessage.message_id == Message.id)
-            .where(Message.recipient_id == stream_id,
-                   UserMessage.user_id == user_id)
-            .order_by(UserMessage.message_id.desc())
+            .join(Recipient, Message.recipient_id == Recipient.id)  # Recipient 테이블과 조인
+            .where(
+                Recipient.type == RecipientType.STREAM.value,  # Recipient가
+                Recipient.type_id == stream_id,  # stream_id와 일치하는지 확인
+                UserMessage.user_id == user_id  # user_id가 일치하는지 확인
+            )
+            .order_by(UserMessage.message_id.desc())  # 최신 메시지를 먼저 가져오기
             .limit(1)
         )
         result = await db.execute(query)
@@ -219,11 +223,17 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
         query = (
             select(UserMessage)
             .join(Message, UserMessage.message_id == Message.id)
-            .where(Message.recipient_id == stream_id,
-                   UserMessage.user_id == user_id)
-            .order_by(UserMessage.message_id.asc())
-            .limit(1)
+            .join(Recipient, Message.recipient_id == Recipient.id)  # Recipient 테이블과 조인
+            .where(
+                Recipient.type == RecipientType.STREAM.value,  # Recipient가
+                # 스트림일 때
+                Recipient.type_id == stream_id,  # stream_id와 일치하는지 확인
+                UserMessage.user_id == user_id  # 해당 사용자의 메시지
+            )
+            .order_by(UserMessage.message_id.asc())  # 오래된 메시지를 먼저 가져오기
+            .limit(1)  # 가장 오래된 하나의 메시지만 가져옴
         )
+
         result = await db.execute(query)
         result = result.scalars().first()
         if result is None:
@@ -232,22 +242,33 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
 
     async def get_first_unread_message_in_stream(self, db: AsyncSession,
                                                  user_id: int,
-                                                 stream_id: int) -> (
-            Optional[UserMessageBase]):
+                                                 stream_id: int) -> Optional[UserMessageBase]:
+        # 쿼리: 특정 스트림에서 사용자가 읽지 않은 첫 번째 메시지를 가져옴
         query = (
             select(UserMessage)
             .join(Message, UserMessage.message_id == Message.id)
-            .where(UserMessage.user_id == user_id,
-                   UserMessage.is_read == False,
-                   Message.recipient_id == stream_id)
-            .order_by(UserMessage.message_id.asc())
-            .limit(1)
+            .join(Recipient, Message.recipient_id == Recipient.id)  # Recipient 테이블과 조인
+            .where(
+                Recipient.type == RecipientType.STREAM.value,  # 스트림 타입 필터링
+                Recipient.type_id == stream_id,  # stream_id와 일치하는지 확인
+                UserMessage.user_id == user_id,  # user_id 확인
+                UserMessage.is_read == False  # 읽지 않은 메시지
+            )
+            .order_by(UserMessage.message_id.asc())  # 오래된 메시지부터 가져옴
+            .limit(1)  # 가장 오래된 읽지 않은 메시지 하나만 가져옴
         )
+
+        # 쿼리 실행 및 결과 처리
         result = await db.execute(query)
-        result = result.scalars().first()
-        if result is None:
+        first_unread_message = result.scalars().first()
+
+        # 결과가 없을 경우 None 반환
+        if first_unread_message is None:
             return None
-        return UserMessageBase.model_validate(result)
+
+        # Pydantic 모델로 변환하여 반환
+        return UserMessageBase.model_validate(first_unread_message)
+
 
     async def get_first_unread_message_in_stream_count(self,
                                                        db: AsyncSession,
@@ -260,10 +281,12 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
         query = (
             select(func.count(UserMessage.id))
             .join(Message, UserMessage.message_id == Message.id)
+            .join(Recipient, Message.recipient_id == Recipient.id)  # Recipient 테이블과 조인
             .where(
-                UserMessage.user_id == user_id,
-                UserMessage.is_read == False,
-                Message.recipient_id == stream_id
+                Recipient.type == RecipientType.STREAM.value,  # 스트림 타입 필터링
+                Recipient.type_id == stream_id,  # stream_id와 일치하는지 확인
+                UserMessage.user_id == user_id,  # user_id 확인
+                UserMessage.is_read == False  # 읽지 않은 메시지 필터링
             )
         )
         result = await db.execute(query)
@@ -272,17 +295,18 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
 
     async def mark_stream_messages_read(self, db: AsyncSession, user_id: int,
                                         stream_id: int, anchor_id: int,
-                                        num_before: int,
-                                        num_after: int) -> None:
+                                        num_before: int, num_after: int) -> None:
         """
         특정 유저의 특정 스트림에서 앵커를 기준으로 일정 범위의 메시지를 읽음으로 표시하는 함수.
         """
         # 앵커 이전 메시지들 가져오기 (num_before 개수)
         before_query = (
             select(Message.id)
+            .join(Recipient, Message.recipient_id == Recipient.id)  # Recipient 테이블과 조인
             .where(
-                Message.recipient_id == stream_id,
-                Message.id < anchor_id
+                Recipient.type == RecipientType.STREAM.value,  # 스트림 타입 필터링
+                Recipient.type_id == stream_id,  # stream_id와 일치하는지 확인
+                Message.id < anchor_id  # 앵커보다 이전 메시지
             )
             .order_by(Message.id.desc())
             .limit(num_before)
@@ -293,9 +317,11 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
         # 앵커 이후 메시지들 가져오기 (num_after 개수)
         after_query = (
             select(Message.id)
+            .join(Recipient, Message.recipient_id == Recipient.id)  # Recipient 테이블과 조인
             .where(
-                Message.recipient_id == stream_id,
-                Message.id > anchor_id
+                Recipient.type == RecipientType.STREAM.value,  # 스트림 타입 필터링
+                Recipient.type_id == stream_id,  # stream_id와 일치하는지 확인
+                Message.id > anchor_id  # 앵커보다 이후 메시지
             )
             .order_by(Message.id.asc())
             .limit(num_after)
@@ -303,20 +329,21 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
         after_message_ids_result = await db.execute(after_query)
         after_message_ids = after_message_ids_result.scalars().all()
 
-        message_ids = list(before_message_ids) + [anchor_id] + list(
-            after_message_ids)
+        # 이전 메시지들 + 앵커 메시지 + 이후 메시지들의 ID 목록
+        message_ids = list(before_message_ids) + [anchor_id] + list(after_message_ids)
 
         # UserMessage 테이블 업데이트 (읽음 표시)
         stmt = (
             update(UserMessage)
             .where(
-                UserMessage.user_id == user_id,
-                UserMessage.message_id.in_(message_ids)
+                UserMessage.user_id == user_id,  # 해당 유저의 메시지
+                UserMessage.message_id.in_(message_ids)  # 조회한 메시지 목록에 해당하는 것
             )
-            .values(is_read=True)
+            .values(is_read=True)  # 읽음으로 표시
         )
         await db.execute(stmt)
         await db.commit()
+
 
 
 def get_user_message_crud() -> UserMessageCRUDProtocol:

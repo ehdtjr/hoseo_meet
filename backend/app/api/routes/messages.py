@@ -94,12 +94,10 @@ async def get_messages(
         )
         if not messages:
             return []
-
         return messages
+    except PermissionDeniedException as e:
+        raise HTTPException(status_code=403, detail=str(e))
     except HTTPException as e:
-        raise e
-    except ValueError as e:
-        # 앵커 값이 잘못되었거나 메시지가 존재하지 않는 경우 처리
         raise HTTPException(status_code=400, detail=str(e))
 
-    return messages
+

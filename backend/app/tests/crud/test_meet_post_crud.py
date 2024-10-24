@@ -143,7 +143,3 @@ class TestMeetPostCRUD(BaseTest):
         self.assertEqual(updated_meet_post_in_db.type, "meet")
         self.assertEqual(updated_meet_post_in_db.content, "Updated MeetPost Content")
         self.assertEqual(updated_meet_post_in_db.max_people, 5)
-
-
-    def test_get_filtered_posts(self):
-        self.fail()
