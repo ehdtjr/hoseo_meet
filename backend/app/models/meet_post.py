@@ -1,7 +1,6 @@
 from datetime import datetime
-from enum import Enum as PyEnum
 
-from sqlalchemy import (CheckConstraint, DateTime, Enum, ForeignKey,
+from sqlalchemy import (CheckConstraint, DateTime, ForeignKey,
                         Integer, String, func)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 

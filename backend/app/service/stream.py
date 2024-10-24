@@ -1,5 +1,7 @@
+import logging
 from typing import Dict, List
 
+from psycopg import DatabaseError
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Optional, Protocol
 
@@ -10,8 +12,12 @@ from app.crud.stream import StreamCRUDProtocol, SubscriptionCRUDProtocol, \
     get_stream_crud, get_subscription_crud
 from app.schemas.message import MessageBase, UserMessageBase
 from app.schemas.recipient import RecipientCreate, RecipientType
-from app.schemas.stream import StreamCreate, StreamRead, SubscriptionCreate, \
+from app.schemas.stream import StreamBase, StreamCreate, StreamRead, \
+    SubscriptionCreate, \
     SubscriptionRead
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class StreamServiceProtocol(Protocol):
@@ -27,20 +33,30 @@ class StreamService(StreamServiceProtocol):
         self.recipient_crud = recipient_crud
 
     async def create_stream(self, db: AsyncSession,
-                            stream_create: StreamCreate) -> StreamRead:
-        created_stream = await self.stream_crud.create(db, obj_in=stream_create)
+                            stream_create: StreamCreate) -> Optional[
+                            StreamRead]:
+        try:
+            created_stream: StreamBase = await self.stream_crud.create(db,
+            obj_in=stream_create)
 
-        if created_stream:
-            recipient_data = RecipientCreate(type=RecipientType.STREAM,
-                                             type_id=created_stream.id)
-            recipient = await self.recipient_crud.create(db,
-                                                         obj_in=recipient_data)
-            # update recipient
-            created_stream.recipient_id = recipient.id
-            update_stream = await self.stream_crud.update(db, created_stream)
-            return StreamRead.model_validate(update_stream)
-        return StreamRead.model_validate(created_stream)
-
+            if created_stream:
+                recipient_data = RecipientCreate(type=RecipientType.STREAM,
+                                                 type_id=created_stream.id)
+                recipient = await self.recipient_crud.create(db,
+                                                             obj_in=recipient_data)
+                # update recipient
+                created_stream.recipient_id = recipient.id
+                update_stream = await self.stream_crud.update(db, created_stream)
+                return StreamRead.model_validate(update_stream)
+            else:
+                logger.info("Error create stream")
+                return None
+        except DatabaseError as db_err:
+            logger.error(f"Database error while creating stream: {db_err}")
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error while creating stream: {e}")
+            return None
 
 def get_stream_service() -> StreamServiceProtocol:
     return StreamService(get_stream_crud(), get_recipient_crud())
