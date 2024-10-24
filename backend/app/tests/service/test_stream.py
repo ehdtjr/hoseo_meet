@@ -46,6 +46,7 @@ class TestStreamService(BaseTest):
         self.assertEqual(result.creator_id, user.id)  # 스트림 이름이 기대한 값인지 확인
 
 
+
 class TestSubscriberService(BaseTest):
     async def asyncSetUp(self):
         await super().asyncSetUp()
