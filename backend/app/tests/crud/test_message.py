@@ -258,6 +258,14 @@ class TestUserMessageCRUD(BaseTest):
 
     async def test_get_newest_message_in_stream(self):
         user_message_crud = get_user_message_crud()
+        stream_id = 4
+        recipient_data = RecipientCreate(type=RecipientType.STREAM,
+            type_id=stream_id)
+        recipient = Recipient(**recipient_data.model_dump())
+        self.db.add(recipient)
+        await self.db.commit()
+        await self.db.refresh(recipient)
+        recipient_id = recipient.id  # Save recipient ID for use in tests
 
         # Create several messages in the stream
         message_crud = get_message_crud()
@@ -266,7 +274,7 @@ class TestUserMessageCRUD(BaseTest):
             message_data = MessageCreate(
                 sender_id=self.user_id,
                 type=MessageType.NORMAL,
-                recipient_id=self.recipient_id,
+                recipient_id=recipient_id,
                 content=f"Test message {i}",
                 rendered_content=f"<p>Test message {i}</p>"
             )
@@ -283,7 +291,7 @@ class TestUserMessageCRUD(BaseTest):
 
         # Get the newest message in the stream
         newest_message = await user_message_crud.get_newest_message_in_stream(
-            self.db, user_id=self.user_id, stream_id=self.recipient_id
+            self.db, user_id=self.user_id, stream_id=stream_id
         )
 
         # Assert that the newest message is the last created message
@@ -292,6 +300,14 @@ class TestUserMessageCRUD(BaseTest):
 
     async def test_get_oldest_message_in_stream(self):
         user_message_crud = get_user_message_crud()
+        stream_id = 4
+        recipient_data = RecipientCreate(type=RecipientType.STREAM,
+                                         type_id=stream_id)
+        recipient = Recipient(**recipient_data.model_dump())
+        self.db.add(recipient)
+        await self.db.commit()
+        await self.db.refresh(recipient)
+        recipient_id = recipient.id  # Save recipient ID for use in tests
 
         # Create several messages in the stream
         message_crud = get_message_crud()
@@ -300,7 +316,7 @@ class TestUserMessageCRUD(BaseTest):
             message_data = MessageCreate(
                 sender_id=self.user_id,
                 type=MessageType.NORMAL,
-                recipient_id=self.recipient_id,
+                recipient_id=recipient_id,
                 content=f"Test message {i}",
                 rendered_content=f"<p>Test message {i}</p>"
             )
@@ -317,7 +333,7 @@ class TestUserMessageCRUD(BaseTest):
 
         # Get the oldest message in the stream
         oldest_message = await user_message_crud.get_oldest_message_in_stream(
-            self.db, user_id=self.user_id, stream_id=self.recipient_id
+            self.db, user_id=self.user_id, stream_id=stream_id
         )
 
         # Assert that the oldest message is the first created message
@@ -327,6 +343,15 @@ class TestUserMessageCRUD(BaseTest):
     async def test_get_first_unread_message_in_stream(self):
         user_message_crud = get_user_message_crud()
 
+        stream_id = 4
+        recipient_data = RecipientCreate(type=RecipientType.STREAM,
+                                         type_id=stream_id)
+        recipient = Recipient(**recipient_data.model_dump())
+        self.db.add(recipient)
+        await self.db.commit()
+        await self.db.refresh(recipient)
+        recipient_id = recipient.id  # Save recipient ID for use in tests
+
         # Create several messages in the stream
         message_crud = get_message_crud()
         messages = []
@@ -334,7 +359,7 @@ class TestUserMessageCRUD(BaseTest):
             message_data = MessageCreate(
                 sender_id=self.user_id,
                 type=MessageType.NORMAL,
-                recipient_id=self.recipient_id,
+                recipient_id=recipient_id,
                 content=f"Test message {i}",
                 rendered_content=f"<p>Test message {i}</p>"
             )
@@ -352,7 +377,7 @@ class TestUserMessageCRUD(BaseTest):
         # Get the first unread message in the stream
         first_unread_message = await (
             user_message_crud.get_first_unread_message_in_stream(
-                self.db, user_id=self.user_id, stream_id=self.recipient_id
+                self.db, user_id=self.user_id, stream_id=stream_id
             ))
 
         # Assert that the first unread message is the 3rd message
@@ -362,6 +387,15 @@ class TestUserMessageCRUD(BaseTest):
     async def test_get_first_unread_message_in_stream_count(self):
         user_message_crud = get_user_message_crud()
 
+        stream_id = 4
+        recipient_data = RecipientCreate(type=RecipientType.STREAM,
+                                         type_id=stream_id)
+        recipient = Recipient(**recipient_data.model_dump())
+        self.db.add(recipient)
+        await self.db.commit()
+        await self.db.refresh(recipient)
+        recipient_id = recipient.id  # Save recipient ID for use in tests
+
         # Create several messages in the stream
         message_crud = get_message_crud()
         messages = []
@@ -369,7 +403,7 @@ class TestUserMessageCRUD(BaseTest):
             message_data = MessageCreate(
                 sender_id=self.user_id,
                 type=MessageType.NORMAL,
-                recipient_id=self.recipient_id,
+                recipient_id=recipient_id,
                 content=f"Test message {i}",
                 rendered_content=f"<p>Test message {i}</p>"
             )
@@ -387,7 +421,7 @@ class TestUserMessageCRUD(BaseTest):
         # Get the count of unread messages in the stream
         unread_count = await (
             user_message_crud.get_first_unread_message_in_stream_count(
-                self.db, user_id=self.user_id, stream_id=self.recipient_id
+                self.db, user_id=self.user_id, stream_id=stream_id
             ))
 
         # Assert that the count of unread messages is correct (3 unread
@@ -397,14 +431,21 @@ class TestUserMessageCRUD(BaseTest):
     async def test_mark_stream_messages_read(self):
         user_message_crud = get_user_message_crud()
         message_crud = get_message_crud()
+        stream_id = 4
+        recipient_data = RecipientCreate(type=RecipientType.STREAM,
+                                         type_id=stream_id)
+        recipient = Recipient(**recipient_data.model_dump())
+        self.db.add(recipient)
+        await self.db.commit()
+        await self.db.refresh(recipient)
+        recipient_id = recipient.id  # Save recipient ID for use in tests
 
-        # 스트림 내 여러 메시지 생성
         messages = []
         for i in range(1, 6):
             message_data = MessageCreate(
                 sender_id=self.user_id,
                 type=MessageType.NORMAL,
-                recipient_id=self.recipient_id,
+                recipient_id=recipient_id,
                 content=f"Test message {i}",
                 rendered_content=f"<p>Test message {i}</p>"
             )
@@ -427,7 +468,7 @@ class TestUserMessageCRUD(BaseTest):
         # when
         await user_message_crud.mark_stream_messages_read(self.db,
                                                           user_id=self.user_id,
-                                                          stream_id=self.recipient_id,
+                                                          stream_id=stream_id,
                                                           anchor_id=anchor_id,
                                                           num_before=num_before,
                                                           num_after=num_after)
@@ -442,7 +483,6 @@ class TestUserMessageCRUD(BaseTest):
 
         # 결과 검증 - 범위 내 모든 메시지가 읽음 처리되었는지 확인
         for message in messages_to_check:
-            print(message.id)
             user_message_result = await self.db.execute(
                 select(UserMessage).where(UserMessage.user_id == self.user_id,
                                           UserMessage.message_id == message.id)

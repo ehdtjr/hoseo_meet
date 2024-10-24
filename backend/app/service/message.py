@@ -1,5 +1,5 @@
 import asyncio
-from typing import List, Protocol
+from typing import List, Optional, Protocol
 
 from aioredis import Redis
 from fastapi import HTTPException
@@ -33,7 +33,8 @@ class MessageServiceProtocol(Protocol):
                                   stream_id: int,
                                   anchor: str,
                                   num_before: int,
-                                  num_after: int) -> List[MessageBase]:
+                                  num_after: int) -> Optional[List[
+                                  MessageBase]]:
         pass
 
 
@@ -122,7 +123,8 @@ class MessageService(MessageServiceProtocol):
                                   num_before: int,
                                   num_after: int) -> List[MessageBase]:
         if not await self._check_stream_permission(db, user_id, stream_id):
-            raise HTTPException(status_code=403, detail="Forbidden")
+            raise PermissionDeniedException(
+                "You are not permitted to read messages from this stream")
 
         anchor_id: int = await self._convert_anchor_to_id(db, anchor, user_id,
                                                           stream_id)
@@ -169,6 +171,9 @@ class MessageService(MessageServiceProtocol):
                     db,
                     user_id,
                     stream_id))
+            if result is None:
+                raise HTTPException(status_code=404,
+                                    detail="No messages found in the stream")
             return result.message_id
         elif anchor == "oldest":
             result: UserMessageBase = (
@@ -176,6 +181,10 @@ class MessageService(MessageServiceProtocol):
                     db,
                     user_id,
                     stream_id))
+            if result is None:
+                raise HTTPException(status_code=404,
+                                    detail="No messages found in the stream")
+
             return result.message_id
         elif anchor == "first_unread":
             result: UserMessageBase = (
@@ -190,13 +199,10 @@ class MessageService(MessageServiceProtocol):
                         db,
                         user_id,
                         stream_id))
-
-            if result is None:
-                raise HTTPException(status_code=404,
-                                    detail="No messages found in the stream")
-
+                if result is None:
+                    raise HTTPException(status_code=404,
+                                        detail="No messages found in the stream")
             return result.message_id
-
         else:
             return int(anchor)
 
