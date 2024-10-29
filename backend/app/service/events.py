@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 fcm = FCMNotification(service_account_file="hoseo-meet-firebase-adminsdk"
-"-oswm2-1186906f2e.json", project_id="hoseo-meet")
+"-oswm2-1186906f2e.json", project_id="hoseo-meet-7918f")
 
 class SendEventProtocol:
     async def send(self, event_data: dict):
