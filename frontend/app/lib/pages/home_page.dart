@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
-import 'room_list.dart'; // 자취방 리스트를 불러오기 위한 import
 import '../widgets/post_item.dart';
 
 class HomePage extends StatefulWidget {
@@ -12,15 +11,6 @@ class _HomePageState extends State<HomePage> {
   final List<String> _selectOptions = ['전체', '모임', '배달', '택시', '카풀'];
   String _selectedOption = '전체';
   bool _isDropdownOpened = false; // 드롭다운이 열렸는지 여부를 추적
-
-  bool _isSubCategoryVisible = false; // 자취방을 눌렀을 때 하위 카테고리 표시
-  String _selectedSubCategory = '전체'; // 기본값으로 '전체' 카테고리 선택
-
-  // 메인 카테고리 활성화를 위한 변수 (디폴트 선택 없음)
-  String _selectedMainCategory = '';
-
-  // 하위 카테고리 리스트 (첫번째 인덱스에 '전체' 추가)
-  final List<String> subCategories = ['전체', '정문', '중문', '후문', '기숙사'];
 
   final List<Map<String, dynamic>> posts = [
     {
@@ -128,43 +118,21 @@ class _HomePageState extends State<HomePage> {
             top: 70,
             left: 0,
             right: 0,
-            child: Column(
-              children: [
-                Container(
-                  height: 50,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    physics: BouncingScrollPhysics(), // 좌우 슬라이드 가능하게 설정
-                    padding: EdgeInsets.symmetric(horizontal: 12.0),
-                    children: [
-                      _buildCategoryButton('자취방', _selectedMainCategory == '자취방' ? 'assets/img/icon/mainpage/roomtypered.png' : 'assets/img/icon/mainpage/roomtype.png', _toggleSubCategory, _selectedMainCategory == '자취방'),
-                      _buildCategoryButton('음식점', _selectedMainCategory == '음식점' ? 'assets/img/icon/mainpage/foodtypered.png' : 'assets/img/icon/mainpage/foodtype.png', () => _selectMainCategory('음식점'), _selectedMainCategory == '음식점'),
-                      _buildCategoryButton('카페', _selectedMainCategory == '카페' ? 'assets/img/icon/mainpage/cafetypered.png' : 'assets/img/icon/mainpage/cafetype.png', () => _selectMainCategory('카페'), _selectedMainCategory == '카페'),
-                      _buildCategoryButton('술집', _selectedMainCategory == '술집' ? 'assets/img/icon/mainpage/bartypered.png' : 'assets/img/icon/mainpage/bartype.png', () => _selectMainCategory('술집'), _selectedMainCategory == '술집'),
-                      _buildCategoryButton('편의점', _selectedMainCategory == '편의점' ? 'assets/img/icon/mainpage/shoptypered.png' : 'assets/img/icon/mainpage/shoptype.png', () => _selectMainCategory('편의점'), _selectedMainCategory == '편의점'),
-                      _buildCategoryButton('놀거리', _selectedMainCategory == '놀거리' ? 'assets/img/icon/mainpage/playtypered.png' : 'assets/img/icon/mainpage/playtype.png', () => _selectMainCategory('놀거리'), _selectedMainCategory == '놀거리'),
-                    ],
-                  ),
-                ),
-
-                // 자취방 선택 시 하위 카테고리 표시
-                if (_isSubCategoryVisible)
-                  Container(
-                    height: 50,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      padding: EdgeInsets.symmetric(horizontal: 12.0),
-                      children: subCategories.map<Widget>((category) {
-                        return _buildCategoryButton(
-                          category,
-                          '', // 하위 카테고리는 아이콘이 없으므로 빈 문자열 전달
-                              () => _selectSubCategory(category), // 하위 카테고리 선택 시 호출
-                          _selectedSubCategory == category, // 선택된 하위 카테고리 강조
-                        );
-                      }).toList(),
-                    ),
-                  ),
-              ],
+            child: Container(
+              height: 50,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                physics: BouncingScrollPhysics(), // 좌우 슬라이드 가능하게 설정
+                padding: EdgeInsets.symmetric(horizontal: 12.0),
+                children: [
+                  _buildCategoryButton('자취방', 'assets/img/icon/mainpage/roomtype.png'),
+                  _buildCategoryButton('음식점', 'assets/img/icon/mainpage/foodtype.png'),
+                  _buildCategoryButton('카페', 'assets/img/icon/mainpage/cafetype.png'),
+                  _buildCategoryButton('술집', 'assets/img/icon/mainpage/bartype.png'),
+                  _buildCategoryButton('편의점', 'assets/img/icon/mainpage/shoptype.png'),
+                  _buildCategoryButton('놀거리', 'assets/img/icon/mainpage/playtype.png'),
+                ],
+              ),
             ),
           ),
 
@@ -173,8 +141,7 @@ class _HomePageState extends State<HomePage> {
             minHeight: panelHeightClosed, // 패널이 닫혔을 때 높이
             maxHeight: panelHeightOpen, // 패널이 열렸을 때 높이
             borderRadius: BorderRadius.vertical(top: Radius.circular(50)),
-            // 패널 내부의 내용을 조건에 따라 자취방 리스트와 기존 패널로 구분
-            panel: _selectedMainCategory == '자취방' ? RoomList() : _buildPanelContent(),
+            panel: _buildPanelContent(), // 패널 내부의 내용
             body: Stack(
               children: [
                 // 패널 뒤에 있는 내용: 지도와 버튼
@@ -220,14 +187,14 @@ class _HomePageState extends State<HomePage> {
   }
 
   // 카테고리 버튼 빌드 함수
-  Widget _buildCategoryButton(String text, String iconPath, [VoidCallback? onPressed, bool isSelected = false]) {
+  Widget _buildCategoryButton(String text, String iconPath) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 5.0, vertical: 6), // 버튼 간격을 약간 넓게 유지
       child: ElevatedButton(
-        onPressed: onPressed ?? () {},
+        onPressed: () {},
         style: ElevatedButton.styleFrom(
-          foregroundColor: isSelected ? Colors.white : Colors.black,
-          backgroundColor: isSelected ? Colors.red : Colors.white,
+          foregroundColor: Colors.black,
+          backgroundColor: Colors.white,
           padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8), // 부드러운 패딩 값
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -237,13 +204,12 @@ class _HomePageState extends State<HomePage> {
         ),
         child: Row(
           children: [
-            if (iconPath.isNotEmpty) // 아이콘이 있을 때만 출력
-              Image.asset(
-                iconPath,
-                width: 20, // 아이콘 크기 유지
-                height: 20,
-              ),
-            if (iconPath.isNotEmpty) SizedBox(width: 6), // 아이콘과 텍스트 간격을 적절히 유지
+            Image.asset(
+              iconPath,
+              width: 20, // 아이콘 크기 유지
+              height: 20,
+            ),
+            SizedBox(width: 6), // 아이콘과 텍스트 간격을 적절히 유지
             Text(
               text,
               style: TextStyle(fontSize: 14), // 텍스트 크기를 줄여서 정돈된 느낌 제공
@@ -254,30 +220,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 하위 카테고리 선택 함수
-  void _selectSubCategory(String category) {
-    setState(() {
-      _selectedSubCategory = category;
-    });
-  }
-
-  // 메인 카테고리 선택 함수
-  void _selectMainCategory(String category) {
-    setState(() {
-      _selectedMainCategory = category;
-      _isSubCategoryVisible = false; // 자취방 외 다른 메인 카테고리 선택 시 서브카테고리 비활성화
-    });
-  }
-
-  // 하위 카테고리 토글 함수
-  void _toggleSubCategory() {
-    setState(() {
-      _isSubCategoryVisible = !_isSubCategoryVisible;
-      _selectedMainCategory = '자취방'; // 자취방을 다시 선택하면 메인 카테고리 활성화
-    });
-  }
-
-  // 기존 패널 내용
+  // 패널 내부 내용 빌드 함수
   Widget _buildPanelContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,10 +228,10 @@ class _HomePageState extends State<HomePage> {
         SizedBox(height: 16),
         Center(
           child: Container(
-            height: 3,
-            width: 150,
+            height: 5,
+            width: 50,
             decoration: BoxDecoration(
-              color: Colors.red[300],
+              color: Colors.grey[300],
               borderRadius: BorderRadius.circular(12),
             ),
           ),
@@ -372,7 +315,7 @@ class _HomePageState extends State<HomePage> {
           child: ListView.builder(
             itemCount: posts.length,
             itemBuilder: (context, index) {
-              return buildPostItem(posts[index]); // 기존 게시물 출력
+              return buildPostItem(posts[index]); // 여기서 buildPostItem 함수를 사용해 게시글 출력
             },
           ),
         ),
