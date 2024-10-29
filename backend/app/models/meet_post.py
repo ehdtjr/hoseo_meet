@@ -1,16 +1,8 @@
-import uuid
+from datetime import datetime
 
-from sqlalchemy import (
-    Column,
-    ForeignKey,
-    String,
-    Integer,
-    DateTime,
-    func,
-    CheckConstraint,
-)
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy import (CheckConstraint, DateTime, ForeignKey,
+                        Integer, String, func)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
 
@@ -18,25 +10,21 @@ from app.core.db import Base
 class MeetPost(Base):
     __tablename__ = "meet_post"
 
-    id = Column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        unique=True,
-        nullable=False,
-    )
-    author_id = Column(UUID(as_uuid=True), ForeignKey("user.id"), nullable=False)
-    title = Column(String(20), nullable=False)
-    type = Column(String(20), nullable=False)
-    content = Column(String(200), nullable=False)
-    page_view = Column(Integer, default=0)
-    max_people = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
-    author = relationship("User", back_populates="meet_posts")
+    author_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
+    title: Mapped[str] = mapped_column(String(50), nullable=False)
+    type: Mapped[str] = mapped_column(String(50), nullable=False)
+    content: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    page_view: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    max_people: Mapped[int] = mapped_column(Integer, nullable=False)
 
     __table_args__ = (
-        CheckConstraint(
-            "max_people > 0 AND max_people <= 100", name="check_max_people"
-        ),
+        CheckConstraint('max_people >= 1 AND max_people <= 50', name='check_max_people'),
     )
+
+
+# 관계 설정
+    author: Mapped["User"] = relationship("User", back_populates="meet_posts")

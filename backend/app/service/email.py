@@ -19,7 +19,7 @@ class EmailServiceProtocol(Protocol):
 
 class EmailService(EmailServiceProtocol):
     email_domain = settings.UNIVERSITY_EMAIL_DOMAIN
-    send_email_domain = f"{settings.DOMAIN}:8000"
+    send_email_domain = f"{settings.DOMAIN}"
 
     def __init__(
         self,
@@ -54,15 +54,20 @@ class EmailVerificationService:
         self.jwt_strategy = jwt_strategy
 
     async def create_verification_token(self, user: UserProtocol) -> str:
-        return await self.jwt_strategy.write_token(user)
+        token = await self.jwt_strategy.write_token(user)
+        return token
 
     async def verify_email_token(
         self, token: str, user_manager: BaseUserManager[models.UP, models.ID]
     ) -> UserProtocol:
-        user = await self.jwt_strategy.read_token(token, user_manager=user_manager)
-        if not user:
-            raise Exception("Invalid token")
-        return user
+        try:
+            user = await self.jwt_strategy.read_token(token, user_manager=user_manager)
+            if not user:
+                raise Exception("Invalid token")
+            return user
+        except Exception as e:
+            print(f"Error verifying email token: {str(e)}")
+            raise Exception(f"Failed to verify email token: {str(e)}") from e
 
 
 # 이메일 템플릿 렌더링 클래스

@@ -1,6 +1,6 @@
 import unittest
 from unittest import TestCase
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from fastapi_users import BaseUserManager
 from fastapi_users.authentication import JWTStrategy
@@ -92,7 +92,7 @@ class TestEmailVerificationService(unittest.IsolatedAsyncioTestCase):
                 token, self.user_manager
             )
 
-        self.assertEqual(str(context.exception), "Invalid token")
+        self.assertEqual(str(context.exception), "Failed to verify email token: Invalid token")
         self.jwt_strategy.read_token.assert_awaited_once_with(
             token, user_manager=self.user_manager
         )

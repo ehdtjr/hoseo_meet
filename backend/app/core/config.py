@@ -1,8 +1,9 @@
 import secrets
 import warnings
 from pathlib import Path
-from typing import Annotated, Any, Literal, ClassVar
+from typing import Annotated, Any, ClassVar, Literal
 
+from dotenv import load_dotenv
 from pydantic import (
     AnyUrl,
     BeforeValidator,
@@ -14,8 +15,6 @@ from pydantic import (
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
-
-from dotenv import load_dotenv
 
 # .env 파일 로드
 load_dotenv()
@@ -40,6 +39,7 @@ class Settings(BaseSettings):
     DOMAIN: str
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
     BASE_DIR: ClassVar[Path] = Path(__file__).resolve().parent.parent
+
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -72,11 +72,21 @@ class Settings(BaseSettings):
     UNIVERSITY_EMAIL_DOMAIN: str
     EMAIL_TEMPLATE_DIR: ClassVar[Path] = BASE_DIR / "email-templates"
 
+
+    #  redis settings
+    REDIS_HOST: str
+    REDIS_PORT: int = 6379
+
+
+    @property
+    def redis_url(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
         return MultiHostUrl.build(
-            scheme="postgresql+psycopg",
+            scheme="postgresql+asyncpg",
             username=self.POSTGRES_USER,
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_SERVER,
@@ -110,29 +120,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
-from pydantic import (
-    PostgresDsn
-)
-from pydantic_core import MultiHostUrl
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_ignore_empty=True,
-        extra="ignore",
-    )
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
-        return MultiHostUrl.build(
-            scheme="postgresql+psycopg",
-            username=self.POSTGRES_USER,
-            password=self.POSTGRES_PASSWORD,
-            host=self.POSTGRES_SERVER,
-            port=self.POSTGRES_PORT,
-            path=self.POSTGRES_DB,
-        )
-
-settings = Settings()
