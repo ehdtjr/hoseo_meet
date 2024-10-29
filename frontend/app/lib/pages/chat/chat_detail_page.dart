@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../api/chat/load_message_service.dart';
 import '../../api/chat/send_message_service.dart';
-import '../../api/chat/socket_message_service.dart'; // SocketMessageService import
-import '../../api/chat/message_read_service.dart'; // MessageReadService import
+import '../../api/chat/message_read_service.dart';
 import '../../api/login/authme_service.dart';
 import '../../api/login/login_service.dart';
 
@@ -19,12 +18,11 @@ class ChatDetailPage extends StatefulWidget {
 class _ChatDetailPageState extends State<ChatDetailPage> {
   late final LoadMessageService loadMessageService;
   late final SendMessageService sendMessageService;
-  late final SocketMessageService socketMessageService;
   late final MessageReadService messageReadService;
   final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   List<Map<String, dynamic>> messages = [];
   int? _userId;
-  final ScrollController _scrollController = ScrollController(); // ScrollController 추가
 
   @override
   void initState() {
@@ -32,12 +30,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     final authService = AuthService();
     loadMessageService = LoadMessageService(authService);
     sendMessageService = SendMessageService(authService);
-    socketMessageService = SocketMessageService(authService.accessToken!);
     messageReadService = MessageReadService(authService);
 
     _fetchUserId();
     _loadPreviousMessages();
-    _connectWebSocket();
+    _subscribeToMessageStream(authService.messageStream);
     _markMessagesAsRead();
   }
 
@@ -55,7 +52,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       setState(() {
         messages.addAll(previousMessages.cast<Map<String, dynamic>>());
       });
-      _scrollToBottom(); // 메시지 로드 후 하단으로 스크롤
+      _scrollToBottom();
     } catch (error) {
       print('이전 메시지를 불러오는데 실패했습니다: $error');
     }
@@ -64,32 +61,26 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   Future<void> _markMessagesAsRead() async {
     try {
       final unreadMessageCount = widget.chatRoom['unread_message_count'] ?? 0;
-      print('Marking messages as read. Stream ID: ${widget.chatRoom['stream_id']}, Unread Count: $unreadMessageCount');
-
       await messageReadService.markMessagesAsRead(
         streamId: widget.chatRoom['stream_id'],
         numAfter: unreadMessageCount,
       );
-      print('Messages marked as read successfully.');
     } catch (error) {
       print('Error marking messages as read: $error');
     }
   }
 
-  void _connectWebSocket() {
-    socketMessageService.connectWebSocket();
-    socketMessageService.messageStream.listen((message) async {
+  void _subscribeToMessageStream(Stream<Map<String, dynamic>> messageStream) {
+    messageStream.listen((message) async {
       if (message['stream_id'] == widget.chatRoom['stream_id']) {
         setState(() {
           messages.add(message);
         });
 
-        // 새 메시지가 수신되면 하단으로 스크롤
         _scrollToBottom();
 
         try {
           await messageReadService.markNewestMessageAsRead(streamId: widget.chatRoom['stream_id']);
-          print('Newest message marked as read.');
         } catch (error) {
           print('Error marking newest message as read: $error');
         }
@@ -100,7 +91,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
       }
     });
   }
@@ -116,8 +111,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         throw Exception('Invalid timestamp format');
       }
 
-      String formattedTime = DateFormat('a h:mm', 'ko_KR').format(dateTime);
-      return formattedTime;
+      return DateFormat('a h:mm', 'ko_KR').format(dateTime);
     } catch (error) {
       print('타임스탬프 변환 오류: $error');
       return 'Unknown';
@@ -133,7 +127,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           messageContent: messageContent,
         );
         _messageController.clear();
-        _scrollToBottom(); // 메시지 전송 후 하단으로 스크롤
+        _scrollToBottom();
       } catch (error) {
         print('메시지 전송 실패: $error');
       }
@@ -143,8 +137,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   @override
   void dispose() {
     _messageController.dispose();
-    socketMessageService.dispose();
-    _scrollController.dispose(); // ScrollController 해제
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -170,7 +163,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
           children: [
             Expanded(
               child: ListView.builder(
-                controller: _scrollController, // ScrollController 연결
+                controller: _scrollController,
                 itemCount: messages.length,
                 itemBuilder: (context, index) {
                   final message = messages[index];
