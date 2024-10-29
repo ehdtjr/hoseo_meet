@@ -78,6 +78,9 @@ class AuthService with WidgetsBindingObserver {
   // 소켓 메시지 스트림 접근을 위한 메서드
   Stream<Map<String, dynamic>> get messageStream => _socketMessageService.messageStream;
 
+  // SocketMessageService 인스턴스를 외부에서 접근할 수 있도록 메서드 추가
+  SocketMessageService get socketMessageService => _socketMessageService;
+
   String? get accessToken => _accessToken;
 
   void dispose() {

@@ -32,7 +32,6 @@ dependencies:
     sdk: flutter
   flutter_native_splash: ^2.4.0 # 스플래시 스크린
   cupertino_icons: ^1.0.6
-  google_maps_flutter: ^2.2.0  # 최신 버전 확인 후 추가
   intl: ^0.17.0
   sliding_up_panel: ^2.0.0 #슬라이드 패널
   http: ^0.13.4

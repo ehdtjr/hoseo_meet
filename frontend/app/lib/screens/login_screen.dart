@@ -17,6 +17,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   final TextEditingController _tokenController = TextEditingController(); // FCM 토큰을 표시할 컨트롤러
   final AuthService _authService = AuthService();
   String? _accessToken; // 휘발성 토큰
+  final String domain = "@vision.hoseo.edu";
 
   @override
   void initState() {
@@ -36,7 +37,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      // 앱이 백그라운드로 갈 때 토큰 삭제
       _accessToken = null;
     }
   }
@@ -64,8 +64,16 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 child: TextField(
                   controller: _usernameController,
                   decoration: InputDecoration(
-                    labelText: 'User ID',
+                    hintText: 'User ID',
                   ),
+                ),
+              ),
+              // 도메인 텍스트를 명시적으로 추가
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8.0),
+                child: Text(
+                  "@vision.hoseo.edu",
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ),
               SizedBox(height: 16),
@@ -84,13 +92,15 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 width: buttonWidth,
                 child: ElevatedButton(
                   onPressed: () async {
+                    // ID에 도메인 추가
+                    final username = '${_usernameController.text.trim()}$domain';
+
                     // 로그인 요청
                     final response = await _authService.loginUser(
-                      username: _usernameController.text,
+                      username: username,
                       password: _passwordController.text,
                     );
 
-                    // 응답 코드가 200일 때 성공으로 처리
                     if (response.statusCode == 200) {
                       final responseBody = jsonDecode(response.body);
                       _accessToken = responseBody['access_token'];
@@ -101,7 +111,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                         MaterialPageRoute(builder: (context) => HomeScreen()),
                       );
                     } else {
-                      // 실패 시 에러 메시지 출력
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('로그인 실패: ${response.body}')),
                       );
