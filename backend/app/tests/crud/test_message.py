@@ -6,6 +6,7 @@ from app.models import Recipient, User
 from app.models.message import Message, UserMessage
 from app.schemas.message import MessageCreate, MessageType, UserMessageCreate
 from app.schemas.recipient import RecipientCreate, RecipientType
+from app.service.stream import get_stream_service
 from app.tests.conftest import BaseTest
 
 
@@ -181,7 +182,6 @@ class TestMessageCRUD(BaseTest):
 
         # 스트림 1의 3번째 메시지를 앵커로 설정
         anchor_id = create_message_ids[2]
-        print(anchor_id)
 
         # 스트림 1에서만 메시지 조회
         messages = await message_crud.get_stream_messages(
@@ -383,6 +383,48 @@ class TestUserMessageCRUD(BaseTest):
         # Assert that the first unread message is the 3rd message
         self.assertIsNotNone(first_unread_message)
         self.assertEqual(first_unread_message.message_id, messages[2].id)
+
+    async def test_get_first_unread_message_with_previous_read_errors(self):
+        user_message_crud = get_user_message_crud()
+
+        stream_id = 4
+        recipient_data = RecipientCreate(type=RecipientType.STREAM, type_id=stream_id)
+        recipient = Recipient(**recipient_data.model_dump())
+        self.db.add(recipient)
+        await self.db.commit()
+        await self.db.refresh(recipient)
+        recipient_id = recipient.id  # Save recipient ID for use in tests
+
+        # Create several messages in the stream
+        message_crud = get_message_crud()
+        messages = []
+        for i in range(1, 6):
+            message_data = MessageCreate(
+                sender_id=self.user_id,
+                type=MessageType.NORMAL,
+                recipient_id=recipient_id,
+                content=f"Test message {i}",
+                rendered_content=f"<p>Test message {i}</p>"
+            )
+            created_message = await message_crud.create(self.db, message_data)
+            messages.append(created_message)
+
+            if i  >= 5:
+                user_message_data = UserMessageCreate(
+                    user_id=self.user_id,
+                    message_id=created_message.id,
+                    is_read= False  # Mark all messages as read except for the
+                )
+                await user_message_crud.create(self.db, user_message_data)
+
+        # Get the first unread message in the stream
+        first_unread_message = await user_message_crud.get_first_unread_message_in_stream(
+            self.db, user_id=self.user_id, stream_id=stream_id
+        )
+        # Assert that the first unread message is indeed the 3rd message
+        self.assertIsNotNone(first_unread_message)
+        self.assertEqual(first_unread_message.message_id, messages[4].id)
+
 
     async def test_get_first_unread_message_in_stream_count(self):
         user_message_crud = get_user_message_crud()

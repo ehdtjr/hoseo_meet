@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
 from app.core.exceptions import PermissionDeniedException
 from app.models import Recipient, Stream, User
-from app.schemas.message import UserMessageBase
+from app.schemas.message import MessageBase, UserMessageBase
 from app.schemas.recipient import RecipientType
 from app.tests.conftest import BaseTest
 
@@ -208,3 +208,278 @@ class TestMessageService(BaseTest):
 
         # then
         self.assertEqual(result, 3)
+
+    async def test_get_stream_messages_success(self):
+        # given
+        current_time = datetime.now(timezone.utc)
+        from app.models.message import MessageType
+        mock_messages = [
+            MessageBase(
+                id=1,
+                sender_id=1,
+                type=MessageType.NORMAL,
+                recipient_id=1,
+                content="Message 1",
+                rendered_content="<p>Message 1</p>",
+                date_sent=current_time,
+                has_attachment=False,
+                has_image=False,
+                has_link=False
+            ),
+            MessageBase(
+                id=2,
+                sender_id=1,
+                type=MessageType.NORMAL,
+                recipient_id=1,
+                content="Message 2",
+                rendered_content="<p>Message 2</p>",
+                date_sent=current_time,
+                has_attachment=False,
+                has_image=False,
+                has_link=False
+            ),
+            MessageBase(
+                id=3,
+                sender_id=1,
+                type=MessageType.NORMAL,
+                recipient_id=1,
+                content="Message 3",
+                rendered_content="<p>Message 3</p>",
+                date_sent=current_time,
+                has_attachment=False,
+                has_image=False,
+                has_link=False
+            ),
+            MessageBase(
+                id=4,
+                sender_id=1,
+                type=MessageType.NORMAL,
+                recipient_id=1,
+                content="Message 4",
+                rendered_content="<p>Message 4</p>",
+                date_sent=current_time,
+                has_attachment=False,
+                has_image=False,
+                has_link=False
+            ),
+            MessageBase(
+                id=5,
+                sender_id=1,
+                type=MessageType.NORMAL,
+                recipient_id=1,
+                content="Message 5",
+                rendered_content="<p>Message 5</p>",
+                date_sent=current_time,
+                has_attachment=False,
+                has_image=False,
+                has_link=False
+            ),
+        ]
+
+        mock_oldest_message = MessageBase(
+            id=3,
+            sender_id=1,
+            type=MessageType.NORMAL,
+            recipient_id=1,
+            content="Message 3",
+            rendered_content="<p>Message 3</p>",
+            date_sent=current_time,
+            has_attachment=False,
+            has_image=False,
+            has_link=False
+        )
+
+        self.message_crud.get_stream_messages = AsyncMock(return_value=mock_messages)
+        self.user_message_crud.get_oldest_message_in_stream = AsyncMock(
+            return_value=mock_oldest_message)
+
+        # _check_stream_permission과 _convert_anchor_to_id 모의 설정
+        self.service._check_stream_permission = AsyncMock(return_value=True)
+        self.service._convert_anchor_to_id = AsyncMock(return_value=3)
+
+        # when
+        result = await self.service.get_stream_messages(
+            db=self.db,
+            user_id=1,
+            stream_id=1,
+            anchor="3",
+            num_before=2,
+            num_after=2
+        )
+
+        # then
+        self.assertEqual(len(result), 3)  # Messages 3, 4, 5만 반환되어야 함
+        self.assertEqual(result[0].id, 3)
+        self.assertEqual(result[1].id, 4)
+        self.assertEqual(result[2].id, 5)
+
+    async def test_get_stream_messages_no_permission(self):
+        # given
+        self.service._check_stream_permission = AsyncMock(return_value=False)
+
+        # when & then
+        with self.assertRaises(PermissionDeniedException) as context:
+            await self.service.get_stream_messages(
+                db=self.db,
+                user_id=1,
+                stream_id=1,
+                anchor="3",
+                num_before=2,
+                num_after=2
+            )
+
+        self.assertEqual(
+            str(context.exception),
+            "You are not permitted to read messages from this stream"
+        )
+    async def test_get_stream_messages_empty_messages(self):
+        # given
+        self.service._check_stream_permission = AsyncMock(return_value=True)
+        self.service._convert_anchor_to_id = AsyncMock(return_value=3)
+        self.message_crud.get_stream_messages = AsyncMock(return_value=[])
+        self.user_message_crud.get_oldest_message_in_stream = AsyncMock(
+            return_value=None)
+
+        # when
+        result = await self.service.get_stream_messages(
+            db=self.db,
+            user_id=1,
+            stream_id=1,
+            anchor="3",
+            num_before=2,
+            num_after=2
+        )
+
+        # then
+        self.assertEqual(len(result), 0)
+
+    async def test_get_stream_messages_all_messages_filtered(self):
+        # given
+        current_time = datetime.now(timezone.utc)
+        from app.models.message import MessageType
+
+        # 모든 메시지가 user_oldest_message보다 이전인 경우
+        mock_messages = [
+            MessageBase(
+                id=1,
+                sender_id=1,
+                type=MessageType.NORMAL,
+                recipient_id=1,
+                content="Message 1",
+                rendered_content="<p>Message 1</p>",
+                date_sent=current_time,
+                has_attachment=False,
+                has_image=False,
+                has_link=False
+            ),
+            MessageBase(
+                id=2,
+                sender_id=1,
+                type=MessageType.NORMAL,
+                recipient_id=1,
+                content="Message 2",
+                rendered_content="<p>Message 2</p>",
+                date_sent=current_time,
+                has_attachment=False,
+                has_image=False,
+                has_link=False
+            )
+        ]
+
+        mock_oldest_message = MessageBase(
+            id=5,  # 모든 메시지보다 더 큰 ID
+            sender_id=1,
+            type=MessageType.NORMAL,
+            recipient_id=1,
+            content="Message 5",
+            rendered_content="<p>Message 5</p>",
+            date_sent=current_time,
+            has_attachment=False,
+            has_image=False,
+            has_link=False
+        )
+
+        self.service._check_stream_permission = AsyncMock(return_value=True)
+        self.service._convert_anchor_to_id = AsyncMock(return_value=2)
+        self.message_crud.get_stream_messages = AsyncMock(return_value=mock_messages)
+        self.user_message_crud.get_oldest_message_in_stream = AsyncMock(
+            return_value=mock_oldest_message)
+
+        # when
+        result = await self.service.get_stream_messages(
+            db=self.db,
+            user_id=1,
+            stream_id=1,
+            anchor="2",
+            num_before=1,
+            num_after=1
+        )
+
+        # then
+        self.assertEqual(len(result), 0)  # 모든 메시지가 필터링되어야 함
+
+    async def test_get_stream_messages_oldest_message_at_start(self):
+        # given
+        current_time = datetime.now(timezone.utc)
+        from app.models.message import MessageType
+
+        mock_messages = [
+            MessageBase(
+                id=1,
+                sender_id=1,
+                type=MessageType.NORMAL,
+                recipient_id=1,
+                content="Message 1",
+                rendered_content="<p>Message 1</p>",
+                date_sent=current_time,
+                has_attachment=False,
+                has_image=False,
+                has_link=False
+            ),
+            MessageBase(
+                id=2,
+                sender_id=1,
+                type=MessageType.NORMAL,
+                recipient_id=1,
+                content="Message 2",
+                rendered_content="<p>Message 2</p>",
+                date_sent=current_time,
+                has_attachment=False,
+                has_image=False,
+                has_link=False
+            )
+        ]
+
+        mock_oldest_message = MessageBase(
+            id=1,  # 첫 번째 메시지와 동일한 ID
+            sender_id=1,
+            type=MessageType.NORMAL,
+            recipient_id=1,
+            content="Message 1",
+            rendered_content="<p>Message 1</p>",
+            date_sent=current_time,
+            has_attachment=False,
+            has_image=False,
+            has_link=False
+        )
+
+        self.service._check_stream_permission = AsyncMock(return_value=True)
+        self.service._convert_anchor_to_id = AsyncMock(return_value=1)
+        self.message_crud.get_stream_messages = AsyncMock(return_value=mock_messages)
+        self.user_message_crud.get_oldest_message_in_stream = AsyncMock(
+            return_value=mock_oldest_message)
+
+        # when
+        result = await self.service.get_stream_messages(
+            db=self.db,
+            user_id=1,
+            stream_id=1,
+            anchor="1",
+            num_before=1,
+            num_after=1
+        )
+
+        # then
+        self.assertEqual(len(result), 2)  # 모든 메시지가 포함되어야 함
+        self.assertEqual(result[0].id, 1)
+        self.assertEqual(result[1].id, 2)

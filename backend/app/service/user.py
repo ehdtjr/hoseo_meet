@@ -13,6 +13,7 @@ from app.service.email import EmailServiceProtocol, get_email_service
 
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
+
     def __init__(
             self, user_db: SQLAlchemyUserDatabase,
             email_service: EmailServiceProtocol
