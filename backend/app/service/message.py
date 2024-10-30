@@ -15,6 +15,8 @@ from app.models.message import MessageType
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase
 from app.service.events import create_send_event_manager
 
+import bisect
+
 
 class MessageServiceProtocol(Protocol):
     async def send_message_stream(self, db: AsyncSession, redis: Redis,
@@ -122,6 +124,7 @@ class MessageService(MessageServiceProtocol):
                                   anchor: str,
                                   num_before: int,
                                   num_after: int) -> List[MessageBase]:
+
         if not await self._check_stream_permission(db, user_id, stream_id):
             raise PermissionDeniedException(
                 "You are not permitted to read messages from this stream")
@@ -131,6 +134,16 @@ class MessageService(MessageServiceProtocol):
         messages: List[
             MessageBase] = await self.message_crud.get_stream_messages(
             db, stream_id, anchor_id, num_before, num_after)
+
+        user_oldest_message: Optional[MessageBase] = await (
+        self.user_message_crud.get_oldest_message_in_stream(
+            db, user_id, stream_id))
+
+        if messages and user_oldest_message:
+            start_idx = bisect.bisect_left([msg.id for msg in messages],
+             user_oldest_message.id)
+            messages = messages[start_idx:]
+
         return messages
 
     async def mark_message_read_stream(self, db: AsyncSession, stream_id: int,
