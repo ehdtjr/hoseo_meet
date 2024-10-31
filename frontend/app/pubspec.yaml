@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_native_splash: ^2.4.0 # 스플래시 스크린
+  flutter_native_splash: ^2.4.2 # 스플래시 스크린 flutter pub run flutter_native_splash:create #flutter pub run flutter_native_splash:remove
   cupertino_icons: ^1.0.6
   intl: ^0.17.0
   sliding_up_panel: ^2.0.0 #슬라이드 패널
@@ -39,15 +39,18 @@ dependencies:
   firebase_messaging: ^14.0.3
   shared_preferences: ^2.0.15
   firebase_core: ^2.32.0
+  permission_handler: ^11.3.1
 
 
 flutter_native_splash:
-  color: "#E72410"
-  image: assets/img/logo.png
-  fullscreen: true
+  color: "#E72410"           # 배경 색상
+  background_image: assets/img/logo.png  # 크기 조절된 로고 이미지 경로
   android_12:
     image: assets/img/logo.png
     icon_background_color: "#E72410"
+  fullscreen: false
+
+
 
 
   # The following adds the Cupertino Icons font to your application.
