@@ -21,7 +21,7 @@ class MeetPostServiceProtocol(Protocol):
 
     async def get_filtered_meet_posts(self, db: AsyncSession,
                                       title: Optional[str] = None,
-                                      post_type: Optional[str] = None,
+                                      type: Optional[str] = None,
                                       content: Optional[str] = None,
                                       skip: int = 0,
                                       limit: int = 10
@@ -79,7 +79,7 @@ class MeetPostService(MeetPostServiceProtocol):
 
     async def get_filtered_meet_posts(self, db: AsyncSession,
                                       title: Optional[str] = None,
-                                      post_type: Optional[str] = None,
+                                      type: Optional[str] = None,
                                       content: Optional[str] = None,
                                       skip: int = 0,
                                       limit: int = 10
@@ -87,7 +87,7 @@ class MeetPostService(MeetPostServiceProtocol):
 
         result = []
         filtered_meet_posts = await self.meet_post_crud.get_filtered_posts(
-            db, title, post_type, content, skip, limit)
+            db, title, type, content, skip, limit)
 
         for meet_post in filtered_meet_posts:
             # 구독자 목록 가져오기

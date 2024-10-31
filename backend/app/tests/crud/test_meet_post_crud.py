@@ -473,7 +473,7 @@ class TestMeetPostCRUD(BaseTest):
         meet_post_crud = get_meet_post_crud()
         search_type = "taxi"
         filtered_meet_posts = await meet_post_crud.get_filtered_posts(
-            self.db,post_type=search_type)
+            self.db, type=search_type)
 
         # then
         self.assertIsNotNone(filtered_meet_posts)

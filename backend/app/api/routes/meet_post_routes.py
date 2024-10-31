@@ -20,6 +20,12 @@ async def create_meet_post(
     user: User = Depends(current_active_user),
     meet_post_service: MeetPostServiceProtocol = Depends(get_meet_post_service),
 ):
+    """
+    meet_post를 등록하는 엔드포인트입니다.
+    - 사용자가 등록한 meet_post는 자동으로 채팅방이 생성됩니다.
+    - 사용자가 등록한 meet_post는 해당 채팅방에 자동으로 참여합니다.
+    - 사용 가능한 type은 "meet", "delivery", "taxi", "carpool" 입니다.
+    """
     result: MeetPostBase = await meet_post_service.create_meet_post(
         db, meet_post=meet_post, user_id=user.id)
     return result
@@ -28,7 +34,7 @@ async def create_meet_post(
 @router.get("/search", response_model=Optional[list[MeetPostResponse]])
 async def get_filtered_meet_posts(
     title: Optional[str] = None,
-    post_type: Optional[str] = None,
+    type: Optional[str] = None,
     content: Optional[str] = None,
     skip: int = 0,
     limit: int = 10,
@@ -36,7 +42,7 @@ async def get_filtered_meet_posts(
     meet_post_service: MeetPostServiceProtocol = Depends(get_meet_post_service),
 ):
     result = await meet_post_service.get_filtered_meet_posts(
-        db, title, post_type, content, skip, limit)
+        db, title, type, content, skip, limit)
     return result
 
 @router.post("/subscribe/{meet_post_id}")

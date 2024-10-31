@@ -63,7 +63,7 @@ class MeetPostCRUDProtocol:
             self,
             db: AsyncSession,
             title: Optional[str] = None,
-            post_type: Optional[str] = None,
+            type: Optional[str] = None,
             content: Optional[str] = None,
             skip: int = 0,
             limit: int = 10
@@ -90,7 +90,7 @@ class MeetPostCRUD(CRUDBase[MeetPost, MeetPostBase], MeetPostCRUDProtocol):
                 self,
                 db: AsyncSession,
                 title: Optional[str] = None,
-                post_type: Optional[str] = None,
+                type: Optional[str] = None,
                 content: Optional[str] = None,
                 skip: int = 0,
                 limit: int = 10
@@ -98,8 +98,8 @@ class MeetPostCRUD(CRUDBase[MeetPost, MeetPostBase], MeetPostCRUDProtocol):
         query_builder = MeetPostQueryBuilder(db)
         if title:
             query_builder.filter_by_title(title)
-        if post_type:
-            query_builder.filter_by_type(post_type)
+        if type:
+            query_builder.filter_by_type(type)
         if content:
             query_builder.filter_by_content(content)
 
