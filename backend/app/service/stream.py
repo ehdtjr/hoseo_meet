@@ -72,6 +72,10 @@ class SubscriberServiceProtocol(Protocol):
             -> List[Dict]:
         pass
 
+    async def get_subscribers(self, db: AsyncSession, stream_id: int) -> \
+                List[int]:
+                pass
+
 
 class SubscriberService(SubscriberServiceProtocol):
     user_message_crud: UserMessageCRUDProtocol
@@ -96,8 +100,8 @@ class SubscriberService(SubscriberServiceProtocol):
 
         for stream, subscription in result:
             # 구독자 목록 가져오기
-            subscribers = await self.subscription_crud.get_subscribers(db,
-                                                                       stream.id)
+            subscribers = await self.get_subscribers(
+                db, stream.id)
 
             # 미읽음 메시지 수 가져오기
             unread_message_count = await (
@@ -129,6 +133,11 @@ class SubscriberService(SubscriberServiceProtocol):
             })
         return subscriptions
 
+    async def get_subscribers(self, db: AsyncSession, stream_id: int) -> \
+            List[int]:
+        return  await self.subscription_crud.get_subscribers(
+        db, stream_id)
+
     async def subscribe(self, db: AsyncSession, user_id: int,
                         stream_id: int) \
             -> Optional[SubscriptionRead]:
@@ -146,6 +155,7 @@ class SubscriberService(SubscriberServiceProtocol):
         subscriber = await self.subscription_crud.create(db, subscriber_data)
 
         return SubscriptionRead.model_validate(subscriber)
+
 
 
 def get_subscription_service() -> SubscriberServiceProtocol:

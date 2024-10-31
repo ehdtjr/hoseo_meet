@@ -4,7 +4,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.meet_post_crud import MeetPostCRUDProtocol, get_meet_post_crud
 from app.schemas.meet_post_schemas import MeetPostBase, MeetPostCreate, \
-    MeetPostRequest
+    MeetPostRequest, MeetPostResponse
 from app.schemas.stream import StreamCreate, StreamRead
 from app.service.stream import (StreamServiceProtocol,
                                 SubscriberServiceProtocol,
@@ -73,14 +73,40 @@ class MeetPostService(MeetPostServiceProtocol):
         return create_meet_post
 
     async def get_filtered_meet_posts(self, db: AsyncSession,
-                                        title: Optional[str] = None,
-                                        post_type: Optional[str] = None,
-                                        content: Optional[str] = None,
-                                        skip: int = 0,
-                                        limit: int = 10
-                                        ) -> Optional[list[MeetPostBase]]:
-        return await self.meet_post_crud.get_filtered_posts(
-                db, title, post_type, content, skip, limit)
+                                      title: Optional[str] = None,
+                                      post_type: Optional[str] = None,
+                                      content: Optional[str] = None,
+                                      skip: int = 0,
+                                      limit: int = 10
+                                      ) -> Optional[list[MeetPostResponse]]:
+
+        result = []
+        filtered_meet_posts = await self.meet_post_crud.get_filtered_posts(
+            db, title, post_type, content, skip, limit)
+
+        for meet_post in filtered_meet_posts:
+            # 구독자 목록 가져오기
+            subscribers = await self.subscriber_service.get_subscribers(db, meet_post.stream_id)
+
+            # MeetPostResponse 인스턴스를 생성하면서 구독자 수를 포함
+            meet_post_response = MeetPostResponse(
+                id=meet_post.id,
+                title=meet_post.title,
+                type=meet_post.type,
+                author_id=meet_post.author_id,
+                stream_id=meet_post.stream_id,
+                content=meet_post.content,
+                page_views=meet_post.page_views,
+                created_at=meet_post.created_at,
+                max_people=meet_post.max_people,
+                current_people=len(subscribers)
+            )
+            result.append(meet_post_response)
+
+        return result
+
+
+
 
 
 def get_meet_post_service() -> MeetPostServiceProtocol:
