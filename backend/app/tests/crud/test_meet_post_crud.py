@@ -1,8 +1,9 @@
-
 from app.crud.meet_post_crud import get_meet_post_crud
 from app.models import MeetPost, User
 from app.schemas.meet_post_schemas import MeetPostBase, MeetPostCreate
 from app.tests.conftest import BaseTest
+
+from app.models import Stream
 
 
 class TestMeetPostCRUD(BaseTest):
@@ -23,10 +24,23 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id  # ID 저장
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         # when
         meet_post_crud = get_meet_post_crud()
         meet_post_data = MeetPostCreate(
             author_id=user_id,
+            stream_id=stream_id,
             title="Test MeetPost",
             type="meet",
             content="Test MeetPost Content",
@@ -63,11 +77,24 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id  # ID 저장
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         meet_post_data = {
             "author_id": user_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "Test MeetPost Content",
+            "stream_id": stream_id,
             "max_people": 3
         }
         meet_post = MeetPost(**meet_post_data)
@@ -109,9 +136,21 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.commit()
         await self.db.refresh(user)
         user_id = user.id  # ID 저장
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
 
         meet_post_data = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "Test MeetPost Content",
@@ -162,8 +201,21 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id  # ID 저장
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         meet_post_data = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "Test MeetPost Content",
@@ -178,6 +230,7 @@ class TestMeetPostCRUD(BaseTest):
 
         meet_post_data2 = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "happy MeetPost",
             "type": "meet",
             "content": "Test MeetPost Content",
@@ -218,8 +271,21 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         meet_post_data1 = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "Test MeetPost Content",
@@ -227,6 +293,7 @@ class TestMeetPostCRUD(BaseTest):
         }
         meet_post_data2 = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Another MeetPost",
             "type": "taxi",
             "content": "Another MeetPost Content",
@@ -261,8 +328,21 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         meet_post_data = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "Test Content",
@@ -298,8 +378,21 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         meet_post_data = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "Test Content",
@@ -335,8 +428,21 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id  # ID 저장
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         meet_post_data = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "Test MeetPost Content",
@@ -351,6 +457,7 @@ class TestMeetPostCRUD(BaseTest):
 
         meet_post_data2 = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "happy MeetPost",
             "type": "taxi",
             "content": "Test MeetPost Content",
@@ -390,8 +497,21 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         meet_post_data = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "Test Content",
@@ -425,9 +545,21 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.commit()
         await self.db.refresh(user)
         user_id = user.id
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
 
         meet_post_data = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "Test Content",
@@ -462,8 +594,21 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         meet_post_data1 = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "First MeetPost",
             "type": "meet",
             "content": "First Content",
@@ -471,6 +616,7 @@ class TestMeetPostCRUD(BaseTest):
         }
         meet_post_data2 = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Second MeetPost",
             "type": "taxi",
             "content": "Second Content",
@@ -507,8 +653,21 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         meet_post_data1 = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "Happy Content",
@@ -516,6 +675,7 @@ class TestMeetPostCRUD(BaseTest):
         }
         meet_post_data2 = {
             "author_id": user_id,
+            "stream_id": stream_id,
             "title": "Other MeetPost",
             "type": "taxi",
             "content": "Sad Content",
@@ -555,11 +715,24 @@ class TestMeetPostCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id  # ID 저장
 
+        stream_data = {
+            "name": "Test Stream",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
         meet_post_data = {
             "author_id": user_id,
             "title": "Test MeetPost",
             "type": "meet",
             "content": "happy MeetPost Content",
+            "stream_id": stream_id,
             "max_people": 3
         }
 
@@ -574,6 +747,7 @@ class TestMeetPostCRUD(BaseTest):
             "title": "happy MeetPost",
             "type": "taxi",
             "content": "Test MeetPost Content",
+            "stream_id": stream_id,
             "max_people": 3
         }
         meet_post2 = MeetPost(**meet_post_data2)

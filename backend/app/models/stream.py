@@ -29,6 +29,8 @@ class Stream(Base):
     creator: Mapped["User"] = relationship("User", back_populates="streams")
     recipient: Mapped["Recipient"] = relationship("Recipient",
                                                   back_populates="streams")
+    meet_post: Mapped[Optional["MeetPost"]] = relationship(
+        "MeetPost", back_populates="stream", uselist=False)
 
 
 class Subscription(Base):
@@ -48,6 +50,7 @@ class Subscription(Base):
     user: Mapped["User"] = relationship("User", back_populates="subscriptions")
     recipient: Mapped["Recipient"] = relationship("Recipient",
                                                   back_populates="subscriptions")
+
 
     __table_args__ = (
         UniqueConstraint("user_id", "recipient_id"),

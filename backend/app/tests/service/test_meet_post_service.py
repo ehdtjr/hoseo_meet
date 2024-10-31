@@ -1,5 +1,5 @@
 from app.models import User
-from app.schemas.meet_post_schemas import MeetPostCreate
+from app.schemas.meet_post_schemas import MeetPostCreate, MeetPostRequest
 from app.schemas.user import UserRead
 from app.service.meet_post_service import get_meet_post_service
 from app.tests.conftest import BaseTest
@@ -30,16 +30,17 @@ class TestMeetPostService(BaseTest):
         user = UserRead.model_validate(user)
 
         # 만남 게시글 생성 데이터
-        meet_post_create = MeetPostCreate(
+        meet_post_request = MeetPostRequest(
             title="Test Meet Post",
-            author_id=user.id,
             type="meet",
             content="This is a test meet post",
             max_people=5
         )
 
         # when: 만남 게시글 생성 서비스 호출
-        result = await self.service.create_meet_post(self.db, meet_post_create)
+        result = await self.service.create_meet_post(self.db,
+                                                     meet_post_request,
+                                                     user_id=user.id)
 
         # then: 결과 검증
         # 게시판 생성되었는지
