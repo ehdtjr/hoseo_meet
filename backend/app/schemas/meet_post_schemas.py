@@ -47,3 +47,6 @@ class MeetPostRequest(BaseModel):
     type: MeetPostType
     content: str
     max_people: int = Field(..., ge=1, le=50)
+
+class MeetPostResponse(MeetPostBase):
+    current_people: int

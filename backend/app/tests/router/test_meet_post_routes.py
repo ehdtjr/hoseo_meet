@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 from app.core.db import get_async_session
 from app.core.security import current_active_user
 from app.main import app
-from app.schemas.meet_post_schemas import MeetPostBase
+from app.schemas.meet_post_schemas import MeetPostBase, MeetPostResponse
 from app.service.meet_post_service import MeetPostServiceProtocol, get_meet_post_service
 from app.tests.conftest import BaseTest, override_get_db
 
@@ -93,7 +93,7 @@ class TestMeetPostRoutes(BaseTest):
         # 가짜 필터 결과 생성
         from datetime import datetime
         mock_meet_post_service.get_filtered_meet_posts.return_value = [
-            MeetPostBase(
+            MeetPostResponse(
                 id=1,
                 created_at=datetime.utcnow(),
                 title="Test Meet 1",
@@ -102,8 +102,9 @@ class TestMeetPostRoutes(BaseTest):
                 type="meet",
                 content="Content for test meet 1",
                 max_people=3,
+                current_people=2
             ),
-            MeetPostBase(
+            MeetPostResponse(
                 id=2,
                 created_at=datetime.utcnow(),
                 title="Test Meet 2",
@@ -112,6 +113,7 @@ class TestMeetPostRoutes(BaseTest):
                 type="taxi",
                 content="Content for test meet 2",
                 max_people=4,
+                current_people=1
             )
         ]
 
@@ -141,12 +143,14 @@ class TestMeetPostRoutes(BaseTest):
         assert response_data[0]["type"] == "meet"
         assert response_data[0]["content"] == "Content for test meet 1"
         assert response_data[0]["max_people"] == 3
+        assert response_data[0]["current_people"] == 2
 
         assert response_data[1]["title"] == "Test Meet 2"
         assert response_data[1]["author_id"] == self.user.id
         assert response_data[1]["type"] == "taxi"
         assert response_data[1]["content"] == "Content for test meet 2"
         assert response_data[1]["max_people"] == 4
+        assert response_data[1]["current_people"] == 1
 
         # 서비스 호출 검증
         mock_meet_post_service.get_filtered_meet_posts.assert_called_once()
