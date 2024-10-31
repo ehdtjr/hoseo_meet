@@ -2,6 +2,7 @@ from typing import Protocol, Optional
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.exceptions import NoneValueException
 from app.crud.meet_post_crud import MeetPostCRUDProtocol, get_meet_post_crud
 from app.schemas.meet_post_schemas import MeetPostBase, MeetPostCreate, \
     MeetPostRequest, MeetPostResponse
@@ -25,6 +26,10 @@ class MeetPostServiceProtocol(Protocol):
                                       skip: int = 0,
                                       limit: int = 10
                                       ) -> Optional[list[MeetPostBase]]:
+        pass
+
+    async def subscribe_to_meet_post(self, db: AsyncSession,
+                                     user_id: int, meet_post_id: int) -> bool:
         pass
 
 
@@ -86,7 +91,8 @@ class MeetPostService(MeetPostServiceProtocol):
 
         for meet_post in filtered_meet_posts:
             # 구독자 목록 가져오기
-            subscribers = await self.subscriber_service.get_subscribers(db, meet_post.stream_id)
+            subscribers = await self.subscriber_service.get_subscribers(
+            db, meet_post.stream_id)
 
             # MeetPostResponse 인스턴스를 생성하면서 구독자 수를 포함
             meet_post_response = MeetPostResponse(
@@ -105,8 +111,33 @@ class MeetPostService(MeetPostServiceProtocol):
 
         return result
 
+    async def subscribe_to_meet_post(self, db: AsyncSession,
+         user_id: int, meet_post_id: int) -> bool:
 
+        """
+          게시글의 최대 인원수를 확인하고, 넘지 않았다면 구독자 추가
+          - 게시글 존재 여부 확인
+          - 최대 인원수 체크 및 예외 처리
+          - 중복 구독 여부 체크 및 예외 처리
+          """
 
+        meet_post:MeetPostBase = await self.meet_post_crud.get(db, meet_post_id)
+
+        if meet_post is None:
+            raise ValueError("해당 게시글을 찾을 수 없습니다.")
+
+        current_people = await self.subscriber_service.get_subscribers(db,
+        meet_post.stream_id)
+
+        if len(current_people) >= meet_post.max_people:
+            raise ValueError("참가 가능한 인원을 초과했습니다.")
+
+        if user_id in current_people:
+            raise ValueError("이미 참가한 사용자입니다.")
+
+        await self.subscriber_service.subscribe(db, user_id,
+             meet_post.stream_id)
+        return True
 
 
 def get_meet_post_service() -> MeetPostServiceProtocol:
