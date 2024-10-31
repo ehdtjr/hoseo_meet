@@ -12,6 +12,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   // 한국어 로케일 데이터를 초기화합니다.
   await initializeDateFormatting('ko_KR', null);
 

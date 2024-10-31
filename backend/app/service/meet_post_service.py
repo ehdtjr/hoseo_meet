@@ -14,6 +14,7 @@ class MeetPostServiceProtocol(Protocol):
     MeetPostCreate) -> MeetPostBase:
         pass
 
+
 class MeetPostService(MeetPostServiceProtocol):
 
     def __init__(self, meet_post_crud: MeetPostCRUDProtocol,
@@ -48,6 +49,7 @@ class MeetPostService(MeetPostServiceProtocol):
         user_id=meet_post.author_id, stream_id=create_stream.id)
 
         return create_meet_post
+
 
 def get_meet_post_service() -> MeetPostServiceProtocol:
     return MeetPostService(
