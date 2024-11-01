@@ -97,7 +97,6 @@ class TestMessageCRUD(BaseTest):
 
     async def test_get_stream_messages(self):
         message_crud = get_message_crud()
-        user_message_crud = get_user_message_crud()
 
         # Create multiple messages in the stream for testing
         for i in range(1, 6):
@@ -109,14 +108,6 @@ class TestMessageCRUD(BaseTest):
                 rendered_content=f"<p>Test message {i}</p>"
             )
             created_message = await message_crud.create(self.db, message_data)
-
-            # UserMessage 생성
-            user_message_data = UserMessageCreate(
-                user_id=self.user_id,
-                message_id=created_message.id,
-                is_read=False
-            )
-            await user_message_crud.create(self.db, user_message_data)
 
         # Define anchor (ID of the 3rd message)
         anchor_id = 3
@@ -136,62 +127,220 @@ class TestMessageCRUD(BaseTest):
         self.assertEqual(messages[3].content, "Test message 4")  # First after
         self.assertEqual(messages[4].content, "Test message 5")  # Second after
 
-    async def test_get_stream_messages_only_from_specific_stream(self):
+    async def test_get_stream_messages_not_enough_before_messages(self):
+        # 메시지 CRUD 객체 가져오기
         message_crud = get_message_crud()
-        user_message_crud = get_user_message_crud()
-        create_message_ids = []
-        # 스트림 1에 메시지 생성
-        for i in range(1, 6):
-            message_data = MessageCreate(
-                sender_id=self.user_id,
-                type=MessageType.NORMAL,
-                recipient_id=self.recipient_id,
-                content=f"Stream 1 message {i}",
-                rendered_content=f"<p>Stream 1 message {i}</p>"
-            )
-            created_message = await message_crud.create(self.db, message_data)
-            create_message_ids.append(created_message.id)
 
-            # UserMessage 생성
-            user_message_data = UserMessageCreate(
-                user_id=self.user_id,
-                message_id=created_message.id,
-                is_read=False
-            )
-            await user_message_crud.create(self.db, user_message_data)
-
-        # 스트림 2에 메시지 생성
-        other_stream_id = self.recipient_id2
+        # 스트림에 3개의 메시지 생성 (앵커 이전에 충분한 메시지가 없는 케이스)
         for i in range(1, 4):
             message_data = MessageCreate(
                 sender_id=self.user_id,
                 type=MessageType.NORMAL,
-                recipient_id=other_stream_id,
-                content=f"Stream 2 message {i}",
-                rendered_content=f"<p>Stream 2 message {i}</p>"
+                recipient_id=self.recipient_id,
+                content=f"Test message {i}",
+                rendered_content=f"<p>Test message {i}</p>"
             )
-            created_message = await message_crud.create(self.db, message_data)
+            await message_crud.create(self.db, message_data)
 
-            # UserMessage 생성
-            user_message_data = UserMessageCreate(
-                user_id=self.user_id,
-                message_id=created_message.id,
-                is_read=False
-            )
-            await user_message_crud.create(self.db, user_message_data)
-
-        # 스트림 1의 3번째 메시지를 앵커로 설정
-        anchor_id = create_message_ids[2]
-
-        # 스트림 1에서만 메시지 조회
+        # 앵커를 2번째 메시지로 설정
+        anchor_id = 2
         messages = await message_crud.get_stream_messages(
-            self.db, stream_id=self.recipient_id, anchor_id=anchor_id,
+            self.db, stream_id=self.recipient_id,
+            anchor_id=anchor_id,
             num_before=2, num_after=2
         )
 
-        self.assertEqual(len(messages), 5)
-        for message in messages:
-            self.assertTrue(message.content.startswith("Stream 1"))
+        # 앵커 이전에 충분한 메시지가 없으므로 3개의 메시지만 반환됨
+        self.assertEqual(len(messages), 3)
+        self.assertEqual(messages[0].content, "Test message 1")
+        self.assertEqual(messages[1].content, "Test message 2")
+        self.assertEqual(messages[2].content, "Test message 3")
+
+    async def test_get_stream_messages_not_enough_after_messages(self):
+        # 메시지 CRUD 객체 가져오기
+        message_crud = get_message_crud()
+
+        # 스트림에 3개의 메시지 생성 (앵커 이후에 충분한 메시지가 없는 케이스)
+        for i in range(1, 4):
+            message_data = MessageCreate(
+                sender_id=self.user_id,
+                type=MessageType.NORMAL,
+                recipient_id=self.recipient_id,
+                content=f"Test message {i}",
+                rendered_content=f"<p>Test message {i}</p>"
+            )
+            await message_crud.create(self.db, message_data)
+
+        # 앵커를 2번째 메시지로 설정
+        anchor_id = 2
+        messages = await message_crud.get_stream_messages(
+            self.db, stream_id=self.recipient_id,
+            anchor_id=anchor_id,
+            num_before=2, num_after=2
+        )
+
+        # 앵커 이후에 충분한 메시지가 없으므로 3개의 메시지만 반환됨
+        self.assertEqual(len(messages), 3)
+        self.assertEqual(messages[0].content, "Test message 1")
+        self.assertEqual(messages[1].content, "Test message 2")
+        self.assertEqual(messages[2].content, "Test message 3")
+
+    async def test_get_stream_messages_with_nonexistent_anchor(self):
+        # 메시지 CRUD 객체 가져오기
+        message_crud = get_message_crud()
+
+        # 스트림에 3개의 메시지 생성
+        for i in range(1, 4):
+            message_data = MessageCreate(
+                sender_id=self.user_id,
+                type=MessageType.NORMAL,
+                recipient_id=self.recipient_id,
+                content=f"Test message {i}",
+                rendered_content=f"<p>Test message {i}</p>"
+            )
+            await message_crud.create(self.db, message_data)
+
+        # 존재하지 않는 앵커 ID를 사용하여 메시지 조회
+        anchor_id = 999
+        messages = await message_crud.get_stream_messages(
+            self.db, stream_id=self.recipient_id,
+            anchor_id=anchor_id,
+            num_before=2, num_after=2
+        )
+
+        # 존재하지 않는 앵커이므로 빈 리스트 반환 기대
+        self.assertEqual(len(messages), 0)
+
+    async def test_get_stream_messages_with_no_messages_in_stream(self):
+        # 메시지 CRUD 객체 가져오기
+        message_crud = get_message_crud()
+
+        # 스트림에 메시지가 없는 상태에서 호출
+        anchor_id = 1
+        messages = await message_crud.get_stream_messages(
+            self.db, stream_id=self.recipient_id,
+            anchor_id=anchor_id,
+            num_before=2, num_after=2
+        )
+
+        # 스트림에 메시지가 없으므로 빈 리스트 반환 기대
+        self.assertEqual(len(messages), 0)
+
+    async def test_get_stream_messages_with_anchor_as_first_message(self):
+        # 메시지 CRUD 객체 가져오기
+        message_crud = get_message_crud()
+
+        # 스트림에 3개의 메시지 생성
+        for i in range(1, 4):
+            message_data = MessageCreate(
+                sender_id=self.user_id,
+                type=MessageType.NORMAL,
+                recipient_id=self.recipient_id,
+                content=f"Test message {i}",
+                rendered_content=f"<p>Test message {i}</p>"
+            )
+            await message_crud.create(self.db, message_data)
+
+        # 앵커가 첫 번째 메시지인 경우를 테스트
+        anchor_id = 1
+        messages = await message_crud.get_stream_messages(
+            self.db, stream_id=self.recipient_id,
+            anchor_id=anchor_id,
+            num_before=2, num_after=2
+        )
+
+        # 앵커 이전에 메시지가 없으므로 전체 3개 메시지만 반환됨
+        self.assertEqual(len(messages), 3)
+        self.assertEqual(messages[0].content, "Test message 1")
+        self.assertEqual(messages[1].content, "Test message 2")
+        self.assertEqual(messages[2].content, "Test message 3")
+
+    async def test_get_stream_messages_with_anchor_as_last_message(self):
+        # 메시지 CRUD 객체 가져오기
+        message_crud = get_message_crud()
+
+        # 스트림에 3개의 메시지 생성
+        for i in range(1, 4):
+            message_data = MessageCreate(
+                sender_id=self.user_id,
+                type=MessageType.NORMAL,
+                recipient_id=self.recipient_id,
+                content=f"Test message {i}",
+                rendered_content=f"<p>Test message {i}</p>"
+            )
+            await message_crud.create(self.db, message_data)
+
+        # 앵커가 마지막 메시지인 경우를 테스트
+        anchor_id = 3
+        messages = await message_crud.get_stream_messages(
+            self.db, stream_id=self.recipient_id,
+            anchor_id=anchor_id,
+            num_before=2, num_after=2
+        )
+
+        # 앵커 이후에 메시지가 없으므로 전체 3개 메시지만 반환됨
+        self.assertEqual(len(messages), 3)
+        self.assertEqual(messages[0].content, "Test message 1")
+        self.assertEqual(messages[1].content, "Test message 2")
+        self.assertEqual(messages[2].content, "Test message 3")
+
+
+    async def test_get_stream_messages_only_from_specific_stream(self):
+            message_crud = get_message_crud()
+            user_message_crud = get_user_message_crud()
+            create_message_ids = []
+            # 스트림 1에 메시지 생성
+            for i in range(1, 6):
+                message_data = MessageCreate(
+                    sender_id=self.user_id,
+                    type=MessageType.NORMAL,
+                    recipient_id=self.recipient_id,
+                    content=f"Stream 1 message {i}",
+                    rendered_content=f"<p>Stream 1 message {i}</p>"
+                )
+                created_message = await message_crud.create(self.db, message_data)
+                create_message_ids.append(created_message.id)
+
+                # UserMessage 생성
+                user_message_data = UserMessageCreate(
+                    user_id=self.user_id,
+                    message_id=created_message.id,
+                    is_read=False
+                )
+                await user_message_crud.create(self.db, user_message_data)
+
+            # 스트림 2에 메시지 생성
+            other_stream_id = self.recipient_id2
+            for i in range(1, 4):
+                message_data = MessageCreate(
+                    sender_id=self.user_id,
+                    type=MessageType.NORMAL,
+                    recipient_id=other_stream_id,
+                    content=f"Stream 2 message {i}",
+                    rendered_content=f"<p>Stream 2 message {i}</p>"
+                )
+                created_message = await message_crud.create(self.db, message_data)
+
+                # UserMessage 생성
+                user_message_data = UserMessageCreate(
+                    user_id=self.user_id,
+                    message_id=created_message.id,
+                    is_read=False
+                )
+                await user_message_crud.create(self.db, user_message_data)
+
+            # 스트림 1의 3번째 메시지를 앵커로 설정
+            anchor_id = create_message_ids[2]
+
+            # 스트림 1에서만 메시지 조회
+            messages = await message_crud.get_stream_messages(
+                self.db, stream_id=self.recipient_id, anchor_id=anchor_id,
+                num_before=2, num_after=2
+            )
+
+            self.assertEqual(len(messages), 5)
+            for message in messages:
+                self.assertTrue(message.content.startswith("Stream 1"))
 
 
 class TestUserMessageCRUD(BaseTest):

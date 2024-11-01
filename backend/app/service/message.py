@@ -131,17 +131,18 @@ class MessageService(MessageServiceProtocol):
 
         anchor_id: int = await self._convert_anchor_to_id(db, anchor, user_id,
                                                           stream_id)
+
         messages: List[
             MessageBase] = await self.message_crud.get_stream_messages(
             db, stream_id, anchor_id, num_before, num_after)
 
-        user_oldest_message: Optional[MessageBase] = await (
+        user_oldest_message: Optional[UserMessageBase] = await (
         self.user_message_crud.get_oldest_message_in_stream(
             db, user_id, stream_id))
 
         if messages and user_oldest_message:
             start_idx = bisect.bisect_left([msg.id for msg in messages],
-             user_oldest_message.id)
+             user_oldest_message.message_id)
             messages = messages[start_idx:]
 
         return messages

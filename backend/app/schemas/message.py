@@ -15,7 +15,6 @@ class MessageBase(BaseModel):
     recipient_id: int
     content: str
     rendered_content: Optional[str] = None
-    is_read: Optional[bool] = False
     date_sent: datetime
 
 
