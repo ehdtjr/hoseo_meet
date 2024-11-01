@@ -276,17 +276,11 @@ class TestMessageService(BaseTest):
             ),
         ]
 
-        mock_oldest_message = MessageBase(
-            id=3,
-            sender_id=1,
-            type=MessageType.NORMAL,
-            recipient_id=1,
-            content="Message 3",
-            rendered_content="<p>Message 3</p>",
-            date_sent=current_time,
-            has_attachment=False,
-            has_image=False,
-            has_link=False
+        mock_oldest_message = UserMessageBase(
+            id=1,
+            user_id=1,
+            message_id=3,
+            is_read=True
         )
 
         self.message_crud.get_stream_messages = AsyncMock(return_value=mock_messages)
@@ -386,17 +380,11 @@ class TestMessageService(BaseTest):
             )
         ]
 
-        mock_oldest_message = MessageBase(
-            id=5,  # 모든 메시지보다 더 큰 ID
-            sender_id=1,
-            type=MessageType.NORMAL,
-            recipient_id=1,
-            content="Message 5",
-            rendered_content="<p>Message 5</p>",
-            date_sent=current_time,
-            has_attachment=False,
-            has_image=False,
-            has_link=False
+        mock_oldest_message = UserMessageBase(
+            id=1,
+            user_id=1,
+            message_id=4, # 모든 메시지보다 더 큰 ID
+            is_read=True
         )
 
         self.service._check_stream_permission = AsyncMock(return_value=True)
@@ -450,17 +438,11 @@ class TestMessageService(BaseTest):
             )
         ]
 
-        mock_oldest_message = MessageBase(
+        mock_oldest_message = UserMessageBase(
             id=1,  # 첫 번째 메시지와 동일한 ID
-            sender_id=1,
-            type=MessageType.NORMAL,
-            recipient_id=1,
-            content="Message 1",
-            rendered_content="<p>Message 1</p>",
-            date_sent=current_time,
-            has_attachment=False,
-            has_image=False,
-            has_link=False
+            user_id=1,
+            message_id=1,
+            is_read=True
         )
 
         self.service._check_stream_permission = AsyncMock(return_value=True)
