@@ -11,9 +11,9 @@ from app.crud.recipient import RecipientCRUDProtocol, get_recipient_crud
 from app.crud.stream import StreamCRUDProtocol, SubscriptionCRUDProtocol, \
     get_stream_crud, get_subscription_crud
 from app.schemas.message import MessageBase, UserMessageBase
-from app.schemas.recipient import RecipientCreate, RecipientType
+from app.schemas.recipient import RecipientBase, RecipientCreate, RecipientType
 from app.schemas.stream import StreamBase, StreamCreate, StreamRead, \
-    SubscriptionCreate, \
+    SubscriptionBase, SubscriptionCreate, \
     SubscriptionRead
 
 logging.basicConfig(level=logging.INFO)
@@ -75,6 +75,10 @@ class SubscriberServiceProtocol(Protocol):
     async def get_subscribers(self, db: AsyncSession, stream_id: int) -> \
                 List[int]:
                 pass
+
+    async def unsubscribe(self, db: AsyncSession, user_id: int,
+                          stream_id: int) -> Optional[SubscriptionBase]:
+        pass
 
 
 class SubscriberService(SubscriberServiceProtocol):
@@ -152,9 +156,42 @@ class SubscriberService(SubscriberServiceProtocol):
             user_id=user_id,
             recipient_id=recipient.id,
         )
-        subscriber = await self.subscription_crud.create(db, subscriber_data)
+        subscriber = await self.subscription_crud.create(db,
+        subscriber_data)
 
         return SubscriptionRead.model_validate(subscriber)
+
+    async def unsubscribe(self, db: AsyncSession, user_id: int,
+                          stream_id: int) -> Optional[SubscriptionBase]:
+
+        subscribers:List[int] = await self.subscription_crud.get_subscribers(
+            db, stream_id)
+
+        if user_id not in subscribers:
+            raise ValueError(f"User {user_id} is not subscribed")
+
+        recipient: RecipientBase = await self.recipient_crud.get_by_type_id(db,
+        stream_id)
+
+        if not recipient:
+            raise ValueError(f"Recipient not found for stream {stream_id}")
+
+        subscription: SubscriptionBase = await (
+        self.subscription_crud.get_subscription(
+            db, user_id=user_id, recipient_id=recipient.id))
+
+        if not subscription:
+            raise ValueError(f"Subscription not found for user {user_id}")
+
+        if not subscription.active:
+            raise ValueError(f"Subscription is already inactive")
+
+        subscription.active = False
+
+        update_subscription: SubscriptionBase = \
+        await self.subscription_crud.update(db, subscription)
+
+        return update_subscription
 
 
 
