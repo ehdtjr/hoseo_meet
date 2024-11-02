@@ -1,6 +1,6 @@
 from typing import Any, AsyncGenerator, Optional
 
-from fastapi import (Depends, HTTPException, Request, status)
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users import BaseUserManager, IntegerIDMixin, models, schemas
 from fastapi_users.db import SQLAlchemyUserDatabase
@@ -20,11 +20,11 @@ kakao_oauth_client = KakaoOAuth2(
     scopes=["profile_nickname", "profile_image", "account_email"],
 )
 
+
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
 
     def __init__(
-            self, user_db: SQLAlchemyUserDatabase,
-            email_service: EmailServiceProtocol
+        self, user_db: SQLAlchemyUserDatabase, email_service: EmailServiceProtocol
     ):
         super().__init__(user_db)
         self.email_service = email_service
@@ -34,28 +34,28 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         return super().parse_id(id_value)
 
     async def authenticate(
-            self, credentials: OAuth2PasswordRequestForm
+        self, credentials: OAuth2PasswordRequestForm
     ) -> Optional[models.UP]:
         user = await super().authenticate(credentials)
         if user and not user.is_verified:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="이메일 인증이 필요합니다. 이메일을 확인해주세요."
+                detail="이메일 인증이 필요합니다. 이메일을 확인해주세요.",
             )
         return user
 
     async def create(
-            self,
-            user_create: schemas.UC,  # UC는 FastAPI Users에서 가져온 유저 생성 스키마
-            safe: bool = False,
-            request: Optional[Request] = None,
+        self,
+        user_create: schemas.UC,  # UC는 FastAPI Users에서 가져온 유저 생성 스키마
+        safe: bool = False,
+        request: Optional[Request] = None,
     ) -> User:
         if not self.email_service.validate_email_domain(user_create.email):
             raise ValueError("Invalid email domain.")
         return await super().create(user_create, safe, request)
 
     async def on_after_register(
-            self, user: UP, request: Optional[Request] = None
+        self, user: UP, request: Optional[Request] = None
     ) -> None:
         await self.email_service.send_email_verification_link(user)
 
@@ -71,54 +71,52 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         update_dict = {"is_verified": True}
         await self.user_db.update(user, update_dict)
 
-    # async def oauth_callback(
-    #     self,
-    #     oauth_name: str,
-    #     access_token: str,
-    #     account_id: str,
-    #     account_email: str,
-    #     expires_at: Optional[int],
-    #     refresh_token: Optional[str],
-    #     request: Request,
-    #     associate_by_email: bool = False,
-    #     is_verified_by_default: bool = False,
-    # ) -> User:
-    #     # OAuth 인증이 성공적으로 완료된 후, 기본 OAuth 로직을 수행합니다.
-    #     user = await super().oauth_callback(
-    #         oauth_name,
-    #         access_token,
-    #         account_id,
-    #         account_email,
-    #         expires_at,
-    #         refresh_token,
-    #         request,
-    #         associate_by_email,
-    #         is_verified_by_default,
-    #     )
+    async def oauth_callback(
+        self,
+        oauth_name: str,
+        access_token: str,
+        account_id: str,
+        account_email: str,
+        expires_at: Optional[int] = None,
+        refresh_token: Optional[str] = None,
+        request: Optional[Request] = None,
+        *,
+        associate_by_email: bool = False,
+        is_verified_by_default: bool = False,
+    ) -> User:
+        # OAuth 인증이 성공적으로 완료된 후, 기본 OAuth 로직을 수행합니다.
+        user = await super().oauth_callback(
+            oauth_name,
+            access_token,
+            account_id,
+            account_email,
+            expires_at,
+            refresh_token,
+        )
 
-    #     # 외래키로 연결된 일반 사용자 필드를 업데이트합니다.
-    #     if oauth_name == "kakao":
-    #         # 예시: 카카오 프로필 정보를 가져와서 업데이트
-    #         kakao_user_info = await self.get_kakao_user_info(access_token)
-    #         if kakao_user_info:
-    #             user.is_verified = True
-    #             await self.user_db.update(user)  # 데이터베이스에 업데이트
+        if oauth_name == "kakao":
+            # 카카오 프로필 정보를 가져와서 업데이트
+            kakao_user_info = await self.get_kakao_user_info(access_token)
+            if kakao_user_info:
+                update_dict = {"is_verified": True}
+                await self.user_db.update(user, update_dict)
 
-    #     return user
+        return user
 
-    # async def get_kakao_user_info(self, access_token: str) -> dict:
-    #     # 카카오 API를 통해 사용자 정보를 가져오는 함수 예시
-    #     headers = {"Authorization": f"Bearer {access_token}"}
-    #     async with httpx.AsyncClient() as client:
-    #         response = await client.get("https://kapi.kakao.com/v2/user/me", headers=headers)
-    #         if response.status_code == 200:
-    #             return response.json()
-    #     return {}
-    
+    async def get_kakao_user_info(self, access_token: str) -> dict:
+        # 카카오 API를 통해 사용자 정보를 가져오는 함수 예시
+        headers = {"Authorization": f"Bearer {access_token}"}
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://kapi.kakao.com/v2/user/me", headers=headers
+            )
+            if response.status_code == 200:
+                return response.json()
+        return {}
 
 
 async def get_user_manager(
-        user_db: SQLAlchemyUserDatabase = Depends(get_user_db),
-        email_service: EmailServiceProtocol = Depends(get_email_service),
+    user_db: SQLAlchemyUserDatabase = Depends(get_user_db),
+    email_service: EmailServiceProtocol = Depends(get_email_service),
 ) -> AsyncGenerator[UserManager, None]:
     yield UserManager(user_db, email_service)
