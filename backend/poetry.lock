@@ -1218,6 +1218,7 @@ files = [
 email-validator = ">=1.1.0,<2.2"
 fastapi = ">=0.65.2"
 fastapi-users-db-sqlalchemy = {version = ">=6.0.0", optional = true, markers = "extra == \"sqlalchemy\""}
+httpx-oauth = {version = ">=0.13", optional = true, markers = "extra == \"oauth\""}
 makefun = ">=1.11.2,<2.0.0"
 pwdlib = {version = "0.2.0", extras = ["argon2", "bcrypt"]}
 pyjwt = {version = "2.8.0", extras = ["crypto"]}
@@ -1728,6 +1729,20 @@ cli = ["click (==8.*)", "pygments (==2.*)", "rich (>=10,<14)"]
 http2 = ["h2 (>=3,<5)"]
 socks = ["socksio (==1.*)"]
 zstd = ["zstandard (>=0.18.0)"]
+
+[[package]]
+name = "httpx-oauth"
+version = "0.15.1"
+description = "Async OAuth client using HTTPX"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "httpx_oauth-0.15.1-py3-none-any.whl", hash = "sha256:89b45f250e93e42bbe9631adf349cab0e3d3ced958c07e06651735198d1bdf00"},
+    {file = "httpx_oauth-0.15.1.tar.gz", hash = "sha256:4094cf0938fc7252b5f5dfd62cd1ab5aee2fcb6734e621942ee17d1af4806b74"},
+]
+
+[package.dependencies]
+httpx = ">=0.18,<1.0.0"
 
 [[package]]
 name = "idna"
@@ -4066,4 +4081,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "13a5e3f2de0e4ad594ef5190ab895f62e0ec1342c8a5e52f4edfedad1c364fab"
+content-hash = "39979cc21bb17481e0279387994f0a8a775bea212bb57a40cae666a8cf09a98b"
