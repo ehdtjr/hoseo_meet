@@ -1,3 +1,5 @@
+from unittest import TestCase
+
 from app.crud.stream import StreamCRUD, SubscriptionCRUD, get_subscription_crud
 from app.models import Stream
 from app.models import Subscription, User
@@ -388,3 +390,216 @@ class TestSubscriptionCRUD(BaseTest):
 
         # then: 결과 확인
         self.assertEqual(len(result), 0)  # 구독된 스트림이 없어야 함
+
+
+    async def test_get_subscription(self):
+        # given: 사용자와 구독 생성
+        user_data = {
+            "email": "subscriber@example.com",
+            "hashed_password": "hashedpassword",
+            "name": "Subscriber",
+            "gender": "male",
+            "is_active": True,
+            "is_superuser": False,
+            "is_verified": True,
+        }
+
+        # 사용자 생성
+        user = User(**user_data)
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        user_id = user.id
+
+        # 스트림 및 recipient 생성
+        stream = Stream(name="Test Stream", creator_id=user_id, type="배달")
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+
+        recipient = Recipient(type=RecipientType.STREAM.value, type_id=stream.id)
+        self.db.add(recipient)
+        await self.db.commit()
+        await self.db.refresh(recipient)
+        recipient_id = recipient.id
+
+        # 구독 CRUD 사용
+        subscription_crud = SubscriptionCRUD()
+
+        # 사용자의 구독 생성
+        subscription_data = Subscription(
+            user_id=user_id,
+            recipient_id=recipient_id,
+            active=True,
+            is_user_active=True,
+            is_muted=False,
+        )
+        self.db.add(subscription_data)
+        await self.db.commit()
+
+        # when: 사용자와 수신자에 대한 구독 정보를 가져오기
+        result = await subscription_crud.get_subscription(self.db, user_id, recipient_id)
+
+        # then: 결과 확인
+        self.assertIsNotNone(result)  # 구독이 존재해야 함
+        self.assertEqual(result.user_id, user_id)  # 사용자 ID 확인
+        self.assertEqual(result.recipient_id, recipient_id)  # 수신자 ID 확인
+        self.assertTrue(result.active)  # 구독이 활성 상태여야 함
+        self.assertTrue(result.is_user_active)  # 사용자가 활성 상태여야 함
+        self.assertFalse(result.is_muted)  # 구독 상태 확인 (is_muted가 False여야 함)
+
+    async def test_get_subscription_no_subscription(self):
+        # given: 사용자와 수신자 생성 (구독은 없음)
+        user_data = {
+            "email": "user_no_subscription@example.com",
+            "hashed_password": "hashedpassword",
+            "name": "User No Subscription",
+            "gender": "male",
+            "is_active": True,
+            "is_superuser": False,
+            "is_verified": True,
+        }
+        user = User(**user_data)
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        user_id = user.id
+
+        stream = Stream(name="No Subscription", creator_id=user_id, type="배달")
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
+        recipient = Recipient(type=RecipientType.STREAM.value,
+        type_id=stream_id)
+        self.db.add(recipient)
+        await self.db.commit()
+        await self.db.refresh(recipient)
+        recipient_id = recipient.id
+
+        # when: 구독이 없는 사용자와 수신자에 대한 구독 정보를 가져오기
+        subscription_crud = SubscriptionCRUD()
+        result = await subscription_crud.get_subscription(self.db, user_id, recipient_id)
+
+        # then: 결과 확인
+        self.assertIsNone(result)  # 구독이 없어야 함
+
+
+    async def test_get_subscription_different_recipient(self):
+        # given: 구독 생성 후 다른 수신자에 대해 요청
+        user_data = {
+            "email": "subscriber@example.com",
+            "hashed_password": "hashedpassword",
+            "name": "Subscriber",
+            "gender": "male",
+            "is_active": True,
+            "is_superuser": False,
+            "is_verified": True,
+        }
+        user = User(**user_data)
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        user_id = user.id
+
+        stream = Stream(name="Test Stream", creator_id=user_id, type="배달")
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
+        recipient = Recipient(type=RecipientType.STREAM.value,
+        type_id=stream_id)
+        self.db.add(recipient)
+        await self.db.commit()
+        await self.db.refresh(recipient)
+        recipient_id = recipient.id
+
+        # 다른 수신자 생성
+        another_recipient = Recipient(type=RecipientType.STREAM.value,
+        type_id=stream_id + 1)
+        self.db.add(another_recipient)
+        await self.db.commit()
+        await self.db.refresh(another_recipient)
+        another_recipient_id = another_recipient.id
+
+        # 구독 CRUD 사용
+        subscription_crud = SubscriptionCRUD()
+        subscription_data = Subscription(
+            user_id=user_id,
+            recipient_id=recipient_id,
+            active=True,
+            is_user_active=True,
+            is_muted=False,
+        )
+        self.db.add(subscription_data)
+        await self.db.commit()
+
+        # when: 다른 수신자에 대한 구독 정보 요청
+        result = await subscription_crud.get_subscription(self.db, user_id,
+        another_recipient_id)
+
+        # then: 결과 확인
+        self.assertIsNone(result)  # 다른 수신자는 구독이 없어야 함
+
+    async def test_get_subscription_different_user(self):
+        # given: 구독 생성 후 다른 사용자에 대해 요청
+        user_data_1 = {
+            "email": "subscriber@example.com",
+            "hashed_password": "hashedpassword",
+            "name": "Subscriber",
+            "gender": "male",
+            "is_active": True,
+            "is_superuser": False,
+            "is_verified": True,
+        }
+        user_data_2 = {
+            "email": "another_user@example.com",
+            "hashed_password": "hashedpassword",
+            "name": "Another User",
+            "gender": "male",
+            "is_active": True,
+            "is_superuser": False,
+            "is_verified": True,
+        }
+
+        user1 = User(**user_data_1)
+        user2 = User(**user_data_2)
+        self.db.add_all([user1, user2])
+        await self.db.commit()
+        await self.db.refresh(user1)
+        await self.db.refresh(user2)
+        user1_id = user1.id
+        user2_id = user2.id
+
+        stream = Stream(name="Test Stream", creator_id=user1_id, type="배달")
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
+        recipient = Recipient(type=RecipientType.STREAM.value, type_id=stream.id)
+        self.db.add(recipient)
+        await self.db.commit()
+        await self.db.refresh(recipient)
+        recipient_id = recipient.id
+
+        # 구독 CRUD 사용
+        subscription_crud = SubscriptionCRUD()
+        subscription_data = Subscription(
+            user_id=user1_id,
+            recipient_id=recipient.id,
+            active=True,
+            is_user_active=True,
+            is_muted=False,
+        )
+        self.db.add(subscription_data)
+        await self.db.commit()
+
+        # when: 다른 사용자에 대한 구독 정보 요청
+        result = await subscription_crud.get_subscription(self.db, user2_id,
+        recipient_id)
+
+        # then: 결과 확인
+        self.assertIsNone(result)  # 다른 사용자는 구독이 없어야 함
