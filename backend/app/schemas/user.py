@@ -38,6 +38,7 @@ class UserFCMTokenBase(BaseModel):
     user_id: int
     fcm_token: str
 
+
 class UserFCMTokenCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
