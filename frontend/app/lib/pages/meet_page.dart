@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/category_button.dart';
 import 'create_post_page.dart';
+import '../api/meet/meet_search_service.dart';
 
 class MeetPage extends StatefulWidget {
   @override
@@ -9,109 +10,72 @@ class MeetPage extends StatefulWidget {
 
 class _MeetPageState extends State<MeetPage> {
   String selectedCategory = "전체"; // 초기 선택된 카테고리
+  List<Map<String, dynamic>> posts = []; // API에서 불러온 게시글 리스트
+  bool isLoading = true; // 로딩 상태
 
-  final List<Map<String, dynamic>> posts = [
-    {
-      "id": 123,
-      "type": "배달",
-      "title": "주말 모임",
-      "content": "주말에 함께 모여 식사해요!",
-      "join_people": 4,
-      "max_people": 10,
-      "gender": "무관",
-      "page_view": 3,
-      "created_at": "2024-08-12T10:00:00Z"
-    },
-    {
-      "id": 124,
-      "type": "모임",
-      "title": "주중 모임",
-      "content": "주중에 함께 산책해요!",
-      "join_people": 4,
-      "max_people": 8,
-      "gender": "무관",
-      "page_view": 23,
-      "created_at": "2024-08-13T12:00:00Z"
-    },
-    {
-      "id": 125,
-      "type": "배달",
-      "title": "저녁 모임",
-      "content": "저녁에 함께 영화 봐요!",
-      "join_people": 4,
-      "max_people": 12,
-      "gender": "무관",
-      "page_view": 13,
-      "created_at": "2024-08-14T18:00:00Z"
-    },
-    {
-      "id": 126,
-      "type": "택시",
-      "title": "저녁 모임",
-      "content": "저녁에 함께 영화 봐요!",
-      "join_people": 4,
-      "max_people": 12,
-      "gender": "무관",
-      "page_view": 13,
-      "created_at": "2024-08-14T18:00:00Z"
-    },
-    {
-      "id": 127,
-      "type": "모임",
-      "title": "저녁 모임",
-      "content": "저녁에 함께 영화 봐요!",
-      "join_people": 4,
-      "max_people": 12,
-      "gender": "무관",
-      "page_view": 13,
-      "created_at": "2024-08-14T18:00:00Z"
-    },
-  ];
+  final MeetSearchService _meetSearchService = MeetSearchService();
 
-  // 게시글 클릭 시 모달을 띄우는 함수
+  @override
+  void initState() {
+    super.initState();
+    _fetchPosts(); // 페이지 로드 시 API 호출
+  }
+
+  Future<void> _fetchPosts({String? type}) async {
+    setState(() {
+      isLoading = true;
+    });
+    try {
+      List<Map<String, dynamic>> fetchedPosts = await _meetSearchService.fetchPosts(type: type);
+      setState(() {
+        posts = fetchedPosts;
+      });
+    } catch (error) {
+      print('게시글을 불러오는데 실패했습니다: $error');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   void _showPostDetail(Map<String, dynamic> post) {
     showDialog(
       context: context,
-      barrierDismissible: true, // 배경을 터치하면 모달이 닫히도록 설정
+      barrierDismissible: true,
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
           child: GestureDetector(
-            // 모달 내부를 눌렀을 때 아무 동작도 하지 않도록 설정
-            behavior: HitTestBehavior.opaque, // 이벤트가 자식으로 전달되지 않도록 설정
-            onTap: () {
-              // 아무 동작도 하지 않음 (모달 창 내부 클릭 시 모달 닫히지 않음)
-            },
+            behavior: HitTestBehavior.opaque,
+            onTap: () {},
             child: Container(
               padding: EdgeInsets.all(16.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 프로필 이미지 및 정보
                   Row(
                     children: [
                       CircleAvatar(
-                        radius: 24, // 프로필 이미지 크기 조정
-                        backgroundImage: AssetImage('assets/img/profile-placeholder.png'), // 하드코딩된 프로필 이미지
+                        radius: 24,
+                        backgroundImage: AssetImage('assets/img/profile-placeholder.png'),
                       ),
-                      SizedBox(width: 12), // 이미지와 텍스트 사이 간격
+                      SizedBox(width: 12),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'zeongh134', // 하드코딩된 사용자 이름
+                            'zeongh134',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
-                      Spacer(), // 오른쪽 정렬을 위한 Spacer
-
-                      // 카테고리 타입과 더보기 아이콘을 세로로 정렬하고 같은 줄에 위치
+                      Spacer(),
                       Column(
-                        mainAxisAlignment: MainAxisAlignment.center, // 같은 세로줄에 위치하게 조정
+                        mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Container(
@@ -121,60 +85,53 @@ class _MeetPageState extends State<MeetPage> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              post['type'], // 게시글의 카테고리 (예: 배달)
+                              _getCategoryName(post['type'] ?? ""),
                               style: TextStyle(color: Colors.white, fontSize: 12),
                             ),
                           ),
-                          SizedBox(height: 4), // 간격 조정
-                          Icon(Icons.more_horiz, color: Colors.grey), // 더보기 아이콘
+                          SizedBox(height: 4),
+                          Icon(Icons.more_horiz, color: Colors.grey),
                         ],
                       ),
                     ],
                   ),
-
-                  // 프로필과 글 제목/내용 구분
                   SizedBox(height: 16),
                   Divider(color: Colors.red, thickness: 1.0),
-
-                  // 글 제목 및 내용
                   Text(
-                    post['title'], // 게시글 제목
+                    post['title'],
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 10),
-                  Text(post['content']), // 게시글 내용
+                  Text(post['content']),
                   SizedBox(height: 20),
-
-                  // 하단 정보: 조회수, 참가자 수, 참여하기 버튼이 같은 줄에 위치
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Row(
                         children: [
                           Text(
-                            '${formatTimestamp(post["created_at"])} · 조회 ${post["page_view"]}', // 조회수와 시간 표시
+                            '${formatTimestamp(post["created_at"])} · 조회 ${post["page_views"]}',
                             style: TextStyle(color: Colors.grey, fontSize: 12),
                           ),
                           SizedBox(width: 8),
-                          Icon(Icons.person_outline, size: 16, color: Colors.grey), // 참가자 아이콘
+                          Icon(Icons.person_outline, size: 16, color: Colors.grey),
                           SizedBox(width: 4),
                           Text(
-                            '${post["join_people"]}/${post["max_people"]}명', // 참가자 수
+                            '${post["join_people"] ?? 0}/${post["max_people"]}명',
                             style: TextStyle(color: Colors.grey, fontSize: 12),
                           ),
                         ],
                       ),
-                      // 참여하기 버튼을 같은 줄에 배치
                       ElevatedButton(
                         onPressed: () {
-                          Navigator.of(context).pop(); // 참여하기 버튼 클릭 시 모달 닫기
+                          Navigator.of(context).pop();
                         },
                         child: Text(
                           '참여하기',
                           style: TextStyle(color: Colors.white, fontSize: 12),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red, // 버튼 색상
+                          backgroundColor: Colors.red,
                           padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(25),
@@ -192,16 +149,31 @@ class _MeetPageState extends State<MeetPage> {
     );
   }
 
+  String _getCategoryName(String type) {
+    switch (type) {
+      case "meet":
+        return "모임";
+      case "delivery":
+        return "배달";
+      case "taxi":
+      case "carpool":
+        return "택시·카풀";
+      default:
+        return "기타";
+    }
+  }
 
-
-  // 카테고리 선택 함수
   void _onCategorySelected(String category) {
     setState(() {
       selectedCategory = category;
     });
+    String? type;
+    if (category == "모임") type = "meet";
+    else if (category == "배달") type = "delivery";
+    else if (category == "택시·카풀") type = "taxi-carpool";
+    _fetchPosts(type: type);
   }
 
-  // 타임스탬프 포맷팅 함수
   String formatTimestamp(String timestamp) {
     DateTime postDate = DateTime.parse(timestamp);
     DateTime now = DateTime.now();
@@ -222,8 +194,8 @@ class _MeetPageState extends State<MeetPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
-        elevation: 0, // AppBar의 기본 그림자 제거
-        scrolledUnderElevation: 0, // 스크롤 시에도 그림자가 생기지 않도록 설정
+        elevation: 0,
+        scrolledUnderElevation: 0,
         title: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Container(
@@ -231,7 +203,7 @@ class _MeetPageState extends State<MeetPage> {
             child: TextField(
               decoration: InputDecoration(
                 suffixIcon: Padding(
-                  padding: const EdgeInsets.all(8.0), // 아이콘 크기에 맞게 패딩 조정
+                  padding: const EdgeInsets.all(8.0),
                   child: Image.asset(
                     'assets/img/icon/search-icon.png',
                     width: 24,
@@ -245,15 +217,15 @@ class _MeetPageState extends State<MeetPage> {
                 filled: true,
                 fillColor: Colors.white,
                 contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                isDense: true, // 검색바가 더 컴팩트하게 보이도록 설정
+                isDense: true,
               ),
             ),
             decoration: BoxDecoration(
               boxShadow: [
                 BoxShadow(
                   color: Colors.black12,
-                  blurRadius: 4.0, // 그림자 효과
-                  offset: Offset(0, 2), // 그림자의 위치 조정
+                  blurRadius: 4.0,
+                  offset: Offset(0, 2),
                 ),
               ],
               borderRadius: BorderRadius.circular(25.0),
@@ -261,10 +233,11 @@ class _MeetPageState extends State<MeetPage> {
           ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         child: Column(
           children: [
-            // 카테고리 버튼들
             Container(
               height: 35,
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -293,42 +266,27 @@ class _MeetPageState extends State<MeetPage> {
                     },
                   ),
                   CategoryButton(
-                    text: "택시",
-                    isSelected: selectedCategory == "택시",
+                    text: "택시·카풀",
+                    isSelected: selectedCategory == "택시·카풀",
                     onPressed: () {
-                      _onCategorySelected("택시");
-                    },
-                  ),
-                  CategoryButton(
-                    text: "카풀",
-                    isSelected: selectedCategory == "카풀",
-                    onPressed: () {
-                      _onCategorySelected("카풀");
+                      _onCategorySelected("택시·카풀");
                     },
                   ),
                 ],
               ),
             ),
             Divider(color: Colors.red, thickness: 1.0),
-            // 게시글 리스트
             ListView.builder(
-              //physics: NeverScrollableScrollPhysics(), // 이 ListView는 스크롤 불가하게 설정
-              shrinkWrap: true, // 부모 ListView의 공간을 사용할 수 있도록 설정
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
               itemCount: posts.length,
               itemBuilder: (context, index) {
                 final post = posts[index];
                 return GestureDetector(
                   onTap: () {
-                    _showPostDetail(post); // 게시글 클릭 시 모달 창 호출
+                    _showPostDetail(post);
                   },
-                  child: Container(
-                    width: double.infinity, // 전체 가로 영역을 차지하도록 설정
-                    //padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 27.0), // 패딩 조정
-                    decoration: BoxDecoration(
-                      color: Colors.transparent, // 필요에 따라 배경색 설정 가능
-                    ),
-                    child: _buildPostItem(post), // 게시글 내용을 출력하는 위젯
-                  ),
+                  child: _buildPostItem(post),
                 );
               },
             ),
@@ -339,13 +297,13 @@ class _MeetPageState extends State<MeetPage> {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => CreatePostPage()), // 게시글 생성 페이지로 이동
+            MaterialPageRoute(builder: (context) => CreatePostPage()),
           );
         },
         child: Image.asset(
           'assets/img/icon/meet-postadd.png',
-          width: 48,  // 이미지의 크기를 조정합니다.
-          height: 48, // 이미지의 크기를 조정합니다.
+          width: 48,
+          height: 48,
         ),
       ),
     );
@@ -353,45 +311,41 @@ class _MeetPageState extends State<MeetPage> {
 
   Widget _buildPostItem(Map<String, dynamic> post) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 27.0), // 패딩 조정
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 27.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 카테고리 라벨
           Row(
             children: [
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.red), // 빨간 테두리로 표시
+                  border: Border.all(color: Colors.red),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  post["type"],
+                  _getCategoryName(post["type"] ?? ""),
                   style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
           SizedBox(height: 8),
-          // 제목
           Text(
             post["title"],
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
-          // 설명
           Text(
             post["content"],
-            style: TextStyle(fontSize: 12 ,color: Colors.grey[600],fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold),
           ),
           SizedBox(height: 8),
-          // 타임스탬프, 조회수, 참가자 수
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${formatTimestamp(post["created_at"])} · 조회 ${post["page_view"]}',
+                '${formatTimestamp(post["created_at"])} · 조회 ${post["page_views"]}',
                 style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
               ),
               Row(
@@ -403,14 +357,14 @@ class _MeetPageState extends State<MeetPage> {
                   ),
                   SizedBox(width: 4),
                   Text(
-                    '${post["join_people"]}/${post["max_people"]}',
+                    '${post["join_people"] ?? 0}/${post["max_people"]}',
                     style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
             ],
           ),
-          Divider(color: Colors.red, thickness: 1.0), // 게시글 분리선
+          Divider(color: Colors.red, thickness: 1.0),
         ],
       ),
     );

@@ -1,5 +1,5 @@
-//meet_page에서 게시글 생성시 출력페이지
 import 'package:flutter/material.dart';
+import '../api/meet/create_post_service.dart';
 
 class CreatePostPage extends StatefulWidget {
   @override
@@ -8,15 +8,45 @@ class CreatePostPage extends StatefulWidget {
 
 class _CreatePostPageState extends State<CreatePostPage> {
   String selectedCategory = "모임"; // 기본 선택된 카테고리
-  String selectedPeopleCount = "1명"; // 기본 선택된 인원수
+  String selectedPeopleCount = "2명"; // 기본 선택된 인원수
   final _titleController = TextEditingController(); // 제목 컨트롤러
   final _descriptionController = TextEditingController(); // 설명 컨트롤러
+  final CreatePostService _createPostService = CreatePostService();
 
   @override
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  Future<void> _createPost() async {
+    try {
+      await _createPostService.createPost(
+        title: _titleController.text,
+        type: _mapCategoryToType(selectedCategory),
+        content: _descriptionController.text,
+        maxPeople: int.parse(selectedPeopleCount.replaceAll("명", "")),
+      );
+      Navigator.of(context).pop(); // 성공 시 페이지 닫기
+    } catch (error) {
+      print('게시글 생성 오류: $error');
+    }
+  }
+
+  String _mapCategoryToType(String category) {
+    switch (category) {
+      case "모임":
+        return "meet";
+      case "배달":
+        return "delivery";
+      case "택시":
+        return "taxi";
+      case "카풀":
+        return "carpool";
+      default:
+        return "meet";
+    }
   }
 
   @override
@@ -29,14 +59,12 @@ class _CreatePostPageState extends State<CreatePostPage> {
         leading: IconButton(
           icon: Icon(Icons.close, color: Colors.black),
           onPressed: () {
-            Navigator.of(context).pop(); // 닫기 버튼 눌렀을 때 페이지 닫기
+            Navigator.of(context).pop();
           },
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              // 게시글 저장 기능 구현
-            },
+            onPressed: _createPost,
             child: Text(
               '만들기',
               style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
@@ -49,29 +77,26 @@ class _CreatePostPageState extends State<CreatePostPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 제목 입력란
             TextField(
               controller: _titleController,
               decoration: InputDecoration(
                 labelText: '채팅방 이름을 입력해주세요.',
                 labelStyle: TextStyle(color: Colors.grey),
-                border: InputBorder.none, // 하단의 검은선 제거
+                border: InputBorder.none,
               ),
             ),
-            Divider(color: Colors.red, thickness: 1.0), // 제목과 설명 구분선 추가
+            Divider(color: Colors.red, thickness: 1.0),
 
-            // 소개 입력란
             TextField(
               controller: _descriptionController,
               decoration: InputDecoration(
                 labelText: '채팅방을 소개해주세요',
                 labelStyle: TextStyle(color: Colors.grey),
-                border: InputBorder.none, // 하단의 검은선 제거
+                border: InputBorder.none,
               ),
             ),
             SizedBox(height: 16),
 
-            // 카테고리 선택
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -101,11 +126,20 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   },
                 ),
                 PostCategoryButton(
-                  text: "택시 · 카풀",
-                  isSelected: selectedCategory == "택시 · 카풀",
+                  text: "택시",
+                  isSelected: selectedCategory == "택시",
                   onPressed: () {
                     setState(() {
-                      selectedCategory = "택시 · 카풀";
+                      selectedCategory = "택시";
+                    });
+                  },
+                ),
+                PostCategoryButton(
+                  text: "카풀",
+                  isSelected: selectedCategory == "카풀",
+                  onPressed: () {
+                    setState(() {
+                      selectedCategory = "카풀";
                     });
                   },
                 ),
@@ -113,48 +147,22 @@ class _CreatePostPageState extends State<CreatePostPage> {
             ),
             SizedBox(height: 16),
 
-            // 인원수 선택
             Text('인원수', style: TextStyle(fontWeight: FontWeight.bold)),
             SizedBox(height: 8),
-            Row(
-              children: [
-                PeopleCountButton(
-                  text: "1명",
-                  isSelected: selectedPeopleCount == "1명",
+            Wrap(
+              spacing: 8.0,
+              children: List.generate(19, (index) {
+                String peopleCount = "${index + 2}명";
+                return PeopleCountButton(
+                  text: peopleCount,
+                  isSelected: selectedPeopleCount == peopleCount,
                   onPressed: () {
                     setState(() {
-                      selectedPeopleCount = "1명";
+                      selectedPeopleCount = peopleCount;
                     });
                   },
-                ),
-                PeopleCountButton(
-                  text: "2명",
-                  isSelected: selectedPeopleCount == "2명",
-                  onPressed: () {
-                    setState(() {
-                      selectedPeopleCount = "2명";
-                    });
-                  },
-                ),
-                PeopleCountButton(
-                  text: "3명",
-                  isSelected: selectedPeopleCount == "3명",
-                  onPressed: () {
-                    setState(() {
-                      selectedPeopleCount = "3명";
-                    });
-                  },
-                ),
-                PeopleCountButton(
-                  text: "제한없음",
-                  isSelected: selectedPeopleCount == "제한없음",
-                  onPressed: () {
-                    setState(() {
-                      selectedPeopleCount = "제한없음";
-                    });
-                  },
-                ),
-              ],
+                );
+              }),
             ),
           ],
         ),
@@ -163,7 +171,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
   }
 }
 
-// PostCategoryButton으로 이름 변경
+// 카테고리 버튼 위젯
 class PostCategoryButton extends StatelessWidget {
   final String text;
   final bool isSelected;
@@ -178,7 +186,8 @@ class PostCategoryButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          foregroundColor: isSelected ? Colors.white : Colors.red, backgroundColor: isSelected ? Colors.red : Colors.white,
+          foregroundColor: isSelected ? Colors.white : Colors.red,
+          backgroundColor: isSelected ? Colors.red : Colors.white,
           side: BorderSide(color: Colors.red),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -190,6 +199,7 @@ class PostCategoryButton extends StatelessWidget {
   }
 }
 
+// 인원수 버튼 위젯
 class PeopleCountButton extends StatelessWidget {
   final String text;
   final bool isSelected;
@@ -199,19 +209,17 @@ class PeopleCountButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          foregroundColor: isSelected ? Colors.white : Colors.black, backgroundColor: isSelected ? Colors.red : Colors.white,
-          side: BorderSide(color: Colors.grey.shade300),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        foregroundColor: isSelected ? Colors.white : Colors.black,
+        backgroundColor: isSelected ? Colors.red : Colors.white,
+        side: BorderSide(color: Colors.grey.shade300),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Text(text),
       ),
+      child: Text(text),
     );
   }
 }
