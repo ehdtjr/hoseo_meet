@@ -1,7 +1,6 @@
 import asyncio
 from typing import List, Optional, Protocol
 
-from aioredis import Redis
 from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -12,16 +11,15 @@ from app.crud.recipient import RecipientCRUDProtocol, get_recipient_crud
 from app.crud.stream import SubscriptionCRUDProtocol, get_subscription_crud
 from app.crud.user_crud import UserCRUDProtocol, get_user_crud
 from app.models.message import MessageType
+from app.schemas.event import EventBase
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase
-from app.service.events import create_send_event_manager
+from app.service.events import create_event_dispatcher
 
 import bisect
 
 
 class MessageServiceProtocol(Protocol):
-    async def send_message_stream(self, db: AsyncSession, redis: Redis,
-                                  sender_id: int, stream_id: int,
-                                  message_content: str) -> None:
+    async def send_message_stream(self, db: AsyncSession, sender_id: int, stream_id: int, message_content: str) -> None:
         pass
 
     async def mark_message_read_stream(self, db: AsyncSession, stream_id: int,
@@ -40,17 +38,6 @@ class MessageServiceProtocol(Protocol):
         pass
 
 
-async def _create_message_data(sender_id: int, recipient_id: int,
-                               message_content: str) -> MessageCreate:
-    """MessageCreate 데이터를 생성하는 헬퍼 메서드"""
-    message_create_data = {
-        "sender_id": sender_id,
-        "type": MessageType.NORMAL,
-        "recipient_id": recipient_id,
-        "content": message_content
-    }
-    return MessageCreate.model_validate(message_create_data)
-
 
 class MessageService(MessageServiceProtocol):
     def __init__(self, message_crud: MessageCRUDProtocol,
@@ -64,9 +51,8 @@ class MessageService(MessageServiceProtocol):
         self.recipient_crud = recipient_crud
         self.subscription_crud = subscription_crud
 
-    async def send_message_stream(self, db: AsyncSession, redis: Redis,
-                                  sender_id: int, stream_id: int,
-                                  message_content: str) -> None:
+    async def send_message_stream(self, db: AsyncSession, sender_id: int,
+            stream_id: int, message_content: str) -> None:
 
         if await self._check_stream_permission(db, sender_id,
                                                stream_id) is False:
@@ -75,7 +61,7 @@ class MessageService(MessageServiceProtocol):
 
         recipient = await self.recipient_crud.get_by_type_id(db, stream_id)
 
-        message_create = await _create_message_data(sender_id,
+        message_create = await self._create_message_data(sender_id,
                                                     recipient.id,
                                                     message_content)
         message = await self.message_crud.create(db, message_create)
@@ -83,24 +69,35 @@ class MessageService(MessageServiceProtocol):
         subscribers = await self.subscription_crud.get_subscribers(db,
                                                                    stream_id)
 
+        # 사용자 마다 읽은 여부 및 받은 메세지를 따로 처리하게 위해 UserMessage 테이블에 데이터를 추가
         user_messages_data = [{"user_id": subscriber, "message_id": message.id}
                               for subscriber in subscribers]
         await self.user_message_crud.bulk_create(db, user_messages_data)
 
-        event_data = await self._create_event_data(message, stream_id)
 
+        event_data = await self._create_event_base(message, stream_id)
         await asyncio.gather(
-            *[self._send_event_to_subscribers(db, redis, subscriber, event_data)
+            *[self._send_event_to_subscribers(db, subscriber, event_data)
               for
               subscriber in subscribers]
         )
 
-    async def _create_event_data(self, message: MessageBase,
-                                 stream_id: int) -> dict:
+    async def _create_message_data(self, sender_id: int, recipient_id: int,
+                                   message_content: str) -> MessageCreate:
+        """MessageCreate 데이터를 생성하는 헬퍼 메서드"""
+        message_create_data = {
+            "sender_id": sender_id,
+            "type": MessageType.NORMAL,
+            "recipient_id": recipient_id,
+            "content": message_content
+        }
+        return MessageCreate.model_validate(message_create_data)
+
+    async def _create_event_base(self, message: MessageBase, stream_id: int) -> EventBase:
         """Redis로 보낼 이벤트 데이터를 생성하는 헬퍼 메서드"""
-        return {
-            "type": "stream",
-            "data": {
+        return EventBase(
+            type="stream",
+            data={
                 "id": message.id,
                 "stream_id": stream_id,
                 "sender_id": message.sender_id,
@@ -109,14 +106,13 @@ class MessageService(MessageServiceProtocol):
                 "date_sent": int(message.date_sent.timestamp()),
                 "is_read": False
             }
-        }
+        )
 
-    async def _send_event_to_subscribers(self, db: AsyncSession, redis: Redis,
-                                         subscriber_id:
-                                         int, event_data: dict) -> None:
+    async def _send_event_to_subscribers(self, db: AsyncSession, subscriber_id:
+                                         int, event_data: EventBase) -> None:
         user = await self.user_crud.get(db, subscriber_id)
-        event_manager = await create_send_event_manager(db, redis, user)
-        await event_manager.send_event(event_data)
+        event_manager = await create_event_dispatcher(db, user)
+        await event_manager.dispatch_event(event_data)
 
     async def get_stream_messages(self, db: AsyncSession,
                                   user_id: int,
