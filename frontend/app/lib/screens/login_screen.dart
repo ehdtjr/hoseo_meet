@@ -1,3 +1,4 @@
+// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'home_screen.dart'; // 홈 화면 import
@@ -5,6 +6,7 @@ import '../pages/signup/sign_up_page.dart'; // 회원가입 페이지 import
 import '../api/login/login_service.dart'; // AuthService import
 import 'dart:convert'; // jsonDecode 사용을 위해 추가
 import '../../firebase/create_token.dart'; // FCM 토큰 발급 관리 클래스 import
+import '../kakao/kakao_login_service.dart'; // KakaoLoginService import
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -16,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _tokenController = TextEditingController(); // FCM 토큰을 표시할 컨트롤러
   final AuthService _authService = AuthService();
+  final KakaoLoginService _kakaoLoginService = KakaoLoginService(); // Kakao Login 서비스
   String? _accessToken; // 휘발성 토큰
   final String domain = "@vision.hoseo.edu";
 
@@ -68,7 +71,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-              // 도메인 텍스트를 명시적으로 추가
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 8.0),
                 child: Text(
@@ -92,10 +94,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 width: buttonWidth,
                 child: ElevatedButton(
                   onPressed: () async {
-                    // ID에 도메인 추가
                     final username = '${_usernameController.text.trim()}$domain';
 
-                    // 로그인 요청
                     final response = await _authService.loginUser(
                       username: username,
                       password: _passwordController.text,
@@ -105,7 +105,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                       final responseBody = jsonDecode(response.body);
                       _accessToken = responseBody['access_token'];
 
-                      // 홈 화면으로 이동
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => HomeScreen()),
@@ -136,7 +135,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 width: buttonWidth,
                 child: ElevatedButton(
                   onPressed: () {
-                    // 회원가입 페이지로 이동
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => SignUpPage()),
@@ -153,6 +151,39 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     '회원가입',
                     style: TextStyle(
                       color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: 16),
+              // 카카오톡 로그인 버튼 추가
+              SizedBox(
+                width: buttonWidth,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final success = await _kakaoLoginService.login();
+                    if (success) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => HomeScreen()),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('카카오 로그인 실패')),
+                      );
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.yellow,
+                    padding: EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    '카카오톡으로 로그인',
+                    style: TextStyle(
+                      color: Colors.black,
                     ),
                   ),
                 ),

@@ -1,30 +1,46 @@
+buildscript {
+    ext.kotlin_version = '1.9.10'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
 plugins {
     id "com.android.application"
     id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
-    id "com.google.gms.google-services" // Google Services Gradle Plugin
+    id "com.google.gms.google-services"
 }
 
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader("UTF-8") { reader ->
-        localProperties.load(reader)
+    localProperties.load(localPropertiesFile.newReader("UTF-8"))
+}
+
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "1"
+def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0"
+
+// .env 파일 로드하여 환경 변수를 BuildConfig와 manifestPlaceholders에 추가
+def dotenvFile = rootProject.file('.env')
+def envVariables = [:]
+if (dotenvFile.exists()) {
+    dotenvFile.eachLine { line ->
+        def parts = line.split('=')
+        if (parts.length == 2) {
+            def key = parts[0].trim()
+            def value = parts[1].trim()
+            envVariables[key] = value
+        }
     }
 }
 
-def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
-if (flutterVersionCode == null) {
-    flutterVersionCode = "1"
-}
-
-def flutterVersionName = localProperties.getProperty("flutter.versionName")
-if (flutterVersionName == null) {
-    flutterVersionName = "1.0"
-}
-
 android {
-    namespace = "com.company.hoseomeet" // 패키지 이름을 com.company.hoseomeet으로 설정
+    namespace = "com.company.hoseomeet"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -34,11 +50,21 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.company.hoseomeet" // applicationId를 com.company.hoseomeet으로 설정
+        applicationId = "com.company.hoseomeet"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
+
+        // 환경 변수를 BuildConfig에 추가
+        envVariables.each { key, value ->
+            buildConfigField "String", key, "\"${value}\""
+        }
+
+        // manifestPlaceholders에 KAKAO_NATIVE_APP_KEY 추가
+        manifestPlaceholders = [
+                KAKAO_NATIVE_APP_KEY: envVariables["KAKAO_NATIVE_APP_KEY"] ?: ""
+        ]
     }
 
     buildTypes {
@@ -53,7 +79,7 @@ flutter {
 }
 
 dependencies {
-    implementation 'com.google.firebase:firebase-messaging:23.1.1' // Firebase Messaging 라이브러리 추가
+    implementation 'com.google.firebase:firebase-messaging:23.1.1'
 }
 
 apply plugin: "com.google.gms.google-services"

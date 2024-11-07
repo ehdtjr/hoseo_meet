@@ -5,6 +5,7 @@ import '../../api/chat/subcription_room_service.dart'; // JoinRoomService import
 import '../../api/chat/load_roomlist_service.dart'; // LoadRoomListService import
 import '../../api/chat/send_message_service.dart'; // SendMessageService import
 import '../../api/chat/message_read_service.dart'; // MessageReadService import
+import '../../kakao/kakao_auto_login_service.dart'; // KakaoAutoLoginService import
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -13,6 +14,7 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final AuthService authService = AuthService(); // 싱글톤으로 AuthService 사용
+  final KakaoAutoLoginService _kakaoAutoLoginService = KakaoAutoLoginService(); // KakaoAutoLoginService 추가
   late final CreateRoomService createRoomService;
   late final JoinRoomService joinRoomService; // JoinRoomService 추가
   late final LoadRoomListService loadRoomListService; // LoadRoomListService 추가
@@ -82,30 +84,26 @@ class _ProfilePageState extends State<ProfilePage> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  // CreateRoomService 테스트 (roomName과 roomType을 사용)
                   final response = await createRoomService.createRoom(
                     roomName: _roomNameController.text,
                     roomType: _roomTypeController.text,
                   );
                   if (response.statusCode == 200) {
-                    print('채팅방 생성 성공: ${response.body}');
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('채팅방 생성 성공: ${response.body}')),
                     );
                   } else {
-                    print('채팅방 생성 실패: ${response.statusCode} - ${response.body}');
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('채팅방 생성 실패: ${response.statusCode} - ${response.body}')),
                     );
                   }
                 } catch (error) {
-                  print('오류 발생: $error');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('오류 발생: $error')),
                   );
                 }
               },
-              child: Text('Button 2 - 채팅방 생성'),
+              child: Text('채팅방 생성'),
             ),
 
             // Room ID 입력 텍스트박스
@@ -117,14 +115,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   border: OutlineInputBorder(),
                   labelText: 'Room ID 입력',
                 ),
-                keyboardType: TextInputType.number, // 숫자 입력용 키보드
+                keyboardType: TextInputType.number,
               ),
             ),
 
             ElevatedButton(
               onPressed: () async {
                 try {
-                  // JoinRoomService 테스트 (streamId: 사용자가 입력한 roomId)
                   final streamId = int.tryParse(_roomIdController.text);
                   if (streamId == null) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -135,46 +132,39 @@ class _ProfilePageState extends State<ProfilePage> {
 
                   final response = await joinRoomService.joinRoom(streamId: streamId);
                   if (response.statusCode == 200) {
-                    print('채팅방 입장 성공: ${response.body}');
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('채팅방 입장 성공: ${response.body}')),
                     );
                   } else {
-                    print('채팅방 입장 실패: ${response.statusCode} - ${response.body}');
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('채팅방 입장 실패: ${response.statusCode} - ${response.body}')),
                     );
                   }
                 } catch (error) {
-                  print('오류 발생: $error');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('오류 발생: $error')),
                   );
                 }
               },
-              child: Text('Button 3 - 채팅방 입장'),
+              child: Text('채팅방 입장'),
             ),
 
             ElevatedButton(
               onPressed: () async {
                 try {
-                  // LoadRoomListService 테스트 (사용자의 채팅방 목록 로드)
                   final roomList = await loadRoomListService.loadRoomList();
-                  print('채팅방 목록: $roomList');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('채팅방 목록: $roomList')),
                   );
                 } catch (error) {
-                  print('오류 발생: $error');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('오류 발생: $error')),
                   );
                 }
               },
-              child: Text('Button 4 - 채팅방 목록 로드'),
+              child: Text('채팅방 목록 로드'),
             ),
 
-            // Stream ID 입력 텍스트박스 (메시지 전송용)
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: TextField(
@@ -183,11 +173,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   border: OutlineInputBorder(),
                   labelText: 'Stream ID 입력',
                 ),
-                keyboardType: TextInputType.number, // 숫자 입력용 키보드
+                keyboardType: TextInputType.number,
               ),
             ),
 
-            // 메시지 입력 텍스트박스
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: TextField(
@@ -212,7 +201,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     return;
                   }
 
-                  // SendMessageService를 사용하여 메시지 전송
                   await sendMessageService.sendMessage(
                     streamId: streamId,
                     messageContent: messageContent,
@@ -221,29 +209,14 @@ class _ProfilePageState extends State<ProfilePage> {
                     SnackBar(content: Text('메시지 전송 성공')),
                   );
                 } catch (error) {
-                  print('오류 발생: $error');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('메시지 전송 실패: $error')),
                   );
                 }
               },
-              child: Text('Button 5 - 메시지 전송'),
+              child: Text('메시지 전송'),
             ),
 
-            // Stream ID 입력 텍스트박스 (메시지 읽음 처리용)
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                controller: _streamIdController,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Stream ID 입력',
-                ),
-                keyboardType: TextInputType.number, // 숫자 입력용 키보드
-              ),
-            ),
-
-            // num_after 입력 텍스트박스 (메시지 읽음 처리용)
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: TextField(
@@ -252,7 +225,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   border: OutlineInputBorder(),
                   labelText: 'num_after 입력',
                 ),
-                keyboardType: TextInputType.number, // 숫자 입력용 키보드
+                keyboardType: TextInputType.number,
               ),
             ),
 
@@ -269,7 +242,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     return;
                   }
 
-                  // MessageReadService 호출
                   await messageReadService.markMessagesAsRead(
                     streamId: streamId,
                     numAfter: numAfter,
@@ -278,13 +250,31 @@ class _ProfilePageState extends State<ProfilePage> {
                     SnackBar(content: Text('메시지 읽음 처리 성공')),
                   );
                 } catch (error) {
-                  print('오류 발생: $error');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('오류 발생: $error')),
                   );
                 }
               },
-              child: Text('Button 6 - 메시지 읽음 처리'),
+              child: Text('메시지 읽음 처리'),
+            ),
+
+            // 카카오톡 토큰 삭제 버튼 추가
+            ElevatedButton(
+              onPressed: () async {
+                await _kakaoAutoLoginService.deleteTokens();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('카카오톡 토큰이 삭제되었습니다.')),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+              ),
+              child: Text(
+                '카카오톡 토큰 삭제',
+                style: TextStyle(
+                  color: Colors.white,
+                ),
+              ),
             ),
           ],
         ),

@@ -1,12 +1,14 @@
 // android/build.gradle 파일
 buildscript {
+    ext.kotlin_version = "1.8.0" // Kotlin 버전 추가
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        // Google Services Gradle Plugin 추가
-        classpath 'com.google.gms:google-services:4.3.15'
+        classpath "com.android.tools.build:gradle:7.4.2" // Android Gradle Plugin 버전
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version" // Kotlin Gradle 플러그인
+        classpath 'com.google.gms:google-services:4.3.15' // Google Services 플러그인
     }
 }
 

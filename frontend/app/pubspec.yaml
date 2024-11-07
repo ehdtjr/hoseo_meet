@@ -40,11 +40,13 @@ dependencies:
   shared_preferences: ^2.0.15
   firebase_core: ^2.32.0
   permission_handler: ^11.3.1
-
+  kakao_flutter_sdk: ^1.1.4
+  flutter_dotenv: ^5.0.2
+  flutter_secure_storage: ^9.2.2
 
 flutter_native_splash:
   color: "#E72410"           # 배경 색상
-  background_image: assets/img/logo.png  # 크기 조절된 로고 이미지 경로
+  background_image: assets/img/logo.png  # 크기 조절된 로고 이미지 olkkj경로
   android_12:
     image: assets/img/logo.png
     icon_background_color: "#E72410"
@@ -74,6 +76,7 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
   assets:
+    - .env
     - assets/img/
     - assets/img/icon/
     - assets/img/icon/mainpage/
