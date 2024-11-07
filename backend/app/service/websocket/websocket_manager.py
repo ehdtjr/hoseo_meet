@@ -2,18 +2,25 @@ from typing import Protocol
 
 from fastapi import WebSocket
 from fastapi.params import Depends
-from fastapi_users import BaseUserManager, models
-from fastapi_users.authentication import JWTStrategy
+from fastapi_users import BaseUserManager
+from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
+from sqlalchemy.ext.asyncio import AsyncSession
+from websocket import WebSocketException
 from websockets import ConnectionClosedError, ConnectionClosedOK
 
-from app.core.security import get_jwt_strategy
-from app.service.user import get_user_manager
+from app.core.db import get_async_session, get_async_session_context
+from app.core.security import auth_backend
+from app.models import User
+from app.service.email import get_email_service
+from app.service.user import get_user_manager, UserManager
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class WebSocketAuthenticator:
-    def __init__(self, jwt_strategy: JWTStrategy,
-                 user_manager: BaseUserManager[models.UP, models.ID]):
-        self.jwt_strategy = jwt_strategy
+    def __init__(self, user_manager: BaseUserManager[User, int]):
         self.user_manager = user_manager
 
     async def authenticate(self, websocket: WebSocket):
@@ -23,9 +30,10 @@ class WebSocketAuthenticator:
             await websocket.close(code=1008, reason="Missing protocol header")
             return
 
-        user = await self.jwt_strategy.read_token(token,
-                                                  user_manager=self.user_manager)
-        if user is None:
+        user = await auth_backend.get_strategy().read_token(
+            token, user_manager=self.user_manager)
+
+        if not user:
             await websocket.close(code=1008, reason="유저가 존재하지 않습니다")
         if not user.is_active:
             await websocket.close(code=1008, reason="사용이 정지된 유저 입니다")
@@ -34,11 +42,18 @@ class WebSocketAuthenticator:
         return user
 
 
-def get_socket_authenticator(
-        jwt_strategy: JWTStrategy = Depends(get_jwt_strategy),
-        user_manager: BaseUserManager[models.UP,
-        models.ID] = Depends(get_user_manager)):
-    return WebSocketAuthenticator(jwt_strategy, user_manager)
+
+async def get_authenticated_user(
+    websocket: WebSocket
+):
+    async with get_async_session_context() as session:
+        user_db = SQLAlchemyUserDatabase(session, User)
+        user_manager = UserManager(user_db, get_email_service())
+        authenticator = WebSocketAuthenticator(user_manager)
+        user = await authenticator.authenticate(websocket)
+    return user
+
+
 
 class WebSocketManagerProtocol(Protocol):
     async def connect(self, websocket: WebSocket):

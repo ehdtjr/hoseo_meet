@@ -42,15 +42,14 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
             safe: bool = False,
             request: Optional[Request] = None,
     ) -> User:
-        # if not self.email_service.validate_email_domain(user_create.email):
-        #     raise ValueError("Invalid email domain.")
+        if not self.email_service.validate_email_domain(user_create.email):
+            raise ValueError("Invalid email domain.")
         return await super().create(user_create, safe, request)
 
     async def on_after_register(
             self, user: UP, request: Optional[Request] = None
     ) -> None:
-        pass
-        # await self.email_service.send_email_verification_link(user)
+        await self.email_service.send_email_verification_link(user)
 
     async def activate_user(self, user_id: int) -> None:
         user = await self.user_db.get(user_id)  # user 조회
