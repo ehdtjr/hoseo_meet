@@ -33,6 +33,9 @@ celery = {extras = ["redis"], version = "^5.4.0"}
 locust = "^2.31.8"
 pyfcm = "^2.0.7"
 passlib = "^1.7.4"
+websocket-client = "^1.8.0"
+fake = "^0.8"
+faker = "^30.8.2"
 
 
 [tool.poetry.group.dev.dependencies]

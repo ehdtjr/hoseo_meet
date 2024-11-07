@@ -1,12 +1,10 @@
 from typing import List
 
-from aioredis import Redis
 from fastapi import APIRouter
 from fastapi import HTTPException
 from fastapi.params import Depends, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_redis
 from app.core.db import get_async_session
 from app.core.exceptions import PermissionDeniedException
 from app.core.security import current_active_user
@@ -50,13 +48,11 @@ async def send_message_to_stream(
                                     description="The content of the message"),
         db: AsyncSession = Depends(get_async_session),
         user: User = Depends(current_active_user),
-        redis: Redis = Depends(get_redis),
         message_service: MessageServiceProtocol = Depends(get_message_service)
 ):
     try:
-        await message_service.send_message_stream(db, redis,
-                                                  user.id, stream_id,
-                                                  message_content)
+        await message_service.send_message_stream(
+            db=db, sender_id=user.id, stream_id=stream_id, message_content=message_content)
         return {"message": "Message sent successfully"}
 
     except PermissionDeniedException:

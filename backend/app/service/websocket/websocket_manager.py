@@ -1,3 +1,5 @@
+from typing import Protocol
+
 from fastapi import WebSocket
 from fastapi.params import Depends
 from fastapi_users import BaseUserManager, models
@@ -23,8 +25,12 @@ class WebSocketAuthenticator:
 
         user = await self.jwt_strategy.read_token(token,
                                                   user_manager=self.user_manager)
-        if not user.is_verified or not user.is_active:
-            await websocket.close(code=1008)
+        if user is None:
+            await websocket.close(code=1008, reason="유저가 존재하지 않습니다")
+        if not user.is_active:
+            await websocket.close(code=1008, reason="사용이 정지된 유저 입니다")
+        if not user.is_verified:
+            await websocket.close(code=1008, reason="이메일 인증을 완료해주세요")
         return user
 
 
@@ -34,8 +40,17 @@ def get_socket_authenticator(
         models.ID] = Depends(get_user_manager)):
     return WebSocketAuthenticator(jwt_strategy, user_manager)
 
+class WebSocketManagerProtocol(Protocol):
+    async def connect(self, websocket: WebSocket):
+        pass
 
-class WebSocketConnection:
+    def disconnect(self, websocket: WebSocket):
+        pass
+
+    async def send_message(self, message: str, websocket: WebSocket):
+        pass
+
+class WebSocketManager(WebSocketManagerProtocol):
     def __init__(self):
         self.active_connection: list[WebSocket] = []
 
@@ -60,15 +75,3 @@ class WebSocketConnection:
         except (ConnectionClosedOK, ConnectionClosedError):
             self.disconnect(websocket)
             print("웹소켓 연결이 닫혀 메시지를 전송할 수 없습니다.")
-
-    async def broadcast(self, message: str):
-        to_remove = []
-        for connection in self.active_connection:
-            try:
-                await connection.send_text(message)
-            except (ConnectionClosedOK, ConnectionClosedError):
-                to_remove.append(connection)
-
-        # 닫힌 연결을 목록에서 제거
-        for connection in to_remove:
-            self.disconnect(connection)

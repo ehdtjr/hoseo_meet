@@ -13,7 +13,6 @@ class RedisClient:
             if not self.pool:
                 self.pool = ConnectionPool.from_url(
                     f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                    max_connections=10,
                     encoding="utf-8",
                     decode_responses=True,
                 )

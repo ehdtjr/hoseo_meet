@@ -3,4 +3,4 @@
 /backend/app/alembic/versions/*
 !/backend/app/alembic/versions/.gitkeep
 /backend/hoseo-meet-firebase-adminsdk-oswm2-1186906f2e.json
-.idea/
+/.idea/*

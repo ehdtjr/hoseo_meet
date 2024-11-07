@@ -85,7 +85,6 @@ class TestMessageService(BaseTest):
         message_content = "Test message"
         await self.service.send_message_stream(
             db=self.db,
-            redis=self.redis,
             sender_id=user_id,
             stream_id=stream_id,
             message_content=message_content,
@@ -151,7 +150,6 @@ class TestMessageService(BaseTest):
             message_content = "Test message"
             await self.service.send_message_stream(
                 db=self.db,
-                redis=self.redis,
                 sender_id=user_id,
                 stream_id=stream_id,
                 message_content=message_content,
