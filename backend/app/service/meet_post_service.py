@@ -2,7 +2,6 @@ from typing import Protocol, Optional
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.exceptions import NoneValueException
 from app.crud.meet_post_crud import MeetPostCRUDProtocol, get_meet_post_crud
 from app.schemas.meet_post_schemas import MeetPostBase, MeetPostCreate, \
     MeetPostRequest, MeetPostResponse
