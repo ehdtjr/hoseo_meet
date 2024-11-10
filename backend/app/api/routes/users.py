@@ -92,3 +92,4 @@ async def post_subscriptions(
     except Exception as e:
         raise (HTTPException(status_code=500,
                              detail=f"Failed to subscribe: {str(e)}"))
+

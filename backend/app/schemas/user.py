@@ -44,3 +44,8 @@ class UserFCMTokenCreate(BaseModel):
 
     user_id: int
     fcm_token: str
+
+
+class KakaoUserUpdate(schemas.BaseUserUpdate):
+    name: Optional[str] = None
+    gender: Optional[str] = None # 추가

@@ -15,8 +15,8 @@ class User(SQLAlchemyBaseUserTable, Base):
     __tablename__ = "user"  # 테이블 이름 지정
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(length=255), nullable=True)
-    gender: Mapped[str] = mapped_column(String(length=20), nullable=True)
+    name: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    gender: Mapped[str] = mapped_column(String(length=20), nullable=False)
     profile: Mapped[str] = mapped_column(String(length=1024), nullable=True)
     is_online: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -44,7 +44,7 @@ class User(SQLAlchemyBaseUserTable, Base):
     )
 
     oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
-        "OAuthAccount", lazy="joined"
+        "OAuthAccount", lazy="joined" 
     )
 
 

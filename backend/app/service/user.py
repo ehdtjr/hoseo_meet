@@ -12,7 +12,7 @@ from app.models.user import User
 from app.service.email import EmailServiceProtocol, get_email_service
 from httpx_oauth.clients.kakao import KakaoOAuth2
 
-import os, httpx
+import os, httpx, uuid
 
 kakao_oauth_client = KakaoOAuth2(
     os.getenv("KAKAO_OAUTH_CLIENT_ID", ""),
@@ -24,11 +24,14 @@ kakao_oauth_client = KakaoOAuth2(
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
 
     def __init__(
-        self, user_db: SQLAlchemyUserDatabase, email_service: EmailServiceProtocol
+        self,
+        user_db: SQLAlchemyUserDatabase,
+        email_service: EmailServiceProtocol,
     ):
         super().__init__(user_db)
         self.email_service = email_service
         self.reset_password_token_secret = settings.SECRET_KEY
+        # self.verification_token_secret = settings.SECRET_KEY
 
     def parse_id(self, id_value: Any) -> int:
         return super().parse_id(id_value)
@@ -71,6 +74,11 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         update_dict = {"is_verified": True}
         await self.user_db.update(user, update_dict)
 
+    # 사용자 정보 업데이트
+    async def _update(self, user: User, user_update: dict) -> User:
+        return await super()._update(user, user_update)
+
+    # OAuth 인증이 성공적으로 완료된 후, 추가적인 로직을 수행하기 위해 오버라이딩
     async def oauth_callback(
         self,
         oauth_name: str,
@@ -83,7 +91,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         *,
         associate_by_email: bool = False,
         is_verified_by_default: bool = False,
-    ) -> User:
+    ) -> dict:
         # OAuth 인증이 성공적으로 완료된 후, 기본 OAuth 로직을 수행합니다.
         user = await super().oauth_callback(
             oauth_name,
@@ -94,25 +102,31 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
             refresh_token,
         )
 
-        if oauth_name == "kakao":
-            # 카카오 프로필 정보를 가져와서 업데이트
-            kakao_user_info = await self.get_kakao_user_info(access_token)
-            if kakao_user_info:
-                update_dict = {"is_verified": True}
+        #첫 로그인인 경우 추가 정보를 업데이트한후 반환
+        if user.name == None and user.gender == None:
+                update_dict = {
+                    "is_verified": True,
+                    "name": uuid.uuid4().hex,
+                    "gender": "기타",
+                }
                 await self.user_db.update(user, update_dict)
-
-        return user
+                return {"user":user, "is_first_login":True}
+        
+        return {"user":user, "is_first_login":False}
 
     async def get_kakao_user_info(self, access_token: str) -> dict:
-        # 카카오 API를 통해 사용자 정보를 가져오는 함수 예시
         headers = {"Authorization": f"Bearer {access_token}"}
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://kapi.kakao.com/v2/user/me", headers=headers
-            )
-            if response.status_code == 200:
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get("https://kapi.kakao.com/v2/user/me", headers=headers)
+                response.raise_for_status()  # 요청 오류 시 예외 발생
                 return response.json()
+        except httpx.HTTPStatusError as e:
+            print(f"HTTP Error: {e.response.status_code}")
+        except httpx.RequestError as e:
+            print(f"Request Error: {e}")
         return {}
+
 
 
 async def get_user_manager(
