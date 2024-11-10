@@ -18,7 +18,7 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
 
 
-@asynccontextmanager #비동기 컨텍스트 관리자 정의
+@asynccontextmanager  # 비동기 컨텍스트 관리자 정의
 async def lifespan(app: FastAPI):
     logger.info("Starting application lifespan and connecting to Redis.")
     await redis_client.get_connection()  # Redis 연결
