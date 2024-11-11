@@ -46,6 +46,6 @@ class UserFCMTokenCreate(BaseModel):
     fcm_token: str
 
 
-class KakaoUserUpdate(schemas.BaseUserUpdate):
+class KakaoUserUpdate(BaseModel):  # 어떨때 BaseModel, 어떨때 schemas.BaseUserUpdate?
     name: Optional[str] = None
-    gender: Optional[str] = None # 추가
+    gender: Optional[str] = None  # 추가

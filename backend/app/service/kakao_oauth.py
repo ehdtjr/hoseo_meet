@@ -152,6 +152,6 @@ def get_oauth_router(
         # Authenticate
         response = await backend.login(strategy, user) 
         await user_manager.on_after_login(user, request, response)
-        return {"access_token": token["access_token"], "refresh_token": token["refresh_token"], "is_first_login": auth_result["is_first_login"]}
+        return {"access_token": token["access_token"], "refresh_token": "null", "is_first_login": auth_result["is_first_login"]}
 
     return router
