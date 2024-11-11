@@ -101,7 +101,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
             expires_at,
             refresh_token,
         )
-
+    
         #첫 로그인인 경우 추가 정보를 업데이트한후 반환
         if user.name == None and user.gender == None:
                 update_dict = {

@@ -44,7 +44,7 @@ class User(SQLAlchemyBaseUserTable, Base):
     )
 
     oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
-        "OAuthAccount", lazy="joined" 
+        "OAuthAccount", lazy="joined"
     )
 
 
@@ -75,6 +75,10 @@ class OAuthAccount(SQLAlchemyBaseOAuthAccountTable[int], Base):
     __tablename__ = "oauth_account"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # oauth_name: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    # account_id: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    # account_email: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    # refresh_token: Mapped[str] = mapped_column(String(length=255), nullable=True)
 
     @declared_attr
     def user_id(cls) -> Mapped[int]:
