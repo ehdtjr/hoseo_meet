@@ -1,20 +1,16 @@
+import logging
 from typing import Protocol
 
 from fastapi import WebSocket
-from fastapi.params import Depends
 from fastapi_users import BaseUserManager
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
-from sqlalchemy.ext.asyncio import AsyncSession
-from websocket import WebSocketException
 from websockets import ConnectionClosedError, ConnectionClosedOK
 
-from app.core.db import get_async_session, get_async_session_context
+from app.core.db import get_async_session_context
 from app.core.security import auth_backend
 from app.models import User
 from app.service.email import get_email_service
-from app.service.user import get_user_manager, UserManager
-
-import logging
+from app.service.user import UserManager
 
 logger = logging.getLogger(__name__)
 

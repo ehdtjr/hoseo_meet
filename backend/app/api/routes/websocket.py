@@ -39,7 +39,6 @@ async def connect_event(
         await event_handler.handle_connection(websocket,
              user_id=user.id, disconnect_event=disconnect_event)
     finally:
-        # WebSocket 연결 종료 시 사용자 상태를 '오프라인'으로 업데이트
         async with get_async_session_context() as db:
             update_data = UserUpdate(id=user.id, is_online=False)
             await user_crud.update(db, user_in=update_data)

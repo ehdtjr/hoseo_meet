@@ -76,11 +76,8 @@ class MessageService(MessageServiceProtocol):
 
 
         event_data = await self._create_event_base(message, stream_id)
-        await asyncio.gather(
-            *[self._send_event_to_subscribers(db, subscriber, event_data)
-              for
-              subscriber in subscribers]
-        )
+        for subscriber in subscribers:
+            await self._send_event_to_subscribers(db, subscriber, event_data)
 
     async def _create_message_data(self, sender_id: int, recipient_id: int,
                                    message_content: str) -> MessageCreate:

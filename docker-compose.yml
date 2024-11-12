@@ -1,11 +1,12 @@
+version: '3.7'
+
 services:
   db:
     image: postgres:16
     restart: always
     volumes:
       - app-db-data:/var/lib/postgresql/data/pgdata
-      - /etc/localtime:/etc/localtime:ro  # 호스트 시스템의 시간을 공유
-
+      - /etc/localtime:/etc/localtime:ro
     env_file:
       - backend/.env
     environment:
@@ -43,7 +44,7 @@ services:
       context: ./backend
       args:
         INSTALL_DEV: "true"
-    command: [ "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000" ]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
       - ./backend:/app
     ports:
@@ -71,14 +72,10 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
 
-  # Celery Worker 서비스
   celery-worker:
     build:
       context: ./backend
-    command: [ "celery", "-A", "app.celery.worker", "worker",
-               "--loglevel=info"
-    ]
-    # Celery Worker 실행
+    command: ["celery", "-A", "app.celery.worker", "worker", "--loglevel=info"]
     volumes:
       - ./backend:/app
     depends_on:
@@ -95,12 +92,10 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
 
-  # Celery Beat 서비스
   celery-beat:
     build:
       context: ./backend
-    command: [ "celery", "-A", "app.celery.worker", "beat",
-               "--loglevel=info" ]
+    command: ["celery", "-A", "app.celery.worker", "beat", "--loglevel=info"]
     volumes:
       - ./backend:/app
     depends_on:
@@ -117,5 +112,55 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    volumes:
+      - ./queries.yml:/etc/queries.yml
+    command:
+      - "--extend.query-path=/etc/queries.yml"
+    depends_on:
+      - db
+
+  redis_exporter:
+    image: oliver006/redis_exporter
+    environment:
+      - REDIS_ADDR=redis:6379
+    ports:
+      - "9121:9121"
+    depends_on:
+      - redis
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 volumes:
   app-db-data:
+  grafana-storage:
