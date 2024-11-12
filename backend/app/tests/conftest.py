@@ -59,3 +59,4 @@ class BaseTest(IsolatedAsyncioTestCase):
 
         await self.redis_client.flushdb()
         await self.redis_client.close()
+        await redis_client.pool.disconnect()

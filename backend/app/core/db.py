@@ -10,8 +10,10 @@ from app.core.config import settings
 
 engine = create_async_engine(
     str(settings.SQLALCHEMY_DATABASE_URI),
-   echo=True,
-   echo_pool=True
+    pool_size=50,
+    max_overflow=10
+   #echo=True,
+   #echo_pool=True
 )
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 

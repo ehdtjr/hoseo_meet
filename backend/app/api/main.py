@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.routes import auth, websocket, meet_post_routes, messages, stream, \
-    users
+    users, test_route
 
 api_router = APIRouter()
 
@@ -13,3 +13,5 @@ api_router.include_router(messages.router, prefix="/messages",
                           tags=["messages"])
 api_router.include_router(meet_post_routes.router, prefix="/meet_post",
 tags=["meet_post"])
+
+api_router.include_router(test_route.router, prefix="/test", tags=["test"])

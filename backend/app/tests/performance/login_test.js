@@ -13,7 +13,7 @@ export let options = {
             executor: 'ramping-vus',
             startVUs: 0,
             stages: [
-                { duration: '30s', target: 300 }, // 10초 동안 300명의 가상 유저가 로그인 요청
+                { duration: '30s', target: 500 }, // 10초 동안 300명의 가상 유저가 로그인 요청
             ],
             exec: 'loginScenario', // 로그인 시나리오 함수
         },
