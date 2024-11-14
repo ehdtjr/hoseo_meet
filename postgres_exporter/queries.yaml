@@ -1,0 +1,30 @@
+pg_stat_statements:
+  query: |
+    SELECT queryid::text as queryid,
+           query,
+           calls,
+           total_exec_time,
+           rows,
+           100.0 * shared_blks_hit / nullif(shared_blks_hit + shared_blks_read, 0) AS hit_percent
+    FROM pg_stat_statements
+    ORDER BY total_exec_time DESC
+    LIMIT 5;
+  metrics:
+    - queryid:
+        usage: "LABEL"
+        description: "Query identifier"
+    - query:
+        usage: "LABEL"
+        description: "SQL query text"
+    - calls:
+        usage: "COUNTER"
+        description: "Number of times executed"
+    - total_exec_time:
+        usage: "COUNTER"
+        description: "Total execution time in milliseconds"
+    - rows:
+        usage: "COUNTER"
+        description: "Total rows retrieved or affected"
+    - hit_percent:
+        usage: "GAUGE"
+        description: "Buffer hit percentage"
