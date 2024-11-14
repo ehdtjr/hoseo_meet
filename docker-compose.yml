@@ -16,6 +16,10 @@ services:
       - POSTGRES_DB=${POSTGRES_DB?Variable not set}
     ports:
       - "5432:5432"
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
 
   test-db:
     image: postgres:16
@@ -47,13 +51,8 @@ services:
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
     volumes:
       - ./backend:/app
-    ports:
-      - "8000:8000"
-    depends_on:
-      - db
-      - redis
-    env_file:
-      - backend/.env
+    expose:
+      - "8000"
     environment:
       - DOMAIN=${DOMAIN}
       - ENVIRONMENT=${ENVIRONMENT}
@@ -61,16 +60,14 @@ services:
       - SECRET_KEY=${SECRET_KEY?Variable not set}
       - FIRST_SUPERUSER=${FIRST_SUPERUSER?Variable not set}
       - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD?Variable not set}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASSWORD=${SMTP_PASSWORD}
       - POSTGRES_SERVER=db
-      - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER?Variable not set}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+    deploy:
+      replicas: 5  # 최대 5개의 인스턴스를 실행
 
   celery-worker:
     build:
@@ -127,16 +124,20 @@ services:
 
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter
+    env_file:
+      - backend/.env
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
     ports:
       - "9187:9187"
     volumes:
-      - ./queries.yml:/etc/queries.yml
+      - ./postgres_exporter/queries.yaml:/etc/postgres_exporter/queries.yaml
     command:
-      - "--extend.query-path=/etc/queries.yml"
+      - "--web.listen-address=:9187"
+      - "--extend.query-path=/etc/postgres_exporter/queries.yaml"
     depends_on:
       - db
+    restart: always
 
   redis_exporter:
     image: oliver006/redis_exporter
@@ -160,6 +161,15 @@ services:
       - grafana-storage:/var/lib/grafana
     depends_on:
       - prometheus
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - web
 
 volumes:
   app-db-data:

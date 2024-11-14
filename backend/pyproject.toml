@@ -43,6 +43,7 @@ opentelemetry-instrumentation-fastapi = "^0.49b0"
 opentelemetry-instrumentation-requests = "^0.49b0"
 prometheus-client = "^0.21.0"
 uvicorn = {extras = ["standard"], version = "^0.32.0"}
+gunicorn = "^23.0.0"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -5,7 +5,7 @@ export let options = {
     scenarios: {
         ping_test: {
             executor: 'constant-vus',
-            vus: 200, // 동시에 수행할 가상 사용자 수
+            vus: 300,
             duration: '30s', // 1분 동안 테스트 수행
             exec: 'pingScenario', // ping 테스트 시나리오 함수
         },
