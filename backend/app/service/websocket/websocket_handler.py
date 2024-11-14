@@ -40,16 +40,16 @@ class WebSocketEventHandler:
         except Exception as e:
             logger.error(f"WebSocket 작업 중 예외 발생: {e}")
         finally:
+            # 모든 태스크 취소
             for task in tasks:
-                task.cancel()  # 예외 발생 시 모든 태스크를 취소하여 안전하게 종료
-
-            connected_websockets.dec()  # WebSocket 연결 해제 시 접속자 수 감소
-            self.websocket_manager.disconnect(websocket)  # WebSocket 연결 해제
+                task.cancel()
+            # 연결 종료 및 상태 감소
             logger.info(f"사용자 {user_id}의 연결이 종료되었습니다.")
-            disconnect_event.set()  # 연결 종료 이벤트 설정
+            connected_websockets.dec()
+            self.websocket_manager.disconnect(websocket)
 
-
-    async def _receive_from_redis(self, websocket: WebSocket, queue_key: str, disconnect_event: asyncio.Event):
+    async def _receive_from_redis(self, websocket: WebSocket, queue_key: str,
+                                  disconnect_event: asyncio.Event):
         """
         Redis로부터 이벤트를 수신하고 WebSocket으로 전송합니다.
         """
@@ -61,7 +61,8 @@ class WebSocketEventHandler:
                     streams={queue_key: last_event_id}, block=0, count=100)
                 if events:
                     await self._process_and_send_events(events, websocket)
-            except (ConnectionClosedError, ConnectionClosedOK, WebSocketDisconnect) as e:
+            except (ConnectionClosedError, ConnectionClosedOK,
+                    WebSocketDisconnect) as e:
                 logger.info(f"WebSocket 연결이 닫힘: {e}")
                 disconnect_event.set()
                 raise e
@@ -73,10 +74,10 @@ class WebSocketEventHandler:
                 logger.error(f"예상치 못한 오류 발생: {e}")
                 disconnect_event.set()
                 raise e
-        await pool.close()
-        logger.info("pool 종료: Redis 연결이 안전하게 종료되었습니다.")
+        pool.close()
 
-    async def _receive_ws_messages(self, websocket: WebSocket, disconnect_event: asyncio.Event):
+    async def _receive_ws_messages(self, websocket: WebSocket,
+                                   disconnect_event: asyncio.Event):
         """
         WebSocket 클라이언트로부터 수신을 처리하고, 종료 시 이벤트를 설정합니다.
         """
@@ -84,14 +85,15 @@ class WebSocketEventHandler:
             try:
                 message = await websocket.receive_text()
                 logger.debug(f"WebSocket에서 수신한 메시지: {message}")
-            except (ConnectionClosedError, ConnectionClosedOK, WebSocketDisconnect) as e:
+            except (ConnectionClosedError, ConnectionClosedOK,
+                    WebSocketDisconnect) as e:
                 logger.info(f"WebSocket receive 연결 종료: {e}")
+                disconnect_event.set()
                 raise e
             except Exception as e:
                 logger.error(f"WebSocket receive에서 예외 발생: {e}")
-                raise e
-            finally:
                 disconnect_event.set()
+                raise e
 
     async def _process_and_send_events(self, events, websocket: WebSocket):
         """
