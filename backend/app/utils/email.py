@@ -17,7 +17,8 @@ fm = FastMail(conf)
 
 
 async def send_email(email: str, subject: str, body: str):
-    message = MessageSchema(
-        subject=subject, recipients=[email], body=body, subtype=MessageType.html
-    )
-    await fm.send_message(message)
+    pass
+    # message = MessageSchema(
+    #     subject=subject, recipients=[email], body=body, subtype=MessageType.html
+    # )
+    # await fm.send_message(message)

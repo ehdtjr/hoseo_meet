@@ -38,7 +38,6 @@ class FCMEventSender(EventSenderProtocol):
 
     async def send_event(self, user_id: int, event_data: dict):
         if not self.fcm_token:
-            logger.error(f"사용자 {user_id}에 대한 FCM 토큰이 없습니다.")
             return
         await asyncio.to_thread(self._send_fcm_notification, user_id=user_id, event_data=event_data)
 
