@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { check, fail } from 'k6';
+import { check, fail,sleep } from 'k6';
 import { SharedArray } from 'k6/data';
 
 const users = new SharedArray("users", function () {
@@ -53,4 +53,5 @@ export default function (data) {
     check(res, {
         'message sent successfully': (r) => r.status === 200
     });
+    sleep(1);
 }

@@ -1,12 +1,12 @@
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, sleep} from 'k6';
 
 export let options = {
     scenarios: {
         ping_test: {
             executor: 'constant-vus',
-            vus: 300,
-            duration: '30s', // 1분 동안 테스트 수행
+            vus: 500,
+            duration: '10m', // 1분 동안 테스트 수행
             exec: 'pingScenario', // ping 테스트 시나리오 함수
         },
     },
@@ -36,4 +36,5 @@ export function pingScenario() {
     if (!success) {
         console.log(`Ping request failed: ${res.status} - ${res.body}`);
     }
+    sleep(1);
 }
