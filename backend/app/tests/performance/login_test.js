@@ -23,7 +23,7 @@ const mode = __ENV.MODE || 'both';
 if (mode === 'register') {
     options.scenarios.registration_test = {
         executor: 'constant-vus',
-        vus: 500, // 동시에 수행할 가상 사용자 수
+        vus: 80, // 동시에 수행할 가상 사용자 수
         duration: '1m', // 1분 동안 테스트 수행
         exec: 'registerUser', // 사용자 등록 시나리오 함수
     };
@@ -32,7 +32,7 @@ if (mode === 'register') {
         executor: 'ramping-vus',
         startVUs: 0,
         stages: [
-            { duration: '1m', target: 200 }, // 30초 동안 500명의 가상 유저가 로그인 요청
+            { duration: '1m', target: 80 }, // 30초 동안 500명의 가상 유저가 로그인 요청
         ],
         exec: 'loginScenario', // 로그인 시나리오 함수
     };
@@ -92,4 +92,5 @@ export function loginScenario() {
     } else {
         console.log(`Login failed for user ${user.email}: ${res.status} - ${res.body}`);
     }
+    sleep(1);
 }

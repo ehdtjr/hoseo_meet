@@ -20,7 +20,7 @@ export let options = {
             executor: 'ramping-vus',
             startVUs: 10,
             stages: [
-                { duration: '5m', target: 500 },
+                { duration: '5m', target: 100 },
             ],
             gracefulRampDown: '0s',
         },

@@ -10,7 +10,7 @@ from app.service.stream import StreamServiceProtocol, get_stream_service
 router = APIRouter()
 
 
-@router.post("/create", response_model=StreamRead)
+@router.post("/create", response_model=StreamRead, status_code=201)
 async def create_stream(
         stream_request: StreamRequest,
         db: AsyncSession = Depends(get_async_session),
