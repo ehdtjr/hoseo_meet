@@ -114,19 +114,6 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         
         return {"user":user, "is_first_login":False}
 
-    async def get_kakao_user_info(self, access_token: str) -> dict:
-        headers = {"Authorization": f"Bearer {access_token}"}
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get("https://kapi.kakao.com/v2/user/me", headers=headers)
-                response.raise_for_status()  # 요청 오류 시 예외 발생
-                return response.json()
-        except httpx.HTTPStatusError as e:
-            print(f"HTTP Error: {e.response.status_code}")
-        except httpx.RequestError as e:
-            print(f"Request Error: {e}")
-        return {}
-
 
 
 async def get_user_manager(

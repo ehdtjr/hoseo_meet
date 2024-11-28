@@ -1,7 +1,7 @@
 from app.core.db import get_async_session
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 
-from app.core.security import auth_backend
+from app.core.security import auth_backend, get_jwt_strategy
 from app.schemas.user import UserRead, UserCreate, UserUpdate
 from app.core.security import fastapi_users
 from app.service.kakao_oauth import get_oauth_router
@@ -13,6 +13,11 @@ from app.schemas.user import UserUpdate, KakaoUserUpdate
 from app.models.user import User, OAuthAccount  # User 모델 import 필요
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+
+from fastapi import APIRouter, Depends, HTTPException, Header, status
+from fastapi_users.jwt import decode_jwt
+import jwt
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -33,10 +38,11 @@ async def get_kakao_user_data(access_token: str) -> dict:
     except httpx.RequestError as e:
         print(f"Request Error: {e}")
 
+
 # 카카오 로그인
 @router.get("/kakao/login", tags=["oauth"])
 async def get_kakao_login(
-    authorization: Optional[str] = Header(...),
+    authorization: Optional[str] = Depends(api_key_header),
     user_manager: UserManager = Depends(get_user_manager),
     db: AsyncSession = Depends(get_async_session),  # 비동기 세션 주입
 ) -> dict:
@@ -55,7 +61,7 @@ async def get_kakao_login(
 
             auth_result = await user_manager.oauth_callback("kakao", access_token, str(account_id), email)
 
-            return {"nickname": nickname, "email": email, "is_first_login": auth_result["is_first_login"]}
+            return {"message": "Kakao login successful"}
         
     except httpx.HTTPStatusError as e:
         print(f"HTTP Error: {e.response.status_code}")
@@ -103,8 +109,13 @@ async def update_user(
         user, user_update.dict(exclude_unset=True)
     )
 
+    # JWT 토큰 생성
+    jwt_token = await get_jwt_strategy().write_token(updated_user)
+
+    print(jwt_token)
+
     # 인앱 JWT 토큰 발급
-    return {"message": "User information updated successfully", "user": user}
+    return {"message": "User information updated successfully", "jwt_token": jwt_token}
 
 
 # 카카오 액세스 토큰 유효성 검증
@@ -197,4 +208,36 @@ async def refresh_kakao_access_token(
         raise HTTPException(
             status_code=response.status_code,
             detail=f"Failed to refresh access token: {response.text}",
+        )
+
+# JWT 토큰 디코딩
+@router.get("/jwt/decode", tags=["auth"])
+async def decode_jwt_token(
+    authorization: Optional[str] = Depends(api_key_header),  # Authorization 헤더에서 JWT 토큰 추출
+):
+    """
+    클라이언트가 Authorization 헤더에 JWT 토큰을 보내면, 이를 디코딩하고 내용을 반환합니다.
+    """
+    # Authorization 헤더에서 "Bearer " 부분 제거
+    token = authorization.split(" ")[1]
+
+    print(token)
+
+    try:
+        # JWT 디코딩
+        payload = decode_jwt(
+            token,
+            secret=settings.SECRET_KEY,
+            audience=["fastapi-users:auth"],
+            algorithms=["HS256"],
+        )
+        return {"message": "Token decoded successfully", "payload": payload}
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired"
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
