@@ -4,8 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header
 from app.core.security import auth_backend, get_jwt_strategy
 from app.schemas.user import UserRead, UserCreate, UserUpdate
 from app.core.security import fastapi_users
-from app.service.kakao_oauth import get_oauth_router
-from app.service.user import UserManager, get_user_manager, kakao_oauth_client
+from app.service.user import UserManager, get_user_manager
 from typing import Optional
 from fastapi.security import APIKeyHeader
 import os, requests, httpx
@@ -60,8 +59,28 @@ async def get_kakao_login(
             email = kakao_user_data.get("kakao_account", {}).get("email")
 
             auth_result = await user_manager.oauth_callback("kakao", access_token, str(account_id), email)
+            
+            result = await db.execute(
+                select(OAuthAccount).where(OAuthAccount.account_id == str(account_id))
+            )
 
-            return {"message": "Kakao login successful"}
+            oauth_entry = result.scalars().first()
+
+            # 해당 access_token으로 등록된 사용자 없음
+            if oauth_entry is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="OAuth account not found"
+                )
+
+            # user_id로 사용자 객체 조회
+            user = await user_manager.user_db.get(oauth_entry.user_id)
+            
+            # JWT 토큰 생성
+            jwt_token = await get_jwt_strategy().write_token(user)
+
+            print(jwt_token)
+
+            return {"message": "Kakao login successful","jwt_token": jwt_token}
         
     except httpx.HTTPStatusError as e:
         print(f"HTTP Error: {e.response.status_code}")
