@@ -10,15 +10,8 @@ from app.api.deps import get_user_db
 from app.core.config import settings
 from app.models.user import User
 from app.service.email import EmailServiceProtocol, get_email_service
-from httpx_oauth.clients.kakao import KakaoOAuth2
 
 import os, httpx, uuid
-
-kakao_oauth_client = KakaoOAuth2(
-    os.getenv("KAKAO_OAUTH_CLIENT_ID", ""),
-    os.getenv("KAKAO_OAUTH_CLIENT_SECRET", ""),
-    scopes=["profile_nickname", "profile_image", "account_email"],
-)
 
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
