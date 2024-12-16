@@ -1,6 +1,5 @@
 from typing import List, Optional, Sequence
 
-from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

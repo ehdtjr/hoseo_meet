@@ -53,7 +53,7 @@ async def send_message_to_stream(
     try:
         await message_service.send_message_stream(
             db=db, sender_id=user.id, stream_id=stream_id, message_content=message_content)
-        return {"message": "Message sent successfully"}
+        return {"message": "Message sent successfully11"}
 
     except PermissionDeniedException:
         raise HTTPException(status_code=403,

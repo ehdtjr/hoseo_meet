@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,10 @@ class UserCRUDProtocol:
     async def update(self, db: AsyncSession, user_in: UserUpdate) -> UserRead:
         pass
 
+    async def get_users_by_ids(self, db: AsyncSession, user_ids: List[int])\
+     -> List[UserRead]:
+        pass
+
 
 class UserCRUD(CRUDBase[User, UserRead], UserCRUDProtocol):
     def __init__(self):
@@ -29,6 +33,15 @@ class UserCRUD(CRUDBase[User, UserRead], UserCRUDProtocol):
                      user_in: UserUpdate) -> UserRead:
         return await super().update(db, user_in)
 
+    async def get_users_by_ids(self, db: AsyncSession, user_ids: List[int])\
+     -> List[UserRead]:
+        if not user_ids:
+            return []
+        result = await db.execute(
+            select(User).where(User.id.in_(user_ids))
+        )
+        users = result.scalars().all()
+        return [UserRead.model_construct(**u.__dict__) for u in users]
 
 class UserFCMTokenCRUDProtocol:
     async def get(self, db: AsyncSession, id: int) -> UserFCMTokenCreate:
