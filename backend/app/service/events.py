@@ -59,7 +59,7 @@ class EventDispatcher:
         self.user_id = user_id
         self.event_sender = event_sender
 
-    async def dispatch_event(self, event_data: EventBase):
+    async def send_event(self, event_data: EventBase):
         """선택된 전송자를 사용하여 이벤트를 전송"""
         await self.event_sender.send_event(
             user_id=self.user_id,
@@ -71,13 +71,13 @@ async def create_event_dispatcher(
         user: UserRead
 ) -> EventDispatcher:
     """사용자의 온라인 상태에 따라 EventDispatcher 인스턴스를 생성하는 팩토리 함수"""
-    if user.is_online:
-        sender: EventSenderProtocol = WebSocketEventSender()
-    else:
-        user_fcm_crud = get_user_fcm_token_crud()
-        user_fcm_data: UserFCMTokenBase = await user_fcm_crud.get_user_fcm_token_by_user_id(db, user.id)
-        fcm_token = user_fcm_data.fcm_token if user_fcm_data else None
-        sender: EventSenderProtocol = FCMEventSender(fcm_token)
+    # if user.is_online:
+    sender: EventSenderProtocol = WebSocketEventSender()
+    # else:
+    #     user_fcm_crud = get_user_fcm_token_crud()
+    #     user_fcm_data: UserFCMTokenBase = await user_fcm_crud.get_user_fcm_token_by_user_id(db, user.id)
+    #     fcm_token = user_fcm_data.fcm_token if user_fcm_data else None
+    #     sender: EventSenderProtocol = FCMEventSender(fcm_token)
 
     return EventDispatcher(user.id, sender)
 

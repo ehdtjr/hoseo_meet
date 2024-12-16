@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   db:
     image: postgres:16
@@ -18,28 +20,8 @@ services:
       - "postgres"
       - "-c"
       - "shared_preload_libraries=pg_stat_statements"
-
-  test-db:
-    image: postgres:16
-    restart: always
-    environment:
-      - POSTGRES_PASSWORD=test_password
-      - POSTGRES_USER=test_user
-      - POSTGRES_DB=test_db
-    ports:
-      - "5433:5432"
-
-  redis:
-    image: redis:latest
-    restart: always
-    ports:
-      - "6379:6379"
-
-  test-redis:
-    image: redis:latest
-    restart: always
-    ports:
-      - "6380:6379"
+    networks:
+      - app_backend_net
 
   web:
     build:
@@ -64,129 +46,30 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-    deploy:
-      replicas: 8  # 최대 5개의 인스턴스를 실행
+    networks:
+      - app_backend_net
 
-  celery-worker:
-    build:
-      context: ./backend
-    command: ["celery", "-A", "app.celery.worker", "worker", "--loglevel=info"]
-    volumes:
-      - ./backend:/app
-    depends_on:
-      - redis
-      - db
-    env_file:
-      - backend/.env
-    environment:
-      - POSTGRES_SERVER=db
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-
-  celery-beat:
-    build:
-      context: ./backend
-    command: ["celery", "-A", "app.celery.worker", "beat", "--loglevel=info"]
-    volumes:
-      - ./backend:/app
-    depends_on:
-      - redis
-      - db
-    env_file:
-      - backend/.env
-    environment:
-      - POSTGRES_SERVER=db
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-
-  postgres_exporter:
-    image: prometheuscommunity/postgres-exporter
-    env_file:
-      - backend/.env
-    environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
-    ports:
-      - "9187:9187"
-    volumes:
-      - ./postgres_exporter/queries.yaml:/etc/postgres_exporter/queries.yaml
-    command:
-      - "--web.listen-address=:9187"
-      - "--extend.query-path=/etc/postgres_exporter/queries.yaml"
-    depends_on:
-      - db
+  redis:
+    image: redis:latest
     restart: always
-
-  redis_exporter:
-    image: oliver006/redis_exporter
-    environment:
-      - REDIS_ADDR=redis:6379
     ports:
-      - "9121:9121"
-    depends_on:
-      - redis
-
-  influxdb:
-    image: influxdb:1.8  # InfluxDB 1.8 이미지
-    ports:
-      - "8086:8086"
-    container_name: influxdb
-    volumes:
-      - influxdb-data:/var/lib/influxdb  # 데이터 경로는 InfluxDB 1.x 형식
-    environment:
-      - INFLUXDB_DB=happy  # 기본 데이터베이스 이름
-      - INFLUXDB_ADMIN_USER=admin  # 관리자 계정 이름
-      - INFLUXDB_ADMIN_PASSWORD=admin123  # 관리자 비밀번호
-      - INFLUXDB_HTTP_AUTH_ENABLED=false
-
-    restart: always
-
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-    volumes:
-      - grafana-storage:/var/lib/grafana
-    depends_on:
-      - prometheus
-      - influxdb
+      - "6379:6379"
+    networks:
+      - app_backend_net
 
   nginx:
-    image: nginx:latest
+    image: nginx:mainline-alpine
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "80:80"
     depends_on:
       - web
+    networks:
+      - app_backend_net
 
 volumes:
   app-db-data:
-  grafana-storage:
-  influxdb-data:
+
+networks:
+  app_backend_net:

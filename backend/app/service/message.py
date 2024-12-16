@@ -1,4 +1,4 @@
-import asyncio
+import bisect
 from typing import List, Optional, Protocol
 
 from fastapi import HTTPException
@@ -13,13 +13,14 @@ from app.crud.user_crud import UserCRUDProtocol, get_user_crud
 from app.models.message import MessageType
 from app.schemas.event import EventBase
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase
-from app.service.events import create_event_dispatcher
-
-import bisect
+from app.service.events import create_event_dispatcher, EventDispatcher
 
 
 class MessageServiceProtocol(Protocol):
-    async def send_message_stream(self, db: AsyncSession, sender_id: int, stream_id: int, message_content: str) -> None:
+    async def send_message_stream(self,
+    db: AsyncSession,
+    sender_id: int,stream_id: int,
+    message_content: str) -> None:
         pass
 
     async def mark_message_read_stream(self, db: AsyncSession, stream_id: int,
@@ -52,47 +53,36 @@ class MessageService(MessageServiceProtocol):
         self.subscription_crud = subscription_crud
 
     async def send_message_stream(self, db: AsyncSession, sender_id: int,
-            stream_id: int, message_content: str) -> None:
+                                  stream_id: int, message_content: str) -> None:
 
-        if await self._check_stream_permission(db, sender_id,
-                                               stream_id) is False:
+        # 권한 체크
+        if not await self._check_stream_permission(db, sender_id, stream_id):
             raise PermissionDeniedException(
                 "You are not permitted to send messages to this stream")
 
+        # Recipient 조회
         recipient = await self.recipient_crud.get_by_type_id(db, stream_id)
 
-        message_create = await self._create_message_data(sender_id,
-                                                    recipient.id,
-                                                    message_content)
+        # MessageCreate 직접 생성
+        message_create_data = {
+            "sender_id": sender_id,
+            "type": MessageType.NORMAL,
+            "recipient_id": recipient.id,
+            "content": message_content
+        }
+        message_create = MessageCreate.model_validate(message_create_data)
         message = await self.message_crud.create(db, message_create)
 
+        # 구독자 조회
         subscribers = await self.subscription_crud.get_subscribers(db,
                                                                    stream_id)
-
-        # 사용자 마다 읽은 여부 및 받은 메세지를 따로 처리하게 위해 UserMessage 테이블에 데이터를 추가
+        # UserMessage 대량 생성
         user_messages_data = [{"user_id": subscriber, "message_id": message.id}
                               for subscriber in subscribers]
         await self.user_message_crud.bulk_create(db, user_messages_data)
 
-
-        event_data = await self._create_event_base(message, stream_id)
-        for subscriber in subscribers:
-            await self._send_event_to_subscribers(db, subscriber, event_data)
-
-    async def _create_message_data(self, sender_id: int, recipient_id: int,
-                                   message_content: str) -> MessageCreate:
-        """MessageCreate 데이터를 생성하는 헬퍼 메서드"""
-        message_create_data = {
-            "sender_id": sender_id,
-            "type": MessageType.NORMAL,
-            "recipient_id": recipient_id,
-            "content": message_content
-        }
-        return MessageCreate.model_validate(message_create_data)
-
-    async def _create_event_base(self, message: MessageBase, stream_id: int) -> EventBase:
-        """Redis로 보낼 이벤트 데이터를 생성하는 헬퍼 메서드"""
-        return EventBase(
+        # EventBase 인스턴스 생성
+        event_data = EventBase(
             type="stream",
             data={
                 "id": message.id,
@@ -104,12 +94,20 @@ class MessageService(MessageServiceProtocol):
                 "is_read": False
             }
         )
+        # 한 번에 구독자 정보 가져오기
+        subscribers_info = await self.user_crud.get_users_by_ids(db,
+                                                                 subscribers)
+        user_map = {user.id: user for user in subscribers_info}
 
-    async def _send_event_to_subscribers(self, db: AsyncSession, subscriber_id:
-                                         int, event_data: EventBase) -> None:
-        user = await self.user_crud.get(db, subscriber_id)
-        event_manager = await create_event_dispatcher(db, user)
-        await event_manager.dispatch_event(event_data)
+        # 모든 구독자에 대한 EventDispatcher 미리 생성
+        dispatchers = {}
+        for user_id, user in user_map.items():
+            dispatchers[user_id] = await create_event_dispatcher(db, user)
+
+        for subscriber_id in subscribers:
+            dispatcher:EventDispatcher = dispatchers[subscriber_id]
+            await dispatcher.send_event(event_data)
+
 
     async def get_stream_messages(self, db: AsyncSession,
                                   user_id: int,
