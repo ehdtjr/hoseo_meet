@@ -5,6 +5,7 @@ from psycopg import DatabaseError
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Optional, Protocol
 
+from app.core.redis import redis_client
 from app.crud.message import MessageCRUDProtocol, UserMessageCRUDProtocol, \
     get_message_crud, get_user_message_crud
 from app.crud.recipient import RecipientCRUDProtocol, get_recipient_crud
@@ -203,3 +204,46 @@ def get_subscription_service() -> SubscriberServiceProtocol:
         user_message_crud=get_user_message_crud(),
         message_crud=get_message_crud()
     )
+
+
+class ActiveStreamServiceProtocol(Protocol):
+    async def set_active_stream(self, user_id: int, stream_id: int):
+        pass
+
+    async def deactive_stream(self, user_id: int):
+        pass
+
+    async def get_active_stream(self, user_id: int) -> Optional[int]:
+        pass
+
+
+class RedisActiveStreamService(ActiveStreamServiceProtocol):
+    """
+    Redis를 사용하여 사용자별 활성 스트림을 저장하는 서비스
+    key: "active_stream:{user_id}" 형식으로 저장
+    value: stream_id를 문자열 형태로 저장 (예: "123")
+    """
+
+    async def set_active_stream(self, user_id: int, stream_id: int):
+        key = f"active_stream:{user_id}"
+        await redis_client.redis.set(key, str(stream_id))
+
+    async def deactive_stream(self, user_id: int):
+        key = f"active_stream:{user_id}"
+        await redis_client.redis.delete(key)
+
+    async def get_active_stream(self, user_id: int) -> Optional[int]:
+        key = f"active_stream:{user_id}"
+        value = await redis_client.redis.get(key)
+
+        if value is None:
+            return None
+
+        try:
+            return int(value)
+        except ValueError:
+            return None
+
+
+def get_active_stream_service() -> ActiveStreamServiceProtocol:
+    return RedisActiveStreamService()
