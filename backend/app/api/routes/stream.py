@@ -48,7 +48,7 @@ async def active_stream(
     return {"detail": "Stream activated"}
 
 
-@router.post("/{stream_id}/deactive",
+@router.post("/deactive",
              status_code=200,
              summary="현재 활성화된 채팅방 해제",
              description="""
