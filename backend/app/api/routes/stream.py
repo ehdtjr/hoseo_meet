@@ -63,7 +63,6 @@ async def active_stream(
 - 성공 시: `{"detail": "Stream deactivated"}`
 """)
 async def clear_active_stream(
-    stream_id: int,
     active_stream_service: ActiveStreamServiceProtocol = Depends(get_active_stream_service),
     user: User = Depends(current_active_user)
 ):
