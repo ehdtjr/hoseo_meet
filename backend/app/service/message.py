@@ -13,7 +13,8 @@ from app.crud.user_crud import UserCRUDProtocol, get_user_crud
 from app.models.message import MessageType
 from app.schemas.event import EventBase
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase
-from app.service.events import create_event_dispatcher, EventDispatcher
+from app.service.events import create_event_dispatcher, EventDispatcher, \
+    SenderSelectionContext
 
 import bisect
 
@@ -96,18 +97,10 @@ class MessageService(MessageServiceProtocol):
                 "is_read": False
             }
         )
-        # 한 번에 구독자 정보 가져오기
-        subscribers_info = await self.user_crud.get_users_by_ids(db,
-                                                                 subscribers)
-        user_map = {user.id: user for user in subscribers_info}
-
-        # 모든 구독자에 대한 EventDispatcher 미리 생성
-        dispatchers = {}
-        for user_id, user in user_map.items():
-            dispatchers[user_id] = await create_event_dispatcher(db, user)
-
-        for subscriber_id in subscribers:
-            dispatcher:EventDispatcher = dispatchers[subscriber_id]
+        for sub_id in subscribers:
+            context = SenderSelectionContext(user_id=sub_id,
+                                             stream_id=stream_id)
+            dispatcher = await create_event_dispatcher(db, context)
             await dispatcher.send_event(event_data)
 
 
