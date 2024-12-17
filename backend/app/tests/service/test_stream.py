@@ -1,5 +1,5 @@
+import logging
 from unittest.mock import AsyncMock
-
 
 from app.crud.recipient import RecipientCRUDProtocol
 from app.crud.stream import SubscriptionCRUDProtocol
@@ -9,8 +9,13 @@ from app.schemas.recipient import RecipientBase, RecipientType
 from app.schemas.stream import StreamBase, StreamCreate, SubscriptionBase
 from app.schemas.user import UserRead
 from app.service.stream import SubscriberService, get_stream_service, \
-    get_subscription_service
+    get_subscription_service, ActiveStreamServiceProtocol, \
+    RedisActiveStreamService
 from app.tests.conftest import BaseTest
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 
 class TestStreamService(BaseTest):
@@ -294,3 +299,68 @@ class TestSubscriberService(BaseTest):
         with self.assertRaises(ValueError) as context:
             await subscription_service.unsubscribe(self.db, mock_user_id, mock_stream_id)
         self.assertEqual(str(context.exception), f"Subscription is already inactive")
+
+
+class TestRedisActiveStreamService(BaseTest):
+    async def asyncSetUp(self):
+        await super().asyncSetUp()
+        self.service: ActiveStreamServiceProtocol = RedisActiveStreamService()
+        # 테스트 전 Redis 초기화
+        await self.redis_client.flushdb()
+
+    async def test_set_active_stream(self):
+        # given
+        user_id = 1
+        stream_id = 100
+
+        # when
+        await self.service.set_active_stream(user_id, stream_id)
+
+        # then
+        value = await self.redis_client.get(f"active_stream:{user_id}")
+        self.assertEqual(value, str(stream_id))
+
+    async def test_get_active_stream(self):
+        # given
+        user_id = 2
+        stream_id = 200
+        await self.redis_client.set(f"active_stream:{user_id}", str(stream_id))
+
+        # when
+        result = await self.service.get_active_stream(user_id)
+
+        # then
+        self.assertEqual(result, stream_id)
+
+    async def test_get_active_stream_none(self):
+        # given: 아무것도 set하지 않음
+        user_id = 3
+
+        # when
+        result = await self.service.get_active_stream(user_id)
+
+        # then
+        self.assertIsNone(result)
+
+    async def test_clear_active_stream(self):
+        # given
+        user_id = 4
+        stream_id = 400
+        await self.redis_client.set(f"active_stream:{user_id}", str(stream_id))
+
+        # when
+        await self.service.deactive_stream(user_id)
+        result = await self.service.get_active_stream(user_id)
+
+        # then
+        self.assertIsNone(result)
+
+    async def test_get_active_stream_invalid_value(self):
+        # given: 정수가 아닌 값 저장
+        user_id = 5
+        await self.redis_client.set(f"active_stream:{user_id}", "not_an_integer")
+
+        result = await self.service.get_active_stream(user_id)
+
+        # then
+        self.assertIsNone(result)

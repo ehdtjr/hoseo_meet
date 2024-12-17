@@ -1,4 +1,4 @@
-import bisect
+import asyncio
 from typing import List, Optional, Protocol
 
 from fastapi import HTTPException
@@ -14,6 +14,8 @@ from app.models.message import MessageType
 from app.schemas.event import EventBase
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase
 from app.service.events import create_event_dispatcher, EventDispatcher
+
+import bisect
 
 
 class MessageServiceProtocol(Protocol):
