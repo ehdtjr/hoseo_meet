@@ -77,7 +77,7 @@ class TestCreateStream(BaseTest):
             created_stream_id = 1
 
             active_clear_response = await ac.post(f"/api/v1/stream/"
-            f"{created_stream_id}/deactive")
+            f"deactive")
 
             assert active_clear_response.status_code == 200
             assert active_clear_response.json() == {"detail": "Stream deactivated"}
