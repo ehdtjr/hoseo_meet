@@ -1,3 +1,4 @@
+from app.service.auth import CustomJWTStrategy
 from fastapi import Depends, HTTPException, status
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import (
@@ -5,39 +6,17 @@ from fastapi_users.authentication import (
     BearerTransport,
     JWTStrategy,
 )
-
 from app.core.config import settings
 from app.models.user import User
 from app.service.user import get_user_manager
-
-from datetime import datetime, timedelta, timezone
-import jwt
 from app.core.config import settings
 
-SECRET_KEY = settings.SECRET_KEY
-ALGORITHM = "HS256"
-
-def create_access_token(user_id: str, expires_in: int = 3600) -> str:
-    payload = {
-        "sub": str(user_id),
-        "exp": datetime.now(timezone.utc) + timedelta(seconds=expires_in),
-        "aud": ["fastapi-users:auth"],
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-
-
-def create_refresh_token(user_id: str, expires_in: int = 7 * 24 * 60 * 60) -> str:
-    payload = {
-        "sub": f"{str(user_id)}.refresh", # refresh token을 구분하기 위해 sub에 .refresh 추가
-        "exp": datetime.now(timezone.utc) + timedelta(seconds=expires_in),
-        "aud": ["fastapi-users:auth"],
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-
-
-def decode_token(token: str) -> dict:
-    return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-
+# CustomJWTStrategy 의존성 주입
+def get_custom_jwt_strategy() -> CustomJWTStrategy:
+    return CustomJWTStrategy(
+        secret=settings.SECRET_KEY,
+        lifetime_seconds=3600,  # 1시간 유효 기간
+    )
 
 def get_jwt_strategy(lifetime_seconds: int = 3600) -> JWTStrategy:
     return JWTStrategy(secret=settings.SECRET_KEY, lifetime_seconds=lifetime_seconds)
