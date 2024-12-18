@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -10,6 +11,10 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+
+    // FirebaseMessaging 권한 요청
+    _requestNotificationPermission();
+
     // 일정 시간 후 로그인 화면으로 이동
     Future.delayed(Duration(seconds: 1), () {
       Navigator.pushReplacement(
@@ -17,6 +22,19 @@ class _SplashScreenState extends State<SplashScreen> {
         MaterialPageRoute(builder: (context) => LoginScreen()),
       );
     });
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    await messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
   }
 
   @override

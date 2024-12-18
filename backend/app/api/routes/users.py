@@ -93,3 +93,22 @@ async def post_subscriptions(
         raise (HTTPException(status_code=500,
                              detail=f"Failed to subscribe: {str(e)}"))
 
+@router.delete("/me/subscriptions")
+async def delete_subscriptions(
+        subscription_data: SubscriptionRequest,
+        db: AsyncSession = Depends(get_async_session),
+        user: User = Depends(current_active_user),
+        subscription: SubscriberServiceProtocol = Depends(
+            get_subscription_service)
+):
+    try:
+        await subscription.unsubscribe(
+            db, user_id=user.id, stream_id=subscription_data.stream_id
+        )
+        return {
+            "msg": "",
+            "result": "success",
+        }
+    except Exception as e:
+        raise (HTTPException(status_code=500,
+                             detail=f"Failed to unsubscribe: {str(e)}"))

@@ -40,14 +40,6 @@ class MessageQueryBuilder:
         )
         return self
 
-    async def filter_by_last_received(self, user_id: int, last_message_id: int):
-        """유저 기준으로, 특정 메시지 ID보다 큰 메시지 필터링"""
-        self.filter_conditions.append(
-            (UserMessage.user_id == user_id) & (
-                        UserMessage.message_id > last_message_id)
-        )
-        return self
-
     async def build(self, num_before: int, num_after: int) -> List[Message]:
         """앵커 기준 이전/이후 메시지 가져오기"""
         if not self.anchor_id:
