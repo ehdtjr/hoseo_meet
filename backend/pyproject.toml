@@ -34,6 +34,17 @@ locust = "^2.31.8"
 pyfcm = "^2.0.7"
 passlib = "^1.7.4"
 httpx-oauth = "^0.15.1"
+websocket-client = "^1.8.0"
+fake = "^0.8"
+faker = "^30.8.2"
+prometheus-fastapi-instrumentator = "^7.0.0"
+opentelemetry-sdk = "^1.28.0"
+opentelemetry-exporter-otlp = "^1.28.0"
+opentelemetry-instrumentation-fastapi = "^0.49b0"
+opentelemetry-instrumentation-requests = "^0.49b0"
+prometheus-client = "^0.21.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+gunicorn = "^23.0.0"
 
 
 [tool.poetry.group.dev.dependencies]

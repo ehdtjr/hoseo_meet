@@ -1,6 +1,5 @@
 from typing import List, Optional, Sequence
 
-from sqlalchemy import func
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -72,17 +71,13 @@ class SubscriptionCRUDProtocol:
             List)[int]:
         pass
 
-    async def get_total_subscribed_user(self, db: AsyncSession, user_id: int) \
-            -> int:
-        pass
-
-    async def get_subscribers_by_recipient(self, db: AsyncSession,
-                                           recipient_id: int) -> List[
-        SubscriptionBase]:
-        pass
-
     async def get_subscription_list(self, db: AsyncSession, user_id: int) \
             -> List[tuple[StreamBase, SubscriptionBase]]:
+        pass
+
+    async def get_subscription(
+            self, db: AsyncSession, user_id: int, recipient_id: int) -> (
+            Optional[SubscriptionBase]):
         pass
 
 
@@ -106,32 +101,6 @@ class SubscriptionCRUD(CRUDBase[Subscription, SubscriptionBase],
     async def delete(self, db: AsyncSession, subscription_id: int) -> None:
         await super().delete(db, subscription_id)
 
-    async def get_all_by_user(self, db: AsyncSession, user_id: int) -> \
-            List[SubscriptionBase]:
-        query = select(self.model).where(self.model.user_id == user_id)
-        result = await db.execute(query)
-        subscriptions = result.scalars().all()
-        return [self.schema.model_validate(sub.__dict__) for sub in
-                subscriptions]
-
-    async def get_by_recipient_type(
-            self,
-            db: AsyncSession,
-            recipient_type: RecipientType,
-            user_id: int
-    ) -> list[SubscriptionBase]:
-        query = (
-            select(self.model)
-            .join(Recipient, Recipient.id == Subscription.recipient)
-            .where(Subscription.user == user_id,
-                   Recipient.type == recipient_type.value)
-        )
-
-        result = await db.execute(query)
-        subscriptions = result.scalars().all()
-
-        # 데이터 검증 및 변환
-        return [SubscriptionBase.model_validate(sub) for sub in subscriptions]
 
     async def get_subscribers(
             self, db: AsyncSession, stream_id: int) -> Sequence[int]:
@@ -149,36 +118,6 @@ class SubscriptionCRUD(CRUDBase[Subscription, SubscriptionBase],
         subscribers = result.scalars().all()
         return subscribers
 
-    async def get_total_subscribed_user(self,
-                                        db: AsyncSession, user_id: int) -> int:
-        total_count_query = await db.execute(
-            select(func.count(Subscription.id))
-            .join(Recipient, Subscription.recipient == Recipient.id)
-            .filter(Subscription.user == user_id,
-                    Subscription.active == True,  # 활성화된 구독만 포함
-                    Recipient.type == 2)  # 스트림 구독만 포함
-        )
-        total_count = total_count_query.scalar()
-        return total_count
-
-    async def get_subscribers_by_recipient(self, db: AsyncSession,
-                                           recipient_id: int) -> List[
-        SubscriptionBase]:
-        query = (
-            select(Subscription)
-            .join(Recipient, Subscription.recipient == Recipient.id)
-            .where(
-                Recipient.id == recipient_id,
-                Subscription.active == True
-            )
-        )
-
-        result = await db.execute(query)
-        subscriptions = result.scalars().all()
-
-        return [SubscriptionBase.model_validate(sub) for sub in
-                subscriptions]
-
     async def get_subscription_list(self, db: AsyncSession, user_id: int) \
             -> List[tuple[StreamBase, SubscriptionBase]]:
         result = await db.execute(
@@ -191,6 +130,7 @@ class SubscriptionCRUD(CRUDBase[Subscription, SubscriptionBase],
             .join(Stream, Stream.id == Recipient.type_id)
             .filter(
                 Subscription.user_id == user_id,
+                Subscription.active == True,
                 Recipient.type == RecipientType.STREAM.value
             )
         )
@@ -202,6 +142,21 @@ class SubscriptionCRUD(CRUDBase[Subscription, SubscriptionBase],
         return [(StreamBase.model_validate(stream),
                  SubscriptionBase.model_validate(sub)) for stream, sub in
                 subscription]
+
+    async def get_subscription(
+            self, db: AsyncSession, user_id: int, recipient_id: int) -> (
+            Optional[SubscriptionBase]):
+
+        query = select(Subscription).filter(
+            Subscription.user_id == user_id,
+            Subscription.recipient_id == recipient_id
+        )
+        result = await db.execute(query)
+        subscription = result.scalars().first()
+
+        if not subscription:
+            return None
+        return SubscriptionBase.model_validate(subscription)
 
 
 def get_subscription_crud() -> SubscriptionCRUDProtocol:

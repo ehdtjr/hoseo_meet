@@ -13,6 +13,7 @@ class MeetPost(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     author_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
+    stream_id: Mapped[int] = mapped_column(ForeignKey("streams.id", ondelete="CASCADE"))  # 수정
     title: Mapped[str] = mapped_column(String(50), nullable=False)
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     content: Mapped[str] = mapped_column(String(200), nullable=False)
@@ -28,3 +29,4 @@ class MeetPost(Base):
 
 # 관계 설정
     author: Mapped["User"] = relationship("User", back_populates="meet_posts")
+    stream: Mapped["Stream"] = relationship("Stream", back_populates="meet_post")

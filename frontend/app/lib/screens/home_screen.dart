@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../pages/home_page.dart';
 import '../pages/meet_page.dart';
-import '../pages/chat_page.dart';
+import '../pages/chat/chat_page.dart';
 import '../pages/profile_page.dart';
 import '../widgets/custom_bottom_navigation_bar_item.dart'; // CustomBottomNavigationBarItem 가져오기
 
