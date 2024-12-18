@@ -1,4 +1,4 @@
-import asyncio
+import bisect
 from typing import List, Optional, Protocol
 
 from fastapi import HTTPException
@@ -13,10 +13,7 @@ from app.crud.user_crud import UserCRUDProtocol, get_user_crud
 from app.models.message import MessageType
 from app.schemas.event import EventBase
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase
-from app.service.events import create_event_dispatcher, EventDispatcher, \
-    SenderSelectionContext
-
-import bisect
+from app.service.events import create_event_dispatcher, SenderSelectionContext
 
 
 class MessageServiceProtocol(Protocol):
