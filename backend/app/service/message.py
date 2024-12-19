@@ -114,7 +114,6 @@ class MessageService(MessageServiceProtocol):
 
         anchor_id: int = await self._convert_anchor_to_id(db, anchor, user_id,
                                                           stream_id)
-
         messages: List[
             MessageBase] = await self.message_crud.get_stream_messages(
             db, stream_id, anchor_id, num_before, num_after)
@@ -181,7 +180,6 @@ class MessageService(MessageServiceProtocol):
             if result is None:
                 raise HTTPException(status_code=404,
                                     detail="No messages found in the stream")
-
             return result.message_id
         elif anchor == "first_unread":
             result: UserMessageBase = (
@@ -189,11 +187,9 @@ class MessageService(MessageServiceProtocol):
                     db,
                     user_id,
                     stream_id))
-            print("result")
-            print(result)
             if result is None:
                 result = await (
-                    self.user_message_crud.get_oldest_message_in_stream(
+                    self.user_message_crud.get_newest_message_in_stream(
                         db,
                         user_id,
                         stream_id))
