@@ -23,6 +23,7 @@ class MessageQueryBuilder:
         self.query = select(Message)
         self.filter_conditions = []
         self.anchor_id = None
+        self.recipient_id = None
 
     async def set_anchor(self, anchor_id: int):
         """앵커 메시지 ID 설정"""
@@ -31,13 +32,20 @@ class MessageQueryBuilder:
 
     async def filter_by_stream_id(self, stream_id: int):
         """특정 스트림에 속하는 메시지 필터링"""
-        recipient_subquery = select(Recipient.id).where(
-            Recipient.type == RecipientType.STREAM.value,  # 스트림 타입을 기준으로 필터링
-            Recipient.type_id == stream_id
-        ).subquery()
-        self.filter_conditions.append(
-            Message.recipient_id.in_(recipient_subquery)
+        # stream_id에 해당하는 recipient_id를 직접 가져와 단순 조건으로 변경
+        recipient_id = await self.db.scalar(
+            select(Recipient.id).where(
+                Recipient.type == RecipientType.STREAM.value,
+                Recipient.type_id == stream_id
+            ).limit(1)
         )
+
+        if recipient_id is None:
+            # 해당 stream_id에 해당하는 recipient가 없다면 결과 없음
+            self.filter_conditions.append(Message.id == -1)  # 불가능한 조건
+        else:
+            self.filter_conditions.append(Message.recipient_id == recipient_id)
+
         return self
 
     async def build(self, num_before: int, num_after: int) -> List[Message]:
@@ -50,10 +58,9 @@ class MessageQueryBuilder:
         if self.filter_conditions:
             query = query.where(and_(*self.filter_conditions))
 
-        # 앵커 메시지 가져오기 (미리 message 객체 로드)
-        anchor_query = query.where(Message.id == self.anchor_id).options(
-            joinedload(Message.user_messages)  # 올바른 엔티티 로딩 옵션
-        )
+        # 앵커 메시지 가져오기
+        # joinedload 제거 (필요 시 다시 추가)
+        anchor_query = query.where(Message.id == self.anchor_id)
         anchor_message = await self.db.scalar(anchor_query)
         if not anchor_message:
             return []
@@ -78,6 +85,7 @@ class MessageQueryBuilder:
         # 이전 메시지 + 앵커 메시지 + 이후 메시지로 리스트 구성
         all_messages = messages_before + [anchor_message] + messages_after
         return all_messages
+
 
 
 class MessageCRUDProtocol:
@@ -115,7 +123,16 @@ class MessageCRUD(CRUDBase[Message, MessageBase], MessageCRUDProtocol):
         messages = await query_builder.build(num_before=num_before,
                                              num_after=num_after)
 
-        return [MessageBase.model_validate(message) for message in messages]
+
+        return [MessageBase.model_construct(
+            id=msg.id,
+            sender_id=msg.sender_id,
+            type=msg.type,
+            recipient_id=msg.recipient_id,
+            content=msg.content,
+            rendered_content = msg.rendered_content,
+            date_sent=msg.date_sent,
+        ) for msg in messages]
 
 
 def get_message_crud() -> MessageCRUDProtocol:
@@ -212,42 +229,56 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
                                            user_id: int,
                                            stream_id: int) -> (
             Optional[UserMessageBase]):
+        recipient_id = await db.scalar(
+            select(Recipient.id)
+            .where(
+                Recipient.type == RecipientType.STREAM.value,
+                Recipient.type_id == stream_id
+            )
+            .limit(1)
+        )
         query = (
             select(UserMessage)
             .join(Message, UserMessage.message_id == Message.id)
-            .join(Recipient, Message.recipient_id == Recipient.id)  # Recipient 테이블과 조인
             .where(
-                Recipient.type == RecipientType.STREAM.value,  # Recipient가
-                # 스트림일 때
-                Recipient.type_id == stream_id,  # stream_id와 일치하는지 확인
-                UserMessage.user_id == user_id  # 해당 사용자의 메시지
+                Message.recipient_id == recipient_id,
+                UserMessage.user_id == user_id
             )
-            .order_by(UserMessage.message_id.asc())  # 오래된 메시지를 먼저 가져오기
-            .limit(1)  # 가장 오래된 하나의 메시지만 가져옴
+            .order_by(UserMessage.message_id.asc())
+            .limit(1)
         )
 
         result = await db.execute(query)
-        result = result.scalars().first()
-        if result is None:
+        oldest_message = result.scalars().first()
+
+        if oldest_message is None:
             return None
-        return UserMessageBase.model_validate(result)
+
+        return UserMessageBase.model_validate(oldest_message)
 
     async def get_first_unread_message_in_stream(self, db: AsyncSession,
                                                  user_id: int,
                                                  stream_id: int) -> Optional[UserMessageBase]:
+
+        recipient_id_sub = (
+            select(Recipient.id)
+            .where(
+                Recipient.type == RecipientType.STREAM.value,
+                Recipient.type_id == stream_id
+            ).limit(1)
+            .scalar_subquery()
+        )
         # 쿼리: 특정 스트림에서 사용자가 읽지 않은 첫 번째 메시지를 가져옴
         query = (
             select(UserMessage)
             .join(Message, UserMessage.message_id == Message.id)
-            .join(Recipient, Message.recipient_id == Recipient.id)  # Recipient 테이블과 조인
             .where(
-                Recipient.type == RecipientType.STREAM.value,  # 스트림 타입 필터링
-                Recipient.type_id == stream_id,  # stream_id와 일치하는지 확인
-                UserMessage.user_id == user_id,  # user_id 확인
-                UserMessage.is_read == False  # 읽지 않은 메시지
+                Message.recipient_id == recipient_id_sub,
+                UserMessage.user_id == user_id,
+                UserMessage.is_read == False
             )
-            .order_by(UserMessage.message_id.asc())  # 오래된 메시지부터 가져옴
-            .limit(1)  # 가장 오래된 읽지 않은 메시지 하나만 가져옴
+            .order_by(UserMessage.message_id.asc())
+            .limit(1)
         )
 
         # 쿼리 실행 및 결과 처리
@@ -258,7 +289,6 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
         if first_unread_message is None:
             return None
 
-        # Pydantic 모델로 변환하여 반환
         return UserMessageBase.model_validate(first_unread_message)
 
 

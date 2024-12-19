@@ -14,8 +14,8 @@ class Recipient(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True,
                                     autoincrement=True)
-    type: Mapped[int] = mapped_column(Integer, index=True)
-    type_id: Mapped[int] = mapped_column(Integer, index=True)
+    type: Mapped[int] = mapped_column(Integer)
+    type_id: Mapped[int] = mapped_column(Integer)
 
     streams: Mapped["Stream"] = relationship("Stream",
                                              back_populates="recipient")
