@@ -30,10 +30,16 @@ class MeetPostQueryBuilder:
         self.filter_conditions.append(MeetPost.content.ilike(f"%{content}%"))
         return self
 
+    def order_by_recent(self):
+        # created_at 필드를 기준으로 내림차순 정렬 (최신글 상단)
+        self.query = self.query.order_by(MeetPost.created_at.desc())
+        return self
+
     def add_pagination(self, skip: int, limit: int):
         """페이지네이션 적용"""
         self.query = self.query.offset(skip).limit(limit)
         return self
+
 
     async def build(self):
         """쿼리 실행 및 결과 반환"""
@@ -103,7 +109,9 @@ class MeetPostCRUD(CRUDBase[MeetPost, MeetPostBase], MeetPostCRUDProtocol):
         if content:
             query_builder.filter_by_content(content)
 
+        query_builder.order_by_recent()
         query_builder.add_pagination(skip, limit)
+
         posts = await query_builder.build()
         return [MeetPostBase.model_validate(post) for post in posts]
 
