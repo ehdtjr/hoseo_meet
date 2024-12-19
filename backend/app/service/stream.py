@@ -226,7 +226,7 @@ class RedisActiveStreamService(ActiveStreamServiceProtocol):
 
     async def set_active_stream(self, user_id: int, stream_id: int):
         key = f"active_stream:{user_id}"
-        await redis_client.redis.set(key, str(stream_id))
+        await redis_client.redis.set(key, str(stream_id), ex=300)
 
     async def deactive_stream(self, user_id: int):
         key = f"active_stream:{user_id}"

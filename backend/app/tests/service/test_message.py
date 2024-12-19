@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
 
+from fastapi import HTTPException
+
 from app.core.exceptions import PermissionDeniedException
 from app.models import Recipient, Stream, User
 from app.schemas.message import MessageBase, UserMessageBase
@@ -23,7 +25,7 @@ class TestMessageService(BaseTest):
         self.service = MessageService(
             message_crud=self.message_crud,
             user_message_crud=self.user_message_crud,
-            user_crud= self.user_crud,
+            user_crud=self.user_crud,
             recipient_crud=self.recipient_crud,
             subscription_crud=self.subscription_crud,
         )
@@ -170,7 +172,7 @@ class TestMessageService(BaseTest):
             id=1,
             user_id=1,
             message_id=3,
-            is_read = False
+            is_read=False
         )
         self.user_message_crud.get_newest_message_in_stream = AsyncMock(
             return_value=newest_message
@@ -281,7 +283,8 @@ class TestMessageService(BaseTest):
             is_read=True
         )
 
-        self.message_crud.get_stream_messages = AsyncMock(return_value=mock_messages)
+        self.message_crud.get_stream_messages = AsyncMock(
+            return_value=mock_messages)
         self.user_message_crud.get_oldest_message_in_stream = AsyncMock(
             return_value=mock_oldest_message)
 
@@ -324,6 +327,7 @@ class TestMessageService(BaseTest):
             str(context.exception),
             "You are not permitted to read messages from this stream"
         )
+
     async def test_get_stream_messages_empty_messages(self):
         # given
         self.service._check_stream_permission = AsyncMock(return_value=True)
@@ -381,13 +385,14 @@ class TestMessageService(BaseTest):
         mock_oldest_message = UserMessageBase(
             id=1,
             user_id=1,
-            message_id=4, # 모든 메시지보다 더 큰 ID
+            message_id=4,  # 모든 메시지보다 더 큰 ID
             is_read=True
         )
 
         self.service._check_stream_permission = AsyncMock(return_value=True)
         self.service._convert_anchor_to_id = AsyncMock(return_value=2)
-        self.message_crud.get_stream_messages = AsyncMock(return_value=mock_messages)
+        self.message_crud.get_stream_messages = AsyncMock(
+            return_value=mock_messages)
         self.user_message_crud.get_oldest_message_in_stream = AsyncMock(
             return_value=mock_oldest_message)
 
@@ -445,7 +450,8 @@ class TestMessageService(BaseTest):
 
         self.service._check_stream_permission = AsyncMock(return_value=True)
         self.service._convert_anchor_to_id = AsyncMock(return_value=1)
-        self.message_crud.get_stream_messages = AsyncMock(return_value=mock_messages)
+        self.message_crud.get_stream_messages = AsyncMock(
+            return_value=mock_messages)
         self.user_message_crud.get_oldest_message_in_stream = AsyncMock(
             return_value=mock_oldest_message)
 
@@ -463,3 +469,91 @@ class TestMessageService(BaseTest):
         self.assertEqual(len(result), 2)  # 모든 메시지가 포함되어야 함
         self.assertEqual(result[0].id, 1)
         self.assertEqual(result[1].id, 2)
+
+    async def test_convert_anchor_to_id_newest_no_messages(self):
+        self.user_message_crud.get_newest_message_in_stream = AsyncMock(return_value=None)
+
+        with self.assertRaises(HTTPException) as ctx:
+            await self.service._convert_anchor_to_id(
+                db=self.db, anchor="newest", user_id=1, stream_id=1
+            )
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertIn("No messages found", ctx.exception.detail)
+
+    async def test_convert_anchor_to_id_newest_with_messages(self):
+        newest_message = UserMessageBase(id=1, user_id=1, message_id=10, is_read=False)
+        self.user_message_crud.get_newest_message_in_stream = AsyncMock(return_value=newest_message)
+
+        result = await self.service._convert_anchor_to_id(
+            db=self.db, anchor="newest", user_id=1, stream_id=1
+        )
+        self.assertEqual(result, 10)
+
+    async def test_convert_anchor_to_id_oldest_no_messages(self):
+        self.user_message_crud.get_oldest_message_in_stream = AsyncMock(return_value=None)
+
+        with self.assertRaises(HTTPException) as ctx:
+            await self.service._convert_anchor_to_id(
+                db=self.db, anchor="oldest", user_id=1, stream_id=1
+            )
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertIn("No messages found", ctx.exception.detail)
+
+    async def test_convert_anchor_to_id_oldest_with_messages(self):
+        oldest_message = UserMessageBase(id=2, user_id=1, message_id=1, is_read=True)
+        self.user_message_crud.get_oldest_message_in_stream = AsyncMock(return_value=oldest_message)
+
+        result = await self.service._convert_anchor_to_id(
+            db=self.db, anchor="oldest", user_id=1, stream_id=1
+        )
+        self.assertEqual(result, 1)
+
+    async def test_convert_anchor_to_id_first_unread_no_messages(self):
+        # first_unread일 때 unread 메시지 X, newest 메시지 X
+        self.user_message_crud.get_first_unread_message_in_stream = AsyncMock(return_value=None)
+        self.user_message_crud.get_newest_message_in_stream = AsyncMock(return_value=None)
+
+        with self.assertRaises(HTTPException) as ctx:
+            await self.service._convert_anchor_to_id(
+                db=self.db, anchor="first_unread", user_id=1, stream_id=1
+            )
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertIn("No messages found", ctx.exception.detail)
+
+    async def test_convert_anchor_to_id_first_unread_unread_exists(self):
+        # first_unread일 때 unread 메시지가 존재하는 경우
+        first_unread_message = UserMessageBase(id=3, user_id=1, message_id=5, is_read=False)
+        self.user_message_crud.get_first_unread_message_in_stream = AsyncMock(return_value=first_unread_message)
+
+        result = await self.service._convert_anchor_to_id(
+            db=self.db, anchor="first_unread", user_id=1, stream_id=1
+        )
+        self.assertEqual(result, 5)
+
+    async def test_convert_anchor_to_id_first_unread_no_unread_but_newest_exists(self):
+        # first_unread일 때 unread 메시지는 없으나 newest 메시지가 있는 경우
+        self.user_message_crud.get_first_unread_message_in_stream = AsyncMock(return_value=None)
+        newest_message = UserMessageBase(id=2, user_id=1, message_id=10, is_read=True)
+        self.user_message_crud.get_newest_message_in_stream = AsyncMock(return_value=newest_message)
+
+        result = await self.service._convert_anchor_to_id(
+            db=self.db, anchor="first_unread", user_id=1, stream_id=1
+        )
+        self.assertEqual(result, 10)
+
+    async def test_convert_anchor_to_id_integer_anchor(self):
+        # 정수형 앵커 테스트
+        result = await self.service._convert_anchor_to_id(
+            db=self.db, anchor="42", user_id=1, stream_id=1
+        )
+        self.assertEqual(result, 42)
+
+    async def test_convert_anchor_to_id_invalid_anchor(self):
+        # 정수 변환 불가능한 앵커
+        with self.assertRaises(ValueError):
+            await self.service._convert_anchor_to_id(
+                db=self.db, anchor="invalid_anchor", user_id=1, stream_id=1
+            )
+
+
+
