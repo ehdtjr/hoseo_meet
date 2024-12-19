@@ -189,7 +189,8 @@ class MessageService(MessageServiceProtocol):
                     db,
                     user_id,
                     stream_id))
-
+            print("result")
+            print(result)
             if result is None:
                 result = await (
                     self.user_message_crud.get_oldest_message_in_stream(

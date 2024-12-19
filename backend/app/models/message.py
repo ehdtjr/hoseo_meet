@@ -80,3 +80,8 @@ class UserMessage(Base):
                                         back_populates="user_messages")
     message: Mapped["Message"] = relationship("Message",
                                               back_populates="user_messages")
+
+    __table_args__ = (
+        Index("user_message_user_id_is_read_msgid_idx",
+         "user_id", "is_read", "message_id"),
+    )
