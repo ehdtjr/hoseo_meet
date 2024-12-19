@@ -1,9 +1,8 @@
 from app.crud.meet_post_crud import get_meet_post_crud
 from app.models import MeetPost, User
+from app.models import Stream
 from app.schemas.meet_post_schemas import MeetPostBase, MeetPostCreate
 from app.tests.conftest import BaseTest
-
-from app.models import Stream
 
 
 class TestMeetPostCRUD(BaseTest):
@@ -118,7 +117,6 @@ class TestMeetPostCRUD(BaseTest):
         self.assertEqual(meet_post.content, meet_post_in_db.content)
         self.assertEqual(meet_post.max_people, meet_post_in_db.max_people)
 
-
     async def test_update(self):
         # given
         user_data = {
@@ -181,7 +179,8 @@ class TestMeetPostCRUD(BaseTest):
         self.assertEqual(updated_meet_post_in_db.author_id, user_id)
         self.assertEqual(updated_meet_post_in_db.title, "Updated MeetPost")
         self.assertEqual(updated_meet_post_in_db.type, "meet")
-        self.assertEqual(updated_meet_post_in_db.content, "Updated MeetPost Content")
+        self.assertEqual(updated_meet_post_in_db.content,
+                         "Updated MeetPost Content")
         self.assertEqual(updated_meet_post_in_db.max_people, 5)
 
     async def test_get_filtered_posts_title(self):
@@ -766,3 +765,70 @@ class TestMeetPostCRUD(BaseTest):
         self.assertIsNotNone(filtered_meet_posts)
         self.assertEqual(len(filtered_meet_posts), 1)
         self.assertEqual(filtered_meet_posts[0].id, meet_post_id)
+
+
+    async def test_get_filtered_posts(self):
+        # given: 사용자, 스트림 생성
+        user_data = {
+            "email": "recenttestuser@example.com",
+            "hashed_password": "hashedpassword",
+            "name": "Recent Test User",
+            "gender": "male",
+            "is_active": True,
+            "is_superuser": False,
+            "is_verified": True,
+        }
+        user = User(**user_data)
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        user_id = user.id
+
+        stream_data = {
+            "name": "Stream for recent",
+            "type": "meet",
+            "creator_id": user_id
+        }
+
+        stream = Stream(**stream_data)
+        self.db.add(stream)
+        await self.db.commit()
+        await self.db.refresh(stream)
+        stream_id = stream.id
+
+        # 게시글 2개 생성: 첫 번째 게시글이 더 먼저 생성됨(이전 게시글), 두 번째가 나중에 생성(최근 게시글)
+        older_post_data = {
+            "author_id": user_id,
+            "stream_id": stream_id,
+            "title": "Older Post",
+            "type": "meet",
+            "content": "First inserted",
+            "max_people": 3,
+        }
+        older_post = MeetPost(**older_post_data)
+        self.db.add(older_post)
+        await self.db.commit()
+        await self.db.refresh(older_post)
+
+        newer_post_data = {
+            "author_id": user_id,
+            "stream_id": stream_id,
+            "title": "Newer Post",
+            "type": "meet",
+            "content": "Second inserted",
+            "max_people": 3,
+        }
+        newer_post = MeetPost(**newer_post_data)
+        self.db.add(newer_post)
+        await self.db.commit()
+        await self.db.refresh(newer_post)
+
+        # when: 필터 없이 전체 게시글 조회
+        meet_post_crud = get_meet_post_crud()
+        posts = await meet_post_crud.get_filtered_posts(self.db)
+
+        # then: 최신 정렬 적용 시, 방금 만든 newer_post가 인덱스 0에, older_post가 그 다음에 위치해야 함
+        self.assertIsNotNone(posts)
+        self.assertGreaterEqual(len(posts), 2)
+        self.assertEqual(posts[0].title, "Newer Post")
+        self.assertEqual(posts[1].title, "Older Post")
