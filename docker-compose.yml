@@ -23,6 +23,34 @@ services:
     networks:
       - app_backend_net
 
+  test-db:
+    image: postgres:16
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=test_password
+      - POSTGRES_USER=test_user
+      - POSTGRES_DB=test_db
+    ports:
+      - "5433:5432"
+    networks:
+      - app_backend_net
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - app_backend_net
+
+  test-redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6380:6379"
+    networks:
+      - app_backend_net
+
   web:
     build:
       context: ./backend
@@ -49,11 +77,125 @@ services:
     networks:
       - app_backend_net
 
-  redis:
-    image: redis:latest
-    restart: always
+  celery-worker:
+    build:
+      context: ./backend
+    command: ["celery", "-A", "app.celery.worker", "worker", "--loglevel=info"]
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - db
+    env_file:
+      - backend/.env
+    environment:
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - app_backend_net
+
+  celery-beat:
+    build:
+      context: ./backend
+    command: ["celery", "-A", "app.celery.worker", "beat", "--loglevel=info"]
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - db
+    env_file:
+      - backend/.env
+    environment:
+      - POSTGRES_SERVER=db
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - app_backend_net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
     ports:
-      - "6379:6379"
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - app_backend_net
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter
+    env_file:
+      - backend/.env
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    volumes:
+      - ./postgres_exporter/queries.yaml:/etc/postgres_exporter/queries.yaml
+    command:
+      - "--web.listen-address=:9187"
+      - "--extend.query-path=/etc/postgres_exporter/queries.yaml"
+    depends_on:
+      - db
+    restart: always
+    networks:
+      - app_backend_net
+
+  redis_exporter:
+    image: oliver006/redis_exporter
+    environment:
+      - REDIS_ADDR=redis:6379
+    ports:
+      - "9121:9121"
+    depends_on:
+      - redis
+    networks:
+      - app_backend_net
+
+  influxdb:
+    image: influxdb:1.8
+    ports:
+      - "8086:8086"
+    container_name: influxdb
+    volumes:
+      - influxdb-data:/var/lib/influxdb
+    environment:
+      - INFLUXDB_DB=happy
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=admin123
+      - INFLUXDB_HTTP_AUTH_ENABLED=false
+    restart: always
+    networks:
+      - app_backend_net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - influxdb
     networks:
       - app_backend_net
 
@@ -70,6 +212,8 @@ services:
 
 volumes:
   app-db-data:
+  grafana-storage:
+  influxdb-data:
 
 networks:
   app_backend_net:
