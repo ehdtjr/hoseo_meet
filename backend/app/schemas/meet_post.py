@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.schemas.user import UserRead, UserPublicRead
 
@@ -40,13 +40,10 @@ class MeetPostRequest(BaseModel):
     content: str
     max_people: int = Field(..., ge=1, le=50)
 
-class MeetPostResponse(BaseModel):
-    model_config = ConfigDict(use_enum_values=True, from_attributes=True)
-
+class MeetPostListResponse(BaseModel):
     id: int
     title: str
-    type: MeetPostType
-
+    type: str
     author: UserPublicRead
     stream_id: int
     content: str
@@ -54,3 +51,11 @@ class MeetPostResponse(BaseModel):
     created_at: datetime
     max_people: int = Field(..., ge=1, le=50)
     current_people: int
+
+    @computed_field
+    @property
+    def short_content(self) -> str:
+        lines = self.content.splitlines()
+        if len(lines) > 10:
+            return "\n".join(lines[:10]) + "..."
+        return self.content

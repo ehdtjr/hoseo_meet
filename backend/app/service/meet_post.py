@@ -5,7 +5,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud.meet_post_crud import MeetPostCRUDProtocol, get_meet_post_crud
 from app.crud.user_crud import UserCRUDProtocol, get_user_crud
 from app.schemas.meet_post import MeetPostBase, MeetPostCreate, \
-    MeetPostRequest, MeetPostResponse
+    MeetPostRequest, MeetPostListResponse
 from app.schemas.stream import StreamCreate, StreamRead
 from app.schemas.user import UserPublicRead
 from app.service.stream import (StreamServiceProtocol,
@@ -87,7 +87,7 @@ class MeetPostService(MeetPostServiceProtocol):
                                       content: Optional[str] = None,
                                       skip: int = 0,
                                       limit: int = 10
-                                      ) -> Optional[list[MeetPostResponse]]:
+                                      ) -> Optional[list[MeetPostListResponse]]:
 
         result = []
         filtered_meet_posts = await self.meet_post_crud.get_filtered_posts(
@@ -101,7 +101,7 @@ class MeetPostService(MeetPostServiceProtocol):
             author_public = UserPublicRead.model_validate(author)
 
             # MeetPostResponse 인스턴스를 생성하면서 구독자 수를 포함
-            meet_post_response = MeetPostResponse(
+            meet_post_response = MeetPostListResponse(
                 id=meet_post.id,
                 title=meet_post.title,
                 type=meet_post.type,

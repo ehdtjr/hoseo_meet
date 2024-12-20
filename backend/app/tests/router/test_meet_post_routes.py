@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 from app.core.db import get_async_session
 from app.core.security import current_active_user
 from app.main import app
-from app.schemas.meet_post import MeetPostBase, MeetPostResponse
+from app.schemas.meet_post import MeetPostBase, MeetPostListResponse
 from app.schemas.user import UserPublicRead
 from app.service.meet_post import MeetPostServiceProtocol, \
     get_meet_post_service
@@ -98,7 +98,7 @@ class TestMeetPostRoutes(BaseTest):
 
         from datetime import datetime
         mock_meet_post_service.get_filtered_meet_posts.return_value = [
-            MeetPostResponse(
+            MeetPostListResponse(
                 id=1,
                 created_at=datetime.utcnow(),
                 title="Test Meet 1",
@@ -109,7 +109,7 @@ class TestMeetPostRoutes(BaseTest):
                 max_people=3,
                 current_people=2
             ),
-            MeetPostResponse(
+            MeetPostListResponse(
                 id=2,
                 created_at=datetime.utcnow(),
                 title="Test Meet 2",
