@@ -1,7 +1,7 @@
 from app.crud.meet_post_crud import get_meet_post_crud
 from app.models import MeetPost, User
 from app.models import Stream
-from app.schemas.meet_post_schemas import MeetPostBase, MeetPostCreate
+from app.schemas.meet_post import MeetPostBase, MeetPostCreate
 from app.tests.conftest import BaseTest
 
 

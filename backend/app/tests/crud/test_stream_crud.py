@@ -1,5 +1,3 @@
-from unittest import TestCase
-
 from app.crud.stream import StreamCRUD, SubscriptionCRUD, get_subscription_crud
 from app.models import Stream
 from app.models import Subscription, User
@@ -36,7 +34,7 @@ class TestStreamCRUD(BaseTest):
         stream_crud = StreamCRUD()
         stream_data = StreamCreate(
             name="Test Stream",
-            type="배달",
+            type="meet",
             creator_id=user_id,
         )
 
@@ -88,7 +86,7 @@ class TestStreamCRUD(BaseTest):
         stream_crud = StreamCRUD()
         stream_data = StreamCreate(
             name="Test Stream",
-            type="happy",
+            type="meet",
             creator_id=user_id,
         )
         result = await stream_crud.create(self.db, stream_data)

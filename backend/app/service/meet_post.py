@@ -3,9 +3,11 @@ from typing import Protocol, Optional
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.meet_post_crud import MeetPostCRUDProtocol, get_meet_post_crud
-from app.schemas.meet_post_schemas import MeetPostBase, MeetPostCreate, \
+from app.crud.user_crud import UserCRUDProtocol, get_user_crud
+from app.schemas.meet_post import MeetPostBase, MeetPostCreate, \
     MeetPostRequest, MeetPostResponse
 from app.schemas.stream import StreamCreate, StreamRead
+from app.schemas.user import UserPublicRead
 from app.service.stream import (StreamServiceProtocol,
                                 SubscriberServiceProtocol,
                                 get_stream_service,
@@ -20,7 +22,7 @@ class MeetPostServiceProtocol(Protocol):
 
     async def get_filtered_meet_posts(self, db: AsyncSession,
                                       title: Optional[str] = None,
-                                      type: Optional[str] = None,
+                                      meet_post_type: Optional[str] = None,
                                       content: Optional[str] = None,
                                       skip: int = 0,
                                       limit: int = 10
@@ -35,10 +37,13 @@ class MeetPostServiceProtocol(Protocol):
 class MeetPostService(MeetPostServiceProtocol):
     def __init__(self, meet_post_crud: MeetPostCRUDProtocol,
                  stream_service: StreamServiceProtocol,
-                 subscriber_service: SubscriberServiceProtocol):
+                 subscriber_service: SubscriberServiceProtocol,
+                 user_crud: UserCRUDProtocol
+                 ):
         self.meet_post_crud = meet_post_crud
         self.stream_service = stream_service
         self.subscriber_service = subscriber_service
+        self.user_crud = user_crud
 
     async def create_meet_post(self, db: AsyncSession,
                                meet_post: MeetPostRequest, user_id: int) -> (
@@ -78,7 +83,7 @@ class MeetPostService(MeetPostServiceProtocol):
 
     async def get_filtered_meet_posts(self, db: AsyncSession,
                                       title: Optional[str] = None,
-                                      type: Optional[str] = None,
+                                      meet_post_type: Optional[str] = None,
                                       content: Optional[str] = None,
                                       skip: int = 0,
                                       limit: int = 10
@@ -86,19 +91,21 @@ class MeetPostService(MeetPostServiceProtocol):
 
         result = []
         filtered_meet_posts = await self.meet_post_crud.get_filtered_posts(
-            db, title, type, content, skip, limit)
+            db, title, meet_post_type, content, skip, limit)
 
         for meet_post in filtered_meet_posts:
-            # 구독자 목록 가져오기
             subscribers = await self.subscriber_service.get_subscribers(
             db, meet_post.stream_id)
+
+            author = await self.user_crud.get(db, meet_post.author_id)
+            author_public = UserPublicRead.model_validate(author)
 
             # MeetPostResponse 인스턴스를 생성하면서 구독자 수를 포함
             meet_post_response = MeetPostResponse(
                 id=meet_post.id,
                 title=meet_post.title,
                 type=meet_post.type,
-                author_id=meet_post.author_id,
+                author=author_public,
                 stream_id=meet_post.stream_id,
                 content=meet_post.content,
                 page_views=meet_post.page_views,
@@ -143,5 +150,6 @@ def get_meet_post_service() -> MeetPostServiceProtocol:
     return MeetPostService(
         meet_post_crud=get_meet_post_crud(),
         stream_service=get_stream_service(),
-        subscriber_service=get_subscription_service()
+        subscriber_service=get_subscription_service(),
+        user_crud = get_user_crud()
     )

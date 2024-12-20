@@ -44,7 +44,7 @@ class TestStreamService(BaseTest):
 
         stream_create = StreamCreate(
             name="Test Stream",
-            type="배달",
+            type="delivery",
             creator_id=user.id,
         )
 

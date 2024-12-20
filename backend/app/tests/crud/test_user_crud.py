@@ -1,5 +1,3 @@
-from unittest import TestCase
-
 from app.crud.user_crud import UserCRUD, UserFCMTokenCRUD
 from app.models import User
 from app.schemas.user import UserFCMTokenCreate, UserUpdate
@@ -17,7 +15,6 @@ class TestUserCRUD(BaseTest):
             "is_active": True,
             "is_superuser": False,
             "is_verified": True,
-            "is_online": False,
         }
 
         # User 인스턴스 생성 및 DB에 추가
@@ -27,7 +24,7 @@ class TestUserCRUD(BaseTest):
         await self.db.refresh(user)
         user_id = user.id
 
-        update_data = UserUpdate(is_online=True, id=user_id)
+        update_data = UserUpdate(id=user_id, name="Duplicate")
 
         # when
         result = await user_crud.update(self.db, user_in=update_data)
@@ -35,9 +32,8 @@ class TestUserCRUD(BaseTest):
         # then
         self.assertIsNotNone(result)
         self.assertEqual(result.id, 1)
-        self.assertEqual(result.name, "Duplicate User")
+        self.assertEqual(result.name, "Duplicate")
         self.assertEqual(result.gender, "male")
-        self.assertTrue(result.is_online)
 
     async def test_get_users_by_ids_returns_users(self):
         user_crud = UserCRUD()
@@ -51,7 +47,6 @@ class TestUserCRUD(BaseTest):
             "is_active": True,
             "is_superuser": False,
             "is_verified": True,
-            "is_online": False,
         }
 
         user_data2 = {
@@ -62,7 +57,6 @@ class TestUserCRUD(BaseTest):
             "is_active": True,
             "is_superuser": False,
             "is_verified": True,
-            "is_online": False,
         }
 
         user1 = User(**user_data1)
@@ -114,7 +108,6 @@ class TestUserFCMTokenCRUD(BaseTest):
             "is_active": True,
             "is_superuser": False,
             "is_verified": True,
-            "is_online": False,
         }
 
         user = User(**user_data)
