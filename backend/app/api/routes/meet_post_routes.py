@@ -6,7 +6,7 @@ from app.core.db import get_async_session
 from app.core.security import current_active_user
 from app.models import User
 from app.schemas.meet_post import MeetPostBase, MeetPostRequest, \
-    MeetPostResponse
+    MeetPostListResponse
 from app.service.meet_post import MeetPostServiceProtocol, \
     get_meet_post_service
 
@@ -31,7 +31,7 @@ async def create_meet_post(
     return result
 
 
-@router.get("/search", response_model=Optional[list[MeetPostResponse]])
+@router.get("/search", response_model=Optional[list[MeetPostListResponse]])
 async def get_filtered_meet_posts(
     title: Optional[str] = None,
     type: Optional[str] = None,
