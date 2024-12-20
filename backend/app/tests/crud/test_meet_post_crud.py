@@ -167,7 +167,9 @@ class TestMeetPostCRUD(BaseTest):
         meet_post_in_db = await self.db.get(MeetPost, meet_post_id)
         meet_post_in_db.title = "Updated MeetPost"
         meet_post_in_db.content = "Updated MeetPost Content"
+        meet_post_in_db.page_views +=1
         meet_post_in_db.max_people = 5  # max_people 값도 업데이트
+
 
         meet_post_in_db = MeetPostBase.model_validate(meet_post_in_db)
         await meet_post_crud.update(self.db, meet_post_in_db)
@@ -182,6 +184,7 @@ class TestMeetPostCRUD(BaseTest):
         self.assertEqual(updated_meet_post_in_db.content,
                          "Updated MeetPost Content")
         self.assertEqual(updated_meet_post_in_db.max_people, 5)
+        self.assertEqual(updated_meet_post_in_db.page_views, 1)
 
     async def test_get_filtered_posts_title(self):
         user_data = {

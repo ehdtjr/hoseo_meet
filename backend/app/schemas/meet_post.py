@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.schemas.user import UserRead, UserPublicRead
+from app.schemas.user import UserPublicRead
 
 MeetPostType = Literal["meet", "delivery", "taxi", "carpool"]
 
@@ -40,7 +40,7 @@ class MeetPostRequest(BaseModel):
     content: str
     max_people: int = Field(..., ge=1, le=50)
 
-class MeetPostListResponse(BaseModel):
+class MeetPostResponse(BaseModel):
     id: int
     title: str
     type: str
@@ -52,6 +52,7 @@ class MeetPostListResponse(BaseModel):
     max_people: int = Field(..., ge=1, le=50)
     current_people: int
 
+class MeetPostListResponse(MeetPostResponse):
     @computed_field
     @property
     def short_content(self) -> str:
