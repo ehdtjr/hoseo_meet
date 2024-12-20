@@ -31,12 +31,12 @@ def get_jwt_strategy(lifetime_seconds: int = 3600) -> JWTStrategy:
     return JWTStrategy(secret=settings.SECRET_KEY, lifetime_seconds=lifetime_seconds)
 
 
-bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
+bearer_transport = BearerTransport(tokenUrl="auth/login")
 
 auth_backend = AuthenticationBackend(
     name="jwt",
     transport=bearer_transport,
-    get_strategy=get_jwt_strategy,
+    get_strategy=get_custom_jwt_strategy,
 )
 
 fastapi_users = FastAPIUsers[User, int](get_user_manager, [auth_backend])

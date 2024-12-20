@@ -1,14 +1,15 @@
-from datetime import datetime, timedelta
 import json
-from typing import Optional
-from fastapi_users.authentication.strategy import JWTStrategy
-from fastapi_users import models
-import jwt
-from app.core.config import settings
 from datetime import datetime, timedelta, timezone
-from fastapi import HTTPException, status
+from typing import Optional
+
 import httpx
-from app.core.redis import RedisClient, redis_client
+import jwt
+from fastapi import HTTPException, status
+from fastapi_users import models
+from fastapi_users.authentication.strategy import JWTStrategy
+
+from app.core.config import settings
+from app.core.redis import RedisClient
 
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
@@ -48,33 +49,32 @@ class CustomJWTStrategy(JWTStrategy):
 
     def _generate_token(self, user_id: str, expires_in: int, token_type: str) -> str:
         payload = {
-            "sub": f"{user_id}.{token_type}",
+            "sub": user_id,  # 오직 user_id만 저장
+            "type": token_type,  # 토큰 타입을 별도 필드로 관리
             "exp": datetime.now(timezone.utc) + timedelta(seconds=expires_in),
             "aud": ["fastapi-users:auth"],
         }
         return jwt.encode(payload, self.secret, algorithm=ALGORITHM)
 
     async def write_token(self, user: models.UP) -> dict:
+        user_id = str(user.id)
         access_token = self._generate_token(
-            user_id=str(user.id),
+            user_id=user_id,
             expires_in=self.access_lifetime_seconds,
             token_type="access",
         )
         refresh_token = self._generate_token(
-            user_id=str(user.id),
+            user_id=user_id,
             expires_in=self.refresh_lifetime_seconds,
             token_type="refresh",
         )
 
         # refresh_token 저장
         await self.token_storage.store_token(
-            user_id=str(user.id),
+            user_id=user_id,
             token=refresh_token,
             expires_in=self.refresh_lifetime_seconds,
         )
-
-        # 기존 refresh_token 삭제
-        # await self.token_storage.delete_token(user_id=str(user.id))
 
         return {"access_token": access_token, "refresh_token": refresh_token}
 
@@ -87,16 +87,17 @@ class CustomJWTStrategy(JWTStrategy):
                 algorithms=[ALGORITHM],
                 audience="fastapi-users:auth",
             )
-            sub = payload.get("sub")
-            if not sub:
-                raise ValueError("Invalid token payload")
-            user_id, token_type = sub.split(".")
-            if token_type != "refresh":
-                raise ValueError("Invalid token type")
-            # Redis에서 토큰 확인
+            user_id = payload.get("sub")
+            token_type = payload.get("type")
+
+            if not user_id or token_type != "refresh":
+                raise ValueError("Invalid token payload or token type")
+
+            # Redis에서 토큰 확인 (토큰 일치 여부 확인 권장)
             stored_token = await self.token_storage.read_token(user_id)
-            if not stored_token:
-                raise ValueError("Refresh token not found or expired in store")
+            if not stored_token or stored_token.get("token") != refresh_token:
+                raise ValueError("Refresh token not found, mismatched or expired in store")
+
             return user_id
         except jwt.ExpiredSignatureError:
             raise ValueError("Refresh token expired")
