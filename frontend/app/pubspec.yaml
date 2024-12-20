@@ -43,6 +43,7 @@ dependencies:
   kakao_flutter_sdk: ^1.1.4
   flutter_dotenv: ^5.0.2
   flutter_secure_storage: ^9.2.2
+  flutter_riverpod: ^2.6.1
 
 flutter_native_splash:
   color: "#E72410"           # 배경 색상
@@ -81,6 +82,7 @@ flutter:
     - assets/img/icon/
     - assets/img/icon/mainpage/
     - assets/img/info/
+    - assets/data/
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

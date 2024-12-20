@@ -28,13 +28,13 @@ class AuthService with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('access_token');
 
+    // 토큰이 존재할 경우 로그인 상태로 유지하지만 소켓 연결은 하지 않음
     if (_accessToken != null) {
-      // 토큰이 복원된 경우 소켓 연결을 재설정
-      await _initializeSocketService();
+      print('Token restored from local storage, but socket connection will only initialize on login.');
     }
   }
 
-  // 소켓 서비스 초기화 메서드
+  // 소켓 서비스 초기화 메서드 (로그인 성공 시에만 호출)
   Future<void> _initializeSocketService() async {
     if (_accessToken != null && _socketMessageService == null) {
       _socketMessageService = SocketMessageService(_accessToken!);
@@ -42,15 +42,15 @@ class AuthService with WidgetsBindingObserver {
     }
   }
 
-  // 백그라운드로 이동 시 토큰을 null로 설정하는 대신 저장
+  // 백그라운드로 이동 시 토큰을 저장하고 소켓 종료
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
       _saveToken(); // 앱이 백그라운드로 이동할 때 토큰을 저장
       _socketMessageService?.closeWebSocket(); // WebSocket 종료
-    } else if (state == AppLifecycleState.resumed) {
-      _restoreToken(); // 앱이 다시 포그라운드로 돌아오면 토큰을 복원 및 웹소켓 재연결
-      _socketMessageService?.connectWebSocket(); // 웹소켓 재연결
+    } else if (state == AppLifecycleState.resumed && _accessToken != null) {
+      // 앱이 다시 포그라운드로 돌아오면 토큰이 있을 때만 WebSocket 재연결
+      _initializeSocketService(); // 로그인 상태일 때만 WebSocket을 재연결
     }
   }
 

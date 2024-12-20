@@ -1,6 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 class RoomList extends StatefulWidget {
+  final String categoryName; // 카테고리 이름 전달 받기
+
+  RoomList({required this.categoryName});
+
   @override
   _RoomListState createState() => _RoomListState();
 }
@@ -9,15 +15,57 @@ class _RoomListState extends State<RoomList> {
   final List<String> _selectOptions = ['거리순', '별점순', '리뷰순'];
   String _selectedOption = '거리순';
   bool _isDropdownOpened = false;
+  List<dynamic> items = [];
+  String userName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+    _loadName();
+  }
+
+  Future<void> _loadData() async {
+    // 카테고리에 따라 다른 JSON 파일 로드
+    String fileName = widget.categoryName == '음식점'
+        ? 'assets/data/food_list.json'
+        : 'assets/data/room_list.json';
+
+    final String response = await rootBundle.loadString(fileName);
+    final data = json.decode(response);
+    setState(() {
+      items = data;
+    });
+  }
+
+  Future<void> _loadName() async {
+    final String response = await rootBundle.loadString('assets/data/name.json');
+    final data = json.decode(response);
+    setState(() {
+      userName = data['name'];
+    });
+  }
+
+  void _sortItems(String criteria) {
+    setState(() {
+      if (criteria == '거리순') {
+        items.sort((a, b) => int.parse(a['distance'].replaceAll('m', '')).compareTo(
+            int.parse(b['distance'].replaceAll('m', ''))));
+      } else if (criteria == '별점순') {
+        items.sort((a, b) => b['rating'].compareTo(a['rating']));
+      } else if (criteria == '리뷰순') {
+        items.sort((a, b) => b['reviews'].compareTo(a['reviews']));
+      }
+    });
+  }
 
   void _showCustomDropdown(BuildContext context) async {
     final RenderBox button = context.findRenderObject() as RenderBox;
     final RenderBox overlay = Overlay.of(context)!.context.findRenderObject() as RenderBox;
 
-    // 드롭다운의 위치를 오른쪽에 맞추기 위한 RelativeRect 설정
     final RelativeRect position = RelativeRect.fromRect(
       Rect.fromPoints(
-        button.localToGlobal(Offset(button.size.width, 0), ancestor: overlay), // 버튼의 오른쪽 상단을 기준으로
+        button.localToGlobal(Offset(button.size.width, 0), ancestor: overlay),
         button.localToGlobal(button.size.bottomRight(Offset.zero), ancestor: overlay),
       ),
       Offset.zero & overlay.size,
@@ -30,7 +78,7 @@ class _RoomListState extends State<RoomList> {
         return PopupMenuItem<String>(
           value: value,
           child: Container(
-            width: button.size.width * 0.5, // 팝업의 너비를 현재 버튼 크기의 50%로 설정
+            width: button.size.width * 0.5,
             child: Text(value),
           ),
         );
@@ -40,39 +88,13 @@ class _RoomListState extends State<RoomList> {
     if (selected != null) {
       setState(() {
         _selectedOption = selected;
+        _sortItems(selected); // 정렬 실행
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> rooms = [
-      {
-        "name": "퍼스트빌",
-        "distance": "150m",
-        "reviews": 37,
-        "image": "assets/img/info/room1.png",
-        "description": "신선한 재료로 만든 건강한 맛, 최고의 맛집!",
-        "rating": 4.0
-      },
-      {
-        "name": "궁전빌라",
-        "distance": "152m",
-        "reviews": 37,
-        "image": "assets/img/info/room2.png",
-        "description": "신선한 재료로 만든 건강한 맛, 최고의 맛집!",
-        "rating": 4.0
-      },
-      {
-        "name": "솔원룸",
-        "distance": "151m",
-        "reviews": 37,
-        "image": "assets/img/info/room3.png",
-        "description": "신선한 재료로 만든 건강한 맛, 최고의 맛집!",
-        "rating": 4.0
-      },
-    ];
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -87,7 +109,6 @@ class _RoomListState extends State<RoomList> {
             ),
           ),
         ),
-        // 상단 텍스트 및 드롭다운 버튼
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
           child: Row(
@@ -106,7 +127,7 @@ class _RoomListState extends State<RoomList> {
                       ),
                     ),
                     TextSpan(
-                      text: '소소',
+                      text: userName,
                       style: TextStyle(
                         fontSize: 20,
                         fontFamily: 'Pretendard',
@@ -124,7 +145,7 @@ class _RoomListState extends State<RoomList> {
                       ),
                     ),
                     TextSpan(
-                      text: '자취방',
+                      text: widget.categoryName, // 전달받은 카테고리 이름 사용
                       style: TextStyle(
                         fontSize: 20,
                         fontFamily: 'Pretendard',
@@ -135,7 +156,6 @@ class _RoomListState extends State<RoomList> {
                   ],
                 ),
               ),
-              // 커스텀 드롭다운 버튼
               GestureDetector(
                 onTap: () => _showCustomDropdown(context),
                 child: Row(
@@ -154,16 +174,14 @@ class _RoomListState extends State<RoomList> {
             ],
           ),
         ),
-        // 자취방 리스트
         Expanded(
           child: ListView.builder(
-            itemCount: rooms.length,
+            itemCount: items.length,
             itemBuilder: (context, index) {
-              final room = rooms[index];
+              final item = items[index];
 
               return Padding(
-                padding: const EdgeInsets.symmetric(
-                    vertical: 10.0, horizontal: 16.0),
+                padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 16.0),
                 child: Container(
                   padding: EdgeInsets.all(10),
                   decoration: BoxDecoration(
@@ -183,24 +201,22 @@ class _RoomListState extends State<RoomList> {
                     children: [
                       Row(
                         children: [
-                          // 방 이미지
                           ClipRRect(
                             borderRadius: BorderRadius.circular(8.0),
                             child: Image.asset(
-                              room['image'],
+                              item['image'],
                               width: 100,
                               height: 100,
                               fit: BoxFit.cover,
                             ),
                           ),
                           SizedBox(width: 10),
-                          // 방 정보
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  room['name'],
+                                  item['name'],
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontFamily: 'Pretendard',
@@ -208,14 +224,11 @@ class _RoomListState extends State<RoomList> {
                                   ),
                                 ),
                                 SizedBox(height: 5),
-                                // 별점 출력 부분
                                 Row(
                                   children: List.generate(5, (starIndex) {
                                     return Icon(
                                       Icons.star,
-                                      color: (room['rating'] >= starIndex + 1)
-                                          ? Colors.red
-                                          : Colors.grey,
+                                      color: (item['rating'] >= starIndex + 1) ? Colors.red : Colors.grey,
                                       size: 18,
                                     );
                                   }),
@@ -224,7 +237,7 @@ class _RoomListState extends State<RoomList> {
                                 Row(
                                   children: [
                                     Text(
-                                      room['distance'],
+                                      item['distance'],
                                       style: TextStyle(
                                         fontFamily: 'Pretendard',
                                         fontSize: 14,
@@ -233,7 +246,7 @@ class _RoomListState extends State<RoomList> {
                                     ),
                                     SizedBox(width: 10),
                                     Text(
-                                      '리뷰 ${room['reviews']}',
+                                      '리뷰 ${item['reviews']}',
                                       style: TextStyle(
                                         fontFamily: 'Pretendard',
                                         fontSize: 14,
@@ -245,12 +258,10 @@ class _RoomListState extends State<RoomList> {
                               ],
                             ),
                           ),
-                          // 좋아요 버튼
                           Icon(Icons.favorite_border, color: Colors.red),
                         ],
                       ),
                       SizedBox(height: 10),
-                      // 설명 텍스트
                       Container(
                         width: double.infinity,
                         padding: EdgeInsets.all(8),
@@ -259,7 +270,7 @@ class _RoomListState extends State<RoomList> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          room['description'],
+                          item['description'],
                           style: TextStyle(
                             fontFamily: 'Pretendard',
                             fontSize: 10,

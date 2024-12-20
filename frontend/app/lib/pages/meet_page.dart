@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../widgets/category_button.dart';
+import '../widgets/meet_searchbar.dart';
+import '../widgets/meet_post_list.dart'; // MeetPostList import
 import 'create_post_page.dart';
 import '../api/meet/meet_search_service.dart';
+import '../widgets/meet_post_modal.dart';
 
 class MeetPage extends StatefulWidget {
   @override
@@ -9,16 +12,16 @@ class MeetPage extends StatefulWidget {
 }
 
 class _MeetPageState extends State<MeetPage> {
-  String selectedCategory = "전체"; // 초기 선택된 카테고리
-  List<Map<String, dynamic>> posts = []; // API에서 불러온 게시글 리스트
-  bool isLoading = true; // 로딩 상태
-
+  String selectedCategory = "전체";
+  List<Map<String, dynamic>> posts = [];
+  bool isLoading = true;
   final MeetSearchService _meetSearchService = MeetSearchService();
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _fetchPosts(); // 페이지 로드 시 API 호출
+    _fetchPosts();
   }
 
   Future<void> _fetchPosts({String? type}) async {
@@ -44,107 +47,7 @@ class _MeetPageState extends State<MeetPage> {
       context: context,
       barrierDismissible: true,
       builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {},
-            child: Container(
-              padding: EdgeInsets.all(16.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 24,
-                        backgroundImage: AssetImage('assets/img/profile-placeholder.png'),
-                      ),
-                      SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'zeongh134',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      Spacer(),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              _getCategoryName(post['type'] ?? ""),
-                              style: TextStyle(color: Colors.white, fontSize: 12),
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Icon(Icons.more_horiz, color: Colors.grey),
-                        ],
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  Divider(color: Colors.red, thickness: 1.0),
-                  Text(
-                    post['title'],
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 10),
-                  Text(post['content']),
-                  SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            '${formatTimestamp(post["created_at"])} · 조회 ${post["page_views"]}',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.person_outline, size: 16, color: Colors.grey),
-                          SizedBox(width: 4),
-                          Text(
-                            '${post["join_people"] ?? 0}/${post["max_people"]}명',
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ],
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        child: Text(
-                          '참여하기',
-                          style: TextStyle(color: Colors.white, fontSize: 12),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(25),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
+        return MeetPostModal(post: post);
       },
     );
   }
@@ -196,42 +99,7 @@ class _MeetPageState extends State<MeetPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         scrolledUnderElevation: 0,
-        title: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Container(
-            height: 40,
-            child: TextField(
-              decoration: InputDecoration(
-                suffixIcon: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Image.asset(
-                    'assets/img/icon/search-icon.png',
-                    width: 24,
-                    height: 24,
-                  ),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25.0),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                isDense: true,
-              ),
-            ),
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 4.0,
-                  offset: Offset(0, 2),
-                ),
-              ],
-              borderRadius: BorderRadius.circular(25.0),
-            ),
-          ),
-        ),
+        title: MeetSearchBar(controller: _searchController),
       ),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
@@ -276,19 +144,11 @@ class _MeetPageState extends State<MeetPage> {
               ),
             ),
             Divider(color: Colors.red, thickness: 1.0),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                final post = posts[index];
-                return GestureDetector(
-                  onTap: () {
-                    _showPostDetail(post);
-                  },
-                  child: _buildPostItem(post),
-                );
-              },
+            MeetPostList(
+              posts: posts,
+              onTap: _showPostDetail,
+              getCategoryName: _getCategoryName,
+              formatTimestamp: formatTimestamp,
             ),
           ],
         ),
@@ -305,67 +165,6 @@ class _MeetPageState extends State<MeetPage> {
           width: 48,
           height: 48,
         ),
-      ),
-    );
-  }
-
-  Widget _buildPostItem(Map<String, dynamic> post) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 27.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.red),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _getCategoryName(post["type"] ?? ""),
-                  style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Text(
-            post["title"],
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text(
-            post["content"],
-            style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${formatTimestamp(post["created_at"])} · 조회 ${post["page_views"]}',
-                style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
-              ),
-              Row(
-                children: [
-                  Image.asset(
-                    'assets/img/icon/joinuser.png',
-                    width: 16,
-                    height: 16,
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    '${post["join_people"] ?? 0}/${post["max_people"]}',
-                    style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          Divider(color: Colors.red, thickness: 1.0),
-        ],
       ),
     );
   }

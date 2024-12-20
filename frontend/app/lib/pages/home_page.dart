@@ -1,7 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
-import 'room_list.dart'; // 자취방 리스트를 불러오기 위한 import
-import '../widgets/post_item.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'room_list.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -11,89 +12,49 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final List<String> _selectOptions = ['전체', '모임', '배달', '택시', '카풀'];
   String _selectedOption = '전체';
-  bool _isDropdownOpened = false; // 드롭다운이 열렸는지 여부를 추적
+  bool _isDropdownOpened = false;
 
-  bool _isSubCategoryVisible = false; // 자취방을 눌렀을 때 하위 카테고리 표시
-  String _selectedSubCategory = '전체'; // 기본값으로 '전체' 카테고리 선택
+  bool _isSubCategoryVisible = false;
+  String _selectedSubCategory = '전체';
 
-  // 메인 카테고리 활성화를 위한 변수 (디폴트 선택 없음)
-  String _selectedMainCategory = '';
+  String _selectedMainCategory = '자취방';
+  List<dynamic> mainCategories = [];
+  List<dynamic> subCategories = [];
 
-  // 하위 카테고리 리스트 (첫번째 인덱스에 '전체' 추가)
-  final List<String> subCategories = ['전체', '정문', '중문', '후문', '기숙사'];
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
 
-  final List<Map<String, dynamic>> posts = [
-    {
-      "id": 123,
-      "type": "배달",
-      "title": "주말 모임",
-      "content": "주말에 함께 모여 식사해요!",
-      "join_people": 4,
-      "max_people": 10,
-      "gender": "무관",
-      "page_view": 3,
-      "created_at": "2024-08-12T10:00:00Z"
-    },
-    {
-      "id": 124,
-      "type": "모임",
-      "title": "주중 모임",
-      "content": "주중에 함께 산책해요!",
-      "join_people": 4,
-      "max_people": 8,
-      "gender": "무관",
-      "page_view": 23,
-      "created_at": "2024-08-13T12:00:00Z"
-    },
-    {
-      "id": 125,
-      "type": "배달",
-      "title": "저녁 모임",
-      "content": "저녁에 함께 영화 봐요!",
-      "join_people": 4,
-      "max_people": 12,
-      "gender": "무관",
-      "page_view": 13,
-      "created_at": "2024-08-14T18:00:00Z"
-    },
-    {
-      "id": 126,
-      "type": "택시",
-      "title": "저녁 모임",
-      "content": "저녁에 함께 영화 봐요!",
-      "join_people": 4,
-      "max_people": 12,
-      "gender": "무관",
-      "page_view": 13,
-      "created_at": "2024-08-14T18:00:00Z"
-    },
-    {
-      "id": 127,
-      "type": "모임",
-      "title": "저녁 모임",
-      "content": "저녁에 함께 영화 봐요!",
-      "join_people": 4,
-      "max_people": 12,
-      "gender": "무관",
-      "page_view": 13,
-      "created_at": "2024-08-14T18:00:00Z"
-    },
-  ];
+  Future<void> _loadCategories() async {
+    final String response = await rootBundle.loadString('assets/data/main_category.json');
+    final data = json.decode(response);
+    setState(() {
+      mainCategories = data;
+      subCategories = _getSubcategories('자취방');
+    });
+  }
+
+  List<dynamic> _getSubcategories(String mainCategory) {
+    final category = mainCategories.firstWhere(
+          (category) => category['name'] == mainCategory,
+      orElse: () => null,
+    );
+    return category != null ? category['subcategories'] : [];
+  }
 
   @override
   Widget build(BuildContext context) {
-    final double panelHeightOpen = MediaQuery.of(context).size.height * 0.73; // 슬라이드 패널이 완전히 열렸을 때 높이
-    final double panelHeightClosed = MediaQuery.of(context).size.height * 0.15; // 슬라이드 패널이 닫혔을 때 높이 (카테고리 탭 바로 아래까지)
+    final double panelHeightOpen = MediaQuery.of(context).size.height * 0.73;
+    final double panelHeightClosed = MediaQuery.of(context).size.height * 0.15;
 
     return Scaffold(
       body: Stack(
         children: [
-          // 지도 또는 백그라운드
           Center(
-            child: Text('지도 API 백그라운드'), // 여기에는 지도 API 연동 코드가 들어가야 합니다.
+            child: Text('지도 API 백그라운드'),
           ),
-
-          // 검색바
           Positioned(
             top: 15,
             left: 16,
@@ -122,8 +83,6 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-
-          // 카테고리 탭
           Positioned(
             top: 70,
             left: 0,
@@ -134,20 +93,20 @@ class _HomePageState extends State<HomePage> {
                   height: 50,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    physics: BouncingScrollPhysics(), // 좌우 슬라이드 가능하게 설정
+                    physics: BouncingScrollPhysics(),
                     padding: EdgeInsets.symmetric(horizontal: 12.0),
-                    children: [
-                      _buildCategoryButton('자취방', _selectedMainCategory == '자취방' ? 'assets/img/icon/mainpage/roomtypered.png' : 'assets/img/icon/mainpage/roomtype.png', _toggleSubCategory, _selectedMainCategory == '자취방'),
-                      _buildCategoryButton('음식점', _selectedMainCategory == '음식점' ? 'assets/img/icon/mainpage/foodtypered.png' : 'assets/img/icon/mainpage/foodtype.png', () => _selectMainCategory('음식점'), _selectedMainCategory == '음식점'),
-                      _buildCategoryButton('카페', _selectedMainCategory == '카페' ? 'assets/img/icon/mainpage/cafetypered.png' : 'assets/img/icon/mainpage/cafetype.png', () => _selectMainCategory('카페'), _selectedMainCategory == '카페'),
-                      _buildCategoryButton('술집', _selectedMainCategory == '술집' ? 'assets/img/icon/mainpage/bartypered.png' : 'assets/img/icon/mainpage/bartype.png', () => _selectMainCategory('술집'), _selectedMainCategory == '술집'),
-                      _buildCategoryButton('편의점', _selectedMainCategory == '편의점' ? 'assets/img/icon/mainpage/shoptypered.png' : 'assets/img/icon/mainpage/shoptype.png', () => _selectMainCategory('편의점'), _selectedMainCategory == '편의점'),
-                      _buildCategoryButton('놀거리', _selectedMainCategory == '놀거리' ? 'assets/img/icon/mainpage/playtypered.png' : 'assets/img/icon/mainpage/playtype.png', () => _selectMainCategory('놀거리'), _selectedMainCategory == '놀거리'),
-                    ],
+                    children: mainCategories.map<Widget>((category) {
+                      return _buildCategoryButton(
+                        category['name'],
+                        _selectedMainCategory == category['name']
+                            ? category['icon_selected']
+                            : category['icon_unselected'],
+                            () => _selectMainCategory(category['name']),
+                        _selectedMainCategory == category['name'],
+                      );
+                    }).toList(),
                   ),
                 ),
-
-                // 자취방 선택 시 하위 카테고리 표시
                 if (_isSubCategoryVisible)
                   Container(
                     height: 50,
@@ -157,9 +116,9 @@ class _HomePageState extends State<HomePage> {
                       children: subCategories.map<Widget>((category) {
                         return _buildCategoryButton(
                           category,
-                          '', // 하위 카테고리는 아이콘이 없으므로 빈 문자열 전달
-                              () => _selectSubCategory(category), // 하위 카테고리 선택 시 호출
-                          _selectedSubCategory == category, // 선택된 하위 카테고리 강조
+                          '',
+                              () => _selectSubCategory(category),
+                          _selectedSubCategory == category,
                         );
                       }).toList(),
                     ),
@@ -167,17 +126,15 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
-
-          // 슬라이드 패널
           SlidingUpPanel(
-            minHeight: panelHeightClosed, // 패널이 닫혔을 때 높이
-            maxHeight: panelHeightOpen, // 패널이 열렸을 때 높이
+            minHeight: panelHeightClosed,
+            maxHeight: panelHeightOpen,
             borderRadius: BorderRadius.vertical(top: Radius.circular(50)),
-            // 패널 내부의 내용을 조건에 따라 자취방 리스트와 기존 패널로 구분
-            panel: _selectedMainCategory == '자취방' ? RoomList() : _buildPanelContent(),
+            panel: _selectedMainCategory == '자취방'
+                ? RoomList(categoryName: _selectedMainCategory) // 자취방 카테고리 전달
+                : _buildPanelContent(),
             body: Stack(
               children: [
-                // 패널 뒤에 있는 내용: 지도와 버튼
                 Positioned(
                   bottom: MediaQuery.of(context).size.height * 0.28,
                   left: 16,
@@ -190,7 +147,7 @@ class _HomePageState extends State<HomePage> {
                         child: ClipOval(
                           child: Image.asset(
                             'assets/img/icon/mainpage/heart.png',
-                            width: 30, // 이미지 크기 조정
+                            width: 30,
                             height: 30,
                           ),
                         ),
@@ -203,7 +160,7 @@ class _HomePageState extends State<HomePage> {
                         child: ClipOval(
                           child: Image.asset(
                             'assets/img/icon/mainpage/gps.png',
-                            width: 30, // 이미지 크기 조정
+                            width: 30,
                             height: 30,
                           ),
                         ),
@@ -212,23 +169,22 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ],
-            ), // 패널 뒤에 있는 지도나 다른 내용
+            ),
           ),
         ],
       ),
     );
   }
 
-  // 카테고리 버튼 빌드 함수
   Widget _buildCategoryButton(String text, String iconPath, [VoidCallback? onPressed, bool isSelected = false]) {
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 5.0, vertical: 6), // 버튼 간격을 약간 넓게 유지
+      padding: EdgeInsets.symmetric(horizontal: 5.0, vertical: 6),
       child: ElevatedButton(
         onPressed: onPressed ?? () {},
         style: ElevatedButton.styleFrom(
           foregroundColor: isSelected ? Colors.white : Colors.black,
           backgroundColor: isSelected ? Colors.red : Colors.white,
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8), // 부드러운 패딩 값
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
@@ -237,16 +193,16 @@ class _HomePageState extends State<HomePage> {
         ),
         child: Row(
           children: [
-            if (iconPath.isNotEmpty) // 아이콘이 있을 때만 출력
+            if (iconPath.isNotEmpty)
               Image.asset(
                 iconPath,
-                width: 20, // 아이콘 크기 유지
+                width: 20,
                 height: 20,
               ),
-            if (iconPath.isNotEmpty) SizedBox(width: 6), // 아이콘과 텍스트 간격을 적절히 유지
+            if (iconPath.isNotEmpty) SizedBox(width: 6),
             Text(
               text,
-              style: TextStyle(fontSize: 14), // 텍스트 크기를 줄여서 정돈된 느낌 제공
+              style: TextStyle(fontSize: 14),
             ),
           ],
         ),
@@ -254,30 +210,20 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // 하위 카테고리 선택 함수
   void _selectSubCategory(String category) {
     setState(() {
       _selectedSubCategory = category;
     });
   }
 
-  // 메인 카테고리 선택 함수
   void _selectMainCategory(String category) {
     setState(() {
       _selectedMainCategory = category;
-      _isSubCategoryVisible = false; // 자취방 외 다른 메인 카테고리 선택 시 서브카테고리 비활성화
+      _isSubCategoryVisible = category == '자취방';
+      subCategories = _getSubcategories(category);
     });
   }
 
-  // 하위 카테고리 토글 함수
-  void _toggleSubCategory() {
-    setState(() {
-      _isSubCategoryVisible = !_isSubCategoryVisible;
-      _selectedMainCategory = '자취방'; // 자취방을 다시 선택하면 메인 카테고리 활성화
-    });
-  }
-
-  // 기존 패널 내용
   Widget _buildPanelContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,37 +249,36 @@ class _HomePageState extends State<HomePage> {
                 '지금 소소님을 기다리고 있어요!',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              // Select 탭을 Title 우측에 배치
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white, // 흰색 배경 설정
+                  color: Colors.white,
                   boxShadow: _isDropdownOpened
                       ? [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.2),
                       spreadRadius: 1,
                       blurRadius: 5,
-                      offset: Offset(0, 3), // 그림자 위치 조정
+                      offset: Offset(0, 3),
                     ),
                   ]
-                      : [], // 클릭 전에는 그림자 없음
+                      : [],
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    dropdownColor: Colors.white, // 드롭다운 배경을 흰색으로 설정
+                    dropdownColor: Colors.white,
                     value: _selectedOption,
-                    icon: SizedBox.shrink(), // 기본 화살표 숨김
+                    icon: SizedBox.shrink(),
                     items: _selectOptions.map<DropdownMenuItem<String>>((String value) {
                       return DropdownMenuItem<String>(
                         value: value,
                         child: Container(
-                          width: 70, // 드롭다운의 아이템 너비 조정
+                          width: 70,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(value),
-                              Divider(color: Colors.grey), // 경계선 추가
+                              Divider(color: Colors.grey),
                             ],
                           ),
                         ),
@@ -342,15 +287,14 @@ class _HomePageState extends State<HomePage> {
                     onChanged: (String? newValue) {
                       setState(() {
                         _selectedOption = newValue!;
-                        _isDropdownOpened = false; // 드롭다운이 닫히면 그림자 제거
+                        _isDropdownOpened = false;
                       });
                     },
                     onTap: () {
                       setState(() {
-                        _isDropdownOpened = true; // 드롭다운이 열리면 그림자 추가
+                        _isDropdownOpened = true;
                       });
                     },
-                    // 텍스트와 아이콘을 평행하게 배치
                     selectedItemBuilder: (BuildContext context) {
                       return _selectOptions.map((String value) {
                         return Row(
@@ -365,15 +309,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ],
-          ),
-        ),
-        SizedBox(height: 8),
-        Expanded(
-          child: ListView.builder(
-            itemCount: posts.length,
-            itemBuilder: (context, index) {
-              return buildPostItem(posts[index]); // 기존 게시물 출력
-            },
           ),
         ),
       ],
