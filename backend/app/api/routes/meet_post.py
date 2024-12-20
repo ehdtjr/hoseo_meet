@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Optional
 
@@ -6,7 +6,7 @@ from app.core.db import get_async_session
 from app.core.security import current_active_user
 from app.models import User
 from app.schemas.meet_post import MeetPostBase, MeetPostRequest, \
-    MeetPostListResponse
+    MeetPostListResponse, MeetPostResponse
 from app.service.meet_post import MeetPostServiceProtocol, \
     get_meet_post_service
 
@@ -67,3 +67,21 @@ async def subscribe_to_meet_post(
     except ValueError as e:
         # 적절한 예외 메시지와 함께 400 에러 반환
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.get("/detail/{meet_post_id}", response_model=MeetPostResponse)
+async def get_meet_post_detail(
+    meet_post_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_async_session),
+    meet_post_service: MeetPostServiceProtocol = Depends(get_meet_post_service),
+):
+    """
+    특정 meet_post의 상세 정보를 가져오는 엔드포인트.
+    - 해당 게시글의 작성자, 내용, 조회수 등의 상세 정보를 반환합니다.
+    - IP 기반으로 24시간 이내 중복 조회수 증가를 방지합니다.
+    """
+    client_ip = request.client.host
+    detail = await meet_post_service.get_detail_meet_post(db, meet_post_id, client_ip)
+    if detail is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Meet post not found")
+    return detail

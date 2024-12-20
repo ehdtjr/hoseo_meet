@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock
 from app.core.db import get_async_session
 from app.core.security import current_active_user
 from app.main import app
-from app.schemas.meet_post import MeetPostBase, MeetPostListResponse
+from app.schemas.meet_post import MeetPostBase, MeetPostListResponse, \
+    MeetPostResponse
 from app.schemas.user import UserPublicRead
 from app.service.meet_post import MeetPostServiceProtocol, \
     get_meet_post_service
@@ -179,3 +180,80 @@ class TestMeetPostRoutes(BaseTest):
         assert response.status_code == 200
         response_data = response.json()
         assert response_data["success"] is True  # 구독이 성공했는지 확인
+
+    async def test_get_meet_post_detail_found(self):
+        # Mock 서비스 생성
+        mock_meet_post_service = self.get_mock_meet_post_service()
+
+        # 테스트용 MeetPostResponse 데이터 준비
+        from datetime import datetime
+        response_data = MeetPostResponse(
+            id=1,
+            title="Existing Meet Post",
+            type="meet",
+            author=UserPublicRead(
+                id=self.user.id,
+                name=self.user.name,
+                gender=self.user.gender,
+                is_active=self.user.is_active,
+                is_superuser=self.user.is_superuser,
+                is_verified=self.user.is_verified,
+            ),
+            stream_id=10,
+            content="Detail content",
+            page_views=100,
+            created_at=datetime.utcnow(),
+            max_people=5,
+            current_people=2
+        )
+
+        # Mock 설정
+        mock_meet_post_service.get_detail_meet_post.return_value = response_data
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            # 의존성 주입
+            app.dependency_overrides[current_active_user] = self.override_get_current_user
+            app.dependency_overrides[get_async_session] = override_get_db
+            app.dependency_overrides[get_meet_post_service] = lambda: mock_meet_post_service
+
+            # GET 요청
+            response = await ac.get("/api/v1/meet_post/detail/1")
+
+        # 응답 검증
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["id"], response_data.id)
+        self.assertEqual(data["title"], response_data.title)
+        self.assertEqual(data["type"], response_data.type)
+        self.assertEqual(data["author"]["id"], self.user.id)
+        self.assertEqual(data["content"], response_data.content)
+        self.assertEqual(data["page_views"], response_data.page_views)
+        self.assertEqual(data["max_people"], response_data.max_people)
+        self.assertEqual(data["current_people"], response_data.current_people)
+
+        # 서비스 호출 검증
+        mock_meet_post_service.get_detail_meet_post.assert_called_once()
+
+    async def test_get_meet_post_detail_not_found(self):
+        # Mock 서비스 생성
+        mock_meet_post_service = self.get_mock_meet_post_service()
+
+        # 존재하지 않는 meet_post로 None 반환 설정
+        mock_meet_post_service.get_detail_meet_post.return_value = None
+
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            # 의존성 주입
+            app.dependency_overrides[current_active_user] = self.override_get_current_user
+            app.dependency_overrides[get_async_session] = override_get_db
+            app.dependency_overrides[get_meet_post_service] = lambda: mock_meet_post_service
+
+            # GET 요청
+            response = await ac.get("/api/v1/meet_post/detail/999")
+
+        # 응답 검증 (404)
+        self.assertEqual(response.status_code, 404)
+        data = response.json()
+        self.assertEqual(data["detail"], "Meet post not found")
+
+        # 서비스 호출 검증
+        mock_meet_post_service.get_detail_meet_post.assert_called_once

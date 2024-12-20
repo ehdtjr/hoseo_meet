@@ -19,7 +19,7 @@ class MeetPost(Base):
 
     content: Mapped[str] = mapped_column(String(200), nullable=False)
 
-    page_view: Mapped[int] = mapped_column(Integer, default=0)
+    page_views: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     max_people: Mapped[int] = mapped_column(Integer, nullable=False)
 
