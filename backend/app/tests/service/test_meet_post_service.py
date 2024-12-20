@@ -2,10 +2,11 @@ from datetime import datetime
 from unittest.mock import AsyncMock
 
 from app.crud.meet_post_crud import MeetPostCRUDProtocol
+from app.crud.user_crud import UserCRUDProtocol
 from app.models import User
-from app.schemas.meet_post_schemas import MeetPostBase
+from app.schemas.meet_post import MeetPostBase
 from app.schemas.user import UserRead
-from app.service.meet_post_service import MeetPostService
+from app.service.meet_post import MeetPostService
 from app.service.stream import StreamServiceProtocol, SubscriberServiceProtocol
 from app.tests.conftest import BaseTest
 
@@ -17,10 +18,12 @@ class TestMeetPostService(BaseTest):
         self.stream_service = AsyncMock(spec=StreamServiceProtocol)
         self.meet_post_crud = AsyncMock(spec=MeetPostCRUDProtocol)
         self.subscriber_service = AsyncMock(spec=SubscriberServiceProtocol)
+        self.user_crud = AsyncMock(spec=UserCRUDProtocol)
         self.service = MeetPostService(
-            stream_service=self.stream_service,
             meet_post_crud=self.meet_post_crud,
-            subscriber_service=self.subscriber_service
+            stream_service=self.stream_service,
+            subscriber_service=self.subscriber_service,
+            user_crud=self.user_crud
         )
 
         # 테스트에 필요한 사용자 데이터 생성

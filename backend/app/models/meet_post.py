@@ -16,6 +16,7 @@ class MeetPost(Base):
     stream_id: Mapped[int] = mapped_column(ForeignKey("streams.id", ondelete="CASCADE"))  # 수정
     title: Mapped[str] = mapped_column(String(50), nullable=False)
     type: Mapped[str] = mapped_column(String(50), nullable=False)
+
     content: Mapped[str] = mapped_column(String(200), nullable=False)
 
     page_view: Mapped[int] = mapped_column(Integer, default=0)

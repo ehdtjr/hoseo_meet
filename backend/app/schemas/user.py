@@ -10,8 +10,15 @@ class UserRead(schemas.BaseUser):
     name: str
     gender: str
     profile: Optional[str] = None
-    is_online: bool
     created_at: datetime
+
+class UserPublicRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    gender: str
+    profile: Optional[str] = None
 
 
 class UserCreate(schemas.BaseUserCreate):

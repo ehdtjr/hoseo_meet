@@ -43,13 +43,13 @@ class TestCreateStream(BaseTest):
             app.dependency_overrides[current_active_user] = self.override_current_user
             app.dependency_overrides[get_async_session] = override_get_db
 
-            stream_data = {"name": "Test Stream", "type": "happy"}
+            stream_data = {"name": "Test Stream", "type": "meet"}
             response = await ac.post("/api/v1/stream/create", json=stream_data)
 
             assert response.status_code == 201
             json_data = response.json()
             assert json_data["name"] == "Test Stream"
-            assert json_data["type"] == "happy"
+            assert json_data["type"] == "meet"
             assert json_data["creator_id"] == self.user.id
 
         app.dependency_overrides = {}

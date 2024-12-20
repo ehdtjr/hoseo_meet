@@ -40,7 +40,7 @@ class UserCRUD(CRUDBase[User, UserRead], UserCRUDProtocol):
         result = await db.execute(
             select(User).where(User.id.in_(user_ids))
         )
-        users = result.scalars().all()
+        users = result.scalars().unique().all()
         return [UserRead.model_construct(**u.__dict__) for u in users]
 
 class UserFCMTokenCRUDProtocol:

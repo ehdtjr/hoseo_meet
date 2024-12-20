@@ -6,7 +6,7 @@ from sqlalchemy.future import select
 from sqlalchemy import and_
 from app.crud.base import CRUDBase
 from app.models import MeetPost
-from app.schemas.meet_post_schemas import MeetPostBase, MeetPostCreate
+from app.schemas.meet_post import MeetPostBase, MeetPostCreate
 
 
 class MeetPostQueryBuilder:

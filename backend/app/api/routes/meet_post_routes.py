@@ -5,9 +5,9 @@ from typing_extensions import Optional
 from app.core.db import get_async_session
 from app.core.security import current_active_user
 from app.models import User
-from app.schemas.meet_post_schemas import MeetPostBase, MeetPostRequest, \
+from app.schemas.meet_post import MeetPostBase, MeetPostRequest, \
     MeetPostResponse
-from app.service.meet_post_service import MeetPostServiceProtocol, \
+from app.service.meet_post import MeetPostServiceProtocol, \
     get_meet_post_service
 
 router = APIRouter()
