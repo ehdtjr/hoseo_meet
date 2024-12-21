@@ -8,13 +8,16 @@ class SocketMessageService {
   final String socketUrl = AppConfig.socketUrl; // AppConfig에서 socketUrl을 가져옵니다.
 
   WebSocket? _socket;
-  StreamController<Map<String, dynamic>> _messageStreamController = StreamController.broadcast();
-  late Stream<Map<String, dynamic>> messageStream;
+  // 여러 구독자에게 메시지를 전달하기 위해 broadcast StreamController 사용
+  final StreamController<Map<String, dynamic>> _messageStreamController = StreamController.broadcast();
+  late final Stream<Map<String, dynamic>> messageStream;
 
   SocketMessageService(this._token) {
+    // 컨트롤러의 stream을 외부로 노출
     messageStream = _messageStreamController.stream;
   }
 
+  /// WebSocket 연결 시도
   Future<void> connectWebSocket() async {
     int retryCount = 0;
     const maxRetries = 3;
@@ -29,7 +32,9 @@ class SocketMessageService {
           },
         );
         print('WebSocket 연결 성공');
-        _socket!.listen(
+
+        // 정상 연결 후 메시지 수신, 종료, 오류 콜백 등록
+        _socket?.listen(
           _onMessageReceived,
           onDone: _onSocketDone,
           onError: _onSocketError,
@@ -47,14 +52,26 @@ class SocketMessageService {
     }
   }
 
+  /// 메시지 수신 콜백
   void _onMessageReceived(dynamic data) {
     try {
       final decodedData = jsonDecode(data);
       print('수신한 메시지: $decodedData');
 
-      if (decodedData['data'] != null && decodedData['data']['type'] == 'stream') {
-        _messageStreamController.add(decodedData['data']['data']);
-        print('스트림 데이터 추가: ${decodedData['data']['data']}');
+      // 서버에서 보내는 JSON 예시:
+      // {
+      //   "type": "stream",
+      //   "data": {
+      //     "id": 1926,
+      //     "stream_id": 27,
+      //     "sender_id": 5,
+      //     ...
+      //   }
+      // }
+      if (decodedData['type'] == 'stream' && decodedData['data'] != null) {
+        // 'type'이 'stream'일 때, 'data' 필드의 전체를 스트림으로 전달
+        _messageStreamController.add(decodedData['data']);
+        print('스트림 데이터 추가: ${decodedData['data']}');
       } else {
         print('유효하지 않은 메시지 형식');
       }
@@ -63,23 +80,24 @@ class SocketMessageService {
     }
   }
 
-
+  /// 소켓 정상 종료 시
   void _onSocketDone() {
     print('WebSocket 연결이 종료되었습니다.');
   }
 
+  /// 소켓 오류 발생 시
   void _onSocketError(error) {
     print('WebSocket 오류 발생: $error');
   }
 
-  // WebSocket 연결 종료 함수
+  /// WebSocket 연결 종료 함수
   void closeWebSocket() {
     _socket?.close();
     _socket = null;
     print('WebSocket 연결을 종료했습니다.');
   }
 
-  // 스트림 종료 함수
+  /// 스트림 및 컨트롤러 종료 함수
   void dispose() {
     _messageStreamController.close();
   }
