@@ -9,7 +9,7 @@ import '../../firebase/create_token.dart';
 
 class AuthService with WidgetsBindingObserver {
   String? _accessToken;
-  final String loginEndpoint = '${AppConfig.baseUrl}/auth/jwt/login?lifetime_seconds=3600';
+  final String loginEndpoint = '${AppConfig.baseUrl}/auth/login?lifetime_seconds=3600';
   SocketMessageService? _socketMessageService;
 
   static final AuthService _instance = AuthService._internal();
