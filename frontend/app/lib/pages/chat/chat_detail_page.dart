@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../api/chat/load_message_service.dart';
@@ -5,6 +6,7 @@ import '../../api/chat/send_message_service.dart';
 import '../../api/chat/message_read_service.dart';
 import '../../api/login/authme_service.dart';
 import '../../api/login/login_service.dart';
+import '../../api/chat/activate_deactivate_service.dart';
 
 class ChatDetailPage extends StatefulWidget {
   final Map<String, dynamic> chatRoom;
@@ -15,28 +17,94 @@ class ChatDetailPage extends StatefulWidget {
   _ChatDetailPageState createState() => _ChatDetailPageState();
 }
 
-class _ChatDetailPageState extends State<ChatDetailPage> {
+// 1) WidgetsBindingObserver 추가
+class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObserver {
   late final LoadMessageService loadMessageService;
   late final SendMessageService sendMessageService;
   late final MessageReadService messageReadService;
+  late final ActivateDeactivateService activateDeactivateService;
+
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   List<Map<String, dynamic>> messages = [];
   int? _userId;
 
+  Timer? _activateTimer; // 5분 주기로 방 활성화 재요청할 타이머
+
   @override
   void initState() {
     super.initState();
+
+    // 2) 앱 라이프사이클 감지를 위해 Observer 등록
+    WidgetsBinding.instance.addObserver(this);
+
     final authService = AuthService();
     loadMessageService = LoadMessageService(authService);
     sendMessageService = SendMessageService(authService);
     messageReadService = MessageReadService(authService);
+    activateDeactivateService = ActivateDeactivateService(authService);
 
     _fetchUserId();
     _loadPreviousMessages();
     _subscribeToMessageStream(authService.messageStream);
     _markMessagesAsRead();
+
+    // 페이지 들어오자마자 방 활성화 & 5분(300초) 주기 타이머
+    _activateRoomRegularly();
   }
+
+  // 3) 앱 라이프사이클 변화 콜백
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    // 앱이 백그라운드로 갈 때(홈 버튼, 다른 앱 전환 등)
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      print('[ChatDetailPage] -> AppLifecycle: $state, deactivateRoom() 호출');
+      _deactivateCurrentChatRoom();
+    }
+    // 앱이 다시 포그라운드로 돌아올 때
+    else if (state == AppLifecycleState.resumed) {
+      print('[ChatDetailPage] -> AppLifecycle: resumed, activateRoom() 다시 호출');
+      _activateCurrentChatRoom();
+    }
+  }
+
+  /// (1) 방 활성화 호출 + 5분마다 재호출
+  void _activateRoomRegularly() {
+    _activateCurrentChatRoom(); // 즉시 1회 호출
+    _activateTimer?.cancel(); // 기존 타이머가 있으면 해제
+
+    // 5분(300초)마다 반복 호출
+    _activateTimer = Timer.periodic(Duration(minutes: 5), (timer) {
+      _activateCurrentChatRoom();
+    });
+  }
+
+  /// 실제 활성화 API 호출
+  Future<void> _activateCurrentChatRoom() async {
+    try {
+      final streamId = widget.chatRoom['stream_id'];
+      if (streamId != null) {
+        await activateDeactivateService.activateRoom(streamId);
+      }
+    } catch (e) {
+      print('[ChatDetailPage] 방 활성화 중 오류: $e');
+    }
+  }
+
+  /// (2) 방 비활성화: 페이지 벗어날 때나 dispose 시점에 호출
+  Future<void> _deactivateCurrentChatRoom() async {
+    try {
+      await activateDeactivateService.deactivateRoom();
+    } catch (e) {
+      print('[ChatDetailPage] 방 비활성화 중 오류: $e');
+    }
+  }
+
+  // --------------------------------------------------------------------------------
+  // 이하 기존 로직 (유저 ID, 메시지 로드, 메시지 스트림 구독 등)
+  // --------------------------------------------------------------------------------
 
   Future<void> _fetchUserId() async {
     final authMeService = AuthMeService(AuthService().accessToken!);
@@ -48,7 +116,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
 
   Future<void> _loadPreviousMessages() async {
     try {
-      final List<dynamic> previousMessages = await loadMessageService.loadMessages(widget.chatRoom['stream_id']);
+      final List<dynamic> previousMessages = await loadMessageService.loadMessages(
+        widget.chatRoom['stream_id'],
+      );
       setState(() {
         messages.addAll(previousMessages.cast<Map<String, dynamic>>());
       });
@@ -76,11 +146,11 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
         setState(() {
           messages.add(message);
         });
-
         _scrollToBottom();
-
         try {
-          await messageReadService.markNewestMessageAsRead(streamId: widget.chatRoom['stream_id']);
+          await messageReadService.markNewestMessageAsRead(
+            streamId: widget.chatRoom['stream_id'],
+          );
         } catch (error) {
           print('Error marking newest message as read: $error');
         }
@@ -110,7 +180,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
       } else {
         throw Exception('Invalid timestamp format');
       }
-
       return DateFormat('a h:mm', 'ko_KR').format(dateTime);
     } catch (error) {
       print('타임스탬프 변환 오류: $error');
@@ -134,8 +203,20 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
     }
   }
 
+  // --------------------------------------------------------------------------------
+  // 화면/위젯 dispose 처리
+  // --------------------------------------------------------------------------------
   @override
   void dispose() {
+    // Observer 해제
+    WidgetsBinding.instance.removeObserver(this);
+
+    // 화면 dispose 시점: 타이머 해제 + 방 비활성화
+    _activateTimer?.cancel();
+    _activateTimer = null;
+
+    _deactivateCurrentChatRoom();
+
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -145,6 +226,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
+        // 뒤로가기 시점: 방 비활성화 후 pop
+        await _deactivateCurrentChatRoom();
         Navigator.pop(context, 'reload');
         return false;
       },
@@ -167,7 +250,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 itemCount: messages.length,
                 itemBuilder: (context, index) {
                   final message = messages[index];
-                  bool isMe = message['sender_id'] == _userId;
+                  bool isMe = (message['sender_id'] == _userId);
 
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -209,6 +292,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> {
                 },
               ),
             ),
+            // 메시지 입력창
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Row(
