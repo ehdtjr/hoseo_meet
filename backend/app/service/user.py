@@ -1,3 +1,4 @@
+import uuid
 from typing import Any, AsyncGenerator, Optional
 
 from fastapi import Depends, HTTPException, Request, status
@@ -10,8 +11,6 @@ from app.api.deps import get_user_db
 from app.core.config import settings
 from app.models.user import User
 from app.service.email import EmailServiceProtocol, get_email_service
-
-import os, httpx, uuid
 
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):

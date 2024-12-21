@@ -26,8 +26,8 @@ class WebSocketAuthenticator:
             await websocket.close(code=1008, reason="Missing protocol header")
             return
 
-        user = await auth_backend.get_strategy().read_token(
-            token, user_manager=self.user_manager)
+        strategy  = await auth_backend.get_strategy()
+        user = await strategy.read_token(token, user_manager=self.user_manager)
 
         if not user:
             await websocket.close(code=1008, reason="유저가 존재하지 않습니다")

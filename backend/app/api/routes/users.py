@@ -62,6 +62,12 @@ async def get_subscriptions(
         subscriptions_service: SubscriberServiceProtocol = Depends(
             get_subscription_service),
 ):
+    """
+    현재 로그인된 사용자(user.id)가 구독 중인 모든 스트림 목록을 조회.
+
+    - subscription_service.get_subscription_list로 사용자 구독 목록을 가져옴.
+    - 예외 발생 시 HTTP 500 반환.
+    """
     try:
         subscriptions = \
             await subscriptions_service.get_subscription_list(db, user.id)
