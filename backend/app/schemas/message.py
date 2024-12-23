@@ -61,3 +61,7 @@ class UpdateUserMessageFlagsRequest(BaseModel):
     stream_id: int
     num_before: int
     num_after: int
+
+class LocationBase(BaseModel):
+    lat: float
+    lng: float

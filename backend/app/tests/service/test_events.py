@@ -1,5 +1,5 @@
 from app.schemas.event import EventBase
-from app.service.events import WebSocketEventSender
+from app.service.event.events import WebSocketEventSender
 from app.tests.conftest import BaseTest
 
 class TestWebSocketEventSender(BaseTest):
