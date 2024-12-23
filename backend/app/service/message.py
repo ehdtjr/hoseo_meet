@@ -1,7 +1,7 @@
 import bisect
 from typing import List, Optional, Protocol
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.exceptions import PermissionDeniedException
@@ -13,7 +13,10 @@ from app.crud.user_crud import UserCRUDProtocol, get_user_crud
 from app.models.message import MessageType
 from app.schemas.event import EventBase
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase
-from app.service.events import create_event_dispatcher, SenderSelectionContext
+from app.service.event.event_sender import EventSenderProtocol
+from app.service.event.event_strategy import SenderSelectionContext
+from app.service.event.events import EventStrategyFactory, \
+    get_event_strategy_factory
 
 
 class MessageServiceProtocol(Protocol):
@@ -45,12 +48,15 @@ class MessageService(MessageServiceProtocol):
                  user_message_crud: UserMessageCRUDProtocol,
                  user_crud: UserCRUDProtocol,
                  recipient_crud: RecipientCRUDProtocol,
-                 subscription_crud: SubscriptionCRUDProtocol):
+                 subscription_crud: SubscriptionCRUDProtocol,
+                 event_strategy_factory: EventStrategyFactory,
+                 ):
         self.message_crud = message_crud
         self.user_message_crud = user_message_crud
         self.user_crud = user_crud
         self.recipient_crud = recipient_crud
         self.subscription_crud = subscription_crud
+        self.event_strategy_factory = event_strategy_factory
 
     async def send_message_stream(self, db: AsyncSession, sender_id: int,
                                   stream_id: int, message_content: str) -> None:
@@ -81,8 +87,8 @@ class MessageService(MessageServiceProtocol):
                               for subscriber in subscribers]
         await self.user_message_crud.bulk_create(db, user_messages_data)
 
-        # EventBase 인스턴스 생성
-        event_data = EventBase(
+        # EventBase 생성
+        event_data:EventBase = EventBase(
             type="stream",
             data={
                 "id": message.id,
@@ -96,9 +102,15 @@ class MessageService(MessageServiceProtocol):
         )
         for sub_id in subscribers:
             context = SenderSelectionContext(user_id=sub_id,
-                                             stream_id=stream_id)
-            dispatcher = await create_event_dispatcher(db, context)
-            await dispatcher.send_event(event_data)
+                                             stream_id=stream_id,
+                                             event=event_data)
+            strategy = self.event_strategy_factory.get_strategy(
+            event_data.type)
+
+            event_sender: EventSenderProtocol = await strategy.get_sender(db,
+             context)
+
+            await event_sender.send_event(user_id=sub_id, event_data=event_data)
 
 
     async def get_stream_messages(self, db: AsyncSession,
@@ -201,9 +213,21 @@ class MessageService(MessageServiceProtocol):
             return int(anchor)
 
 
-def get_message_service() -> MessageServiceProtocol:
-    return MessageService(get_message_crud(),
-                          get_user_message_crud(),
-                          get_user_crud(),
-                          get_recipient_crud(),
-                          get_subscription_crud())
+def get_message_service(
+    message_crud: MessageCRUDProtocol = Depends(get_message_crud),
+    user_message_crud: UserMessageCRUDProtocol = Depends(
+        get_user_message_crud),
+    user_crud: UserCRUDProtocol = Depends(get_user_crud),
+    recipient_crud: RecipientCRUDProtocol = Depends(get_recipient_crud),
+    subscription_crud: SubscriptionCRUDProtocol = Depends(
+    get_subscription_crud),
+    event_strategy_factory:EventStrategyFactory = Depends(get_event_strategy_factory)
+) -> MessageServiceProtocol:
+    return MessageService(
+        message_crud=message_crud,
+        user_message_crud=user_message_crud,
+        user_crud=user_crud,
+        recipient_crud=recipient_crud,
+        subscription_crud=subscription_crud,
+        event_strategy_factory=event_strategy_factory
+    )

@@ -118,3 +118,4 @@ async def delete_subscriptions(
     except Exception as e:
         raise (HTTPException(status_code=500,
                              detail=f"Failed to unsubscribe: {str(e)}"))
+

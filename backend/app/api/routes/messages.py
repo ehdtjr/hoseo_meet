@@ -9,7 +9,9 @@ from app.core.db import get_async_session
 from app.core.exceptions import PermissionDeniedException
 from app.core.security import current_active_user
 from app.models import User
-from app.schemas.message import MessageBase, UpdateUserMessageFlagsRequest
+from app.schemas.message import (MessageBase, UpdateUserMessageFlagsRequest,
+LocationBase)
+from app.service.location import get_location_service, LocationService
 from app.service.message import MessageServiceProtocol, get_message_service
 
 router = APIRouter()
@@ -48,7 +50,7 @@ async def send_message_to_stream(
                                     description="The content of the message"),
         db: AsyncSession = Depends(get_async_session),
         user: User = Depends(current_active_user),
-        message_service: MessageServiceProtocol = Depends(get_message_service)
+        message_service: MessageServiceProtocol = Depends(get_message_service),
 ):
     try:
         await message_service.send_message_stream(
@@ -62,7 +64,6 @@ async def send_message_to_stream(
     except Exception as e:
         raise HTTPException(status_code=400,
                             detail=f"Message sending failed: {str(e)}")
-
 
 @router.get("/stream", response_model=List[MessageBase])
 async def get_messages(
@@ -97,3 +98,21 @@ async def get_messages(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.post("/send/stream/location/{stream_id}", response_model=None)
+async def send_message_to_location(
+    stream_id: int,
+    location: LocationBase,  # Body로 받은 lat, lng
+    db: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+    location_service: LocationService = Depends(get_location_service),
+):
+    """
+    위도/경도 등 위치 정보를 포함한 이벤트를 전송.
+    """
+    await location_service.send_location_stream(
+        db=db,
+        user_id=user.id,
+        stream_id=stream_id,
+        location=location
+    )
+    return {"detail": "Location event sent successfully"}

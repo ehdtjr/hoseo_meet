@@ -21,6 +21,7 @@ class TestMessageService(BaseTest):
         self.subscription_crud = AsyncMock()
         self.user_crud = AsyncMock()
 
+
         from app.service.message import MessageService
         self.service = MessageService(
             message_crud=self.message_crud,
