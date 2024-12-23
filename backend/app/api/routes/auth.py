@@ -116,16 +116,11 @@ async def logout(
 # Access Token, Refresh Token 갱신
 @router.post("/refresh", tags=["auth"])
 async def refresh_token(
-    access_token: str = Depends(access_token_header),
     refresh_token: str = Depends(refresh_token_header),
     user_manager: BaseUserManager[models.UP, models.ID] = Depends(get_user_manager),
     jwt_strategy: CustomJWTStrategy = Depends(get_custom_jwt_strategy),
 ):
     try:
-        # access_token 변조 검사
-        access_token = access_token.split(" ")[1]
-        await jwt_strategy.decode_token(access_token)
-
         refresh_token = refresh_token.split(" ")[1]
         user_id = await jwt_strategy.validate_refresh_token(refresh_token)
 
