@@ -1,52 +1,13 @@
-buildscript {
-    ext.kotlin_version = '1.9.10'
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
-}
-
 plugins {
     id "com.android.application"
     id "kotlin-android"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
-    id "com.google.gms.google-services"
-}
-
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localProperties.load(localPropertiesFile.newReader("UTF-8"))
-}
-
-def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "1"
-def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0"
-
-// .env 파일 로드하여 환경 변수를 BuildConfig와 manifestPlaceholders에 추가
-def dotenvFile = rootProject.file('.env')
-def envVariables = [:]
-if (dotenvFile.exists()) {
-    dotenvFile.eachLine { line ->
-        def parts = line.split('=')
-        if (parts.length == 2) {
-            def key = parts[0].trim()
-            def value = parts[1].trim()
-            envVariables[key] = value
-        }
-    }
 }
 
 android {
-    namespace = "com.company.hoseomeet"
-
-    // Flutter에서 자동 가져오던 설정 대신 직접 지정
-    // 예: compileSdk 34(또는 33 등 SDK Manager에서 설치되어 있는 버전)
-    compileSdk 34
-
-    // ndkVersion은 그대로 사용
+    namespace = "com.example.app"
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -54,34 +15,25 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
 
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8
+    }
+
     defaultConfig {
-        applicationId = "com.company.hoseomeet"
-
-        // 오래된 기기를 지원하려면 minSdk를 낮춰주세요.
-        // 예: minSdk 21 → Android 5.0(롤리팝) 이상 지원
-        // (기존에는 flutter.minSdkVersion으로 되어 있었으나,
-        //  필요 시 직접 숫자를 명시하여 더 낮출 수 있습니다.)
-        minSdk 21
-
-        // targetSdk는 Flutter 기본 값을 따르거나, 필요 시 직접 숫자로 명시 가능
+        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        applicationId = "com.example.app"
+        // You can update the following values to match your application needs.
+        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-
-        versionCode = flutterVersionCode.toInteger()
-        versionName = flutterVersionName
-
-        // 환경 변수 -> BuildConfig
-        envVariables.each { key, value ->
-            buildConfigField "String", key, "\"${value}\""
-        }
-
-        // KAKAO_NATIVE_APP_KEY
-        manifestPlaceholders = [
-                KAKAO_NATIVE_APP_KEY: envVariables["KAKAO_NATIVE_APP_KEY"] ?: ""
-        ]
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     buildTypes {
         release {
+            // TODO: Add your own signing config for the release build.
+            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.debug
         }
     }
@@ -90,10 +42,3 @@ android {
 flutter {
     source = "../.."
 }
-
-dependencies {
-    implementation 'com.google.firebase:firebase-messaging:23.1.1'
-}
-
-// Firebase plugin
-apply plugin: "com.google.gms.google-services"
