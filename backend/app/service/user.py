@@ -4,8 +4,9 @@ from typing import Any, AsyncGenerator, Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users import BaseUserManager, IntegerIDMixin, models, schemas
-from fastapi_users.db import SQLAlchemyUserDatabase
+
 from fastapi_users.models import UP
+from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 
 from app.api.deps import get_user_db
 from app.core.config import settings

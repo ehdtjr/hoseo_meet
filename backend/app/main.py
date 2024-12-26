@@ -10,6 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.api.main import api_router
 from app.core.config import settings
 from app.core.redis import redis_client
+from app.middlewares import register_profile_middleware
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,6 +43,10 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
 )
+
+
+register_profile_middleware(app) # 프로파일링 미들웨어 등록
+
 
 # Prometheus Instrumentator 초기화
 instrumentator.instrument(app)
