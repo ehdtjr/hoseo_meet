@@ -12,7 +12,8 @@ from app.models import User
 from app.schemas.message import (MessageBase, UpdateUserMessageFlagsRequest,
 LocationBase)
 from app.service.location import get_location_service, LocationService
-from app.service.message import MessageServiceProtocol, get_message_service
+from app.service.message import MessageServiceProtocol, get_message_service, \
+    MessageSendService, get_message_send_service
 
 router = APIRouter()
 
@@ -50,10 +51,10 @@ async def send_message_to_stream(
                                     description="The content of the message"),
         db: AsyncSession = Depends(get_async_session),
         user: User = Depends(current_active_user),
-        message_service: MessageServiceProtocol = Depends(get_message_service),
+        message_send_service: MessageSendService = Depends(get_message_send_service)
 ):
     try:
-        await message_service.send_message_stream(
+        await message_send_service.send_message_stream(
             db=db, sender_id=user.id, stream_id=stream_id, message_content=message_content)
         return {"message": "Message sent successfully"}
 

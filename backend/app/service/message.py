@@ -9,7 +9,6 @@ from app.crud.message import MessageCRUDProtocol, UserMessageCRUDProtocol, \
     get_message_crud, get_user_message_crud
 from app.crud.recipient import RecipientCRUDProtocol, get_recipient_crud
 from app.crud.stream import SubscriptionCRUDProtocol, get_subscription_crud
-from app.crud.user_crud import UserCRUDProtocol, get_user_crud
 from app.models.message import MessageType
 from app.schemas.event import EventBase
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase
@@ -19,41 +18,27 @@ from app.service.event.events import EventStrategyFactory, \
     get_event_strategy_factory
 
 
-class MessageServiceProtocol(Protocol):
-    async def send_message_stream(self,
-    db: AsyncSession,
-    sender_id: int,stream_id: int,
-    message_content: str) -> None:
-        pass
-
-    async def mark_message_read_stream(self, db: AsyncSession, stream_id: int,
-                                       user_id: int, anchor: str,
-                                       num_before: int,
-                                       num_after: int) -> None:
-        pass
-
-    async def get_stream_messages(self, db: AsyncSession,
-                                  user_id: int,
-                                  stream_id: int,
-                                  anchor: str,
-                                  num_before: int,
-                                  num_after: int) -> Optional[List[
-                                  MessageBase]]:
+class MessageSendServiceProtocol(Protocol):
+    async def send_message_stream(
+            self,
+            db: AsyncSession,
+            sender_id: int,
+            stream_id: int,
+            message_content: str) -> None:
         pass
 
 
-
-class MessageService(MessageServiceProtocol):
-    def __init__(self, message_crud: MessageCRUDProtocol,
-                 user_message_crud: UserMessageCRUDProtocol,
-                 user_crud: UserCRUDProtocol,
-                 recipient_crud: RecipientCRUDProtocol,
-                 subscription_crud: SubscriptionCRUDProtocol,
-                 event_strategy_factory: EventStrategyFactory,
+class MessageSendService(MessageSendServiceProtocol):
+    def __init__(
+            self,
+            message_crud: MessageCRUDProtocol,
+            user_message_crud: UserMessageCRUDProtocol,
+            recipient_crud: RecipientCRUDProtocol,
+            subscription_crud: SubscriptionCRUDProtocol,
+            event_strategy_factory: EventStrategyFactory,
                  ):
         self.message_crud = message_crud
         self.user_message_crud = user_message_crud
-        self.user_crud = user_crud
         self.recipient_crud = recipient_crud
         self.subscription_crud = subscription_crud
         self.event_strategy_factory = event_strategy_factory
@@ -61,8 +46,9 @@ class MessageService(MessageServiceProtocol):
     async def send_message_stream(self, db: AsyncSession, sender_id: int,
                                   stream_id: int, message_content: str) -> None:
 
-        # 권한 체크
-        if not await self._check_stream_permission(db, sender_id, stream_id):
+        subscribers = await self.subscription_crud.get_subscribers(db,
+                                                                   stream_id)
+        if sender_id not in subscribers:
             raise PermissionDeniedException(
                 "You are not permitted to send messages to this stream")
 
@@ -77,18 +63,16 @@ class MessageService(MessageServiceProtocol):
             "content": message_content
         }
         message_create = MessageCreate.model_validate(message_create_data)
-        message = await self.message_crud.create(db, message_create)
+        message = await self.message_crud.send_message_create(db,
+                                                              message_create)
 
-        # 구독자 조회
-        subscribers = await self.subscription_crud.get_subscribers(db,
-                                                                   stream_id)
         # UserMessage 대량 생성
         user_messages_data = [{"user_id": subscriber, "message_id": message.id}
                               for subscriber in subscribers]
         await self.user_message_crud.bulk_create(db, user_messages_data)
 
         # EventBase 생성
-        event_data:EventBase = EventBase(
+        event_data: EventBase = EventBase(
             type="stream",
             data={
                 "id": message.id,
@@ -105,13 +89,40 @@ class MessageService(MessageServiceProtocol):
                                              stream_id=stream_id,
                                              event=event_data)
             strategy = self.event_strategy_factory.get_strategy(
-            event_data.type)
+                event_data.type)
 
-            event_sender: EventSenderProtocol = await strategy.get_sender(db,
-             context)
+            event_sender: EventSenderProtocol = await strategy.get_sender(
+                db,
+                context)
 
             await event_sender.send_event(user_id=sub_id, event_data=event_data)
 
+
+class MessageServiceProtocol(Protocol):
+    async def mark_message_read_stream(self, db: AsyncSession, stream_id: int,
+                                       user_id: int, anchor: str,
+                                       num_before: int,
+                                       num_after: int) -> None:
+        pass
+
+    async def get_stream_messages(self, db: AsyncSession,
+                                  user_id: int,
+                                  stream_id: int,
+                                  anchor: str,
+                                  num_before: int,
+                                  num_after: int) -> (
+            Optional)[List[MessageBase]]:
+        pass
+
+
+class MessageService(MessageServiceProtocol):
+    def __init__(self, message_crud: MessageCRUDProtocol,
+                 user_message_crud: UserMessageCRUDProtocol,
+                 subscription_crud: SubscriptionCRUDProtocol,
+                 ):
+        self.message_crud = message_crud
+        self.user_message_crud = user_message_crud
+        self.subscription_crud = subscription_crud
 
     async def get_stream_messages(self, db: AsyncSession,
                                   user_id: int,
@@ -131,12 +142,13 @@ class MessageService(MessageServiceProtocol):
             db, stream_id, anchor_id, num_before, num_after)
 
         user_oldest_message: Optional[UserMessageBase] = await (
-        self.user_message_crud.get_oldest_message_in_stream(
-            db, user_id, stream_id))
+            self.user_message_crud.get_oldest_message_in_stream(db,
+                                                                user_id,
+                                                                stream_id))
 
         if messages and user_oldest_message:
             start_idx = bisect.bisect_left([msg.id for msg in messages],
-             user_oldest_message.message_id)
+                                           user_oldest_message.message_id)
             messages = messages[start_idx:]
 
         return messages
@@ -207,27 +219,41 @@ class MessageService(MessageServiceProtocol):
                         stream_id))
                 if result is None:
                     raise HTTPException(status_code=404,
-                                        detail="No messages found in the stream")
+                                        detail="No messages found in the "
+                                               "stream")
             return result.message_id
         else:
             return int(anchor)
+
+
+def get_message_send_service(
+        message_crud: MessageCRUDProtocol = Depends(get_message_crud),
+        user_message_crud: UserMessageCRUDProtocol = Depends(
+            get_user_message_crud),
+        recipient_crud: RecipientCRUDProtocol = Depends(
+            get_recipient_crud),
+        subscription_crud: SubscriptionCRUDProtocol = Depends(
+            get_subscription_crud),
+        event_strategy_factory: EventStrategyFactory = Depends(
+            get_event_strategy_factory)
+) -> MessageSendServiceProtocol:
+    return MessageSendService(
+        message_crud=message_crud,
+        user_message_crud=user_message_crud,
+        recipient_crud=recipient_crud,
+        subscription_crud=subscription_crud,
+        event_strategy_factory=event_strategy_factory
+    )
 
 
 def get_message_service(
     message_crud: MessageCRUDProtocol = Depends(get_message_crud),
     user_message_crud: UserMessageCRUDProtocol = Depends(
         get_user_message_crud),
-    user_crud: UserCRUDProtocol = Depends(get_user_crud),
-    recipient_crud: RecipientCRUDProtocol = Depends(get_recipient_crud),
-    subscription_crud: SubscriptionCRUDProtocol = Depends(
-    get_subscription_crud),
-    event_strategy_factory:EventStrategyFactory = Depends(get_event_strategy_factory)
+    subscription_crud: SubscriptionCRUDProtocol = Depends(get_subscription_crud)
 ) -> MessageServiceProtocol:
     return MessageService(
         message_crud=message_crud,
         user_message_crud=user_message_crud,
-        user_crud=user_crud,
-        recipient_crud=recipient_crud,
-        subscription_crud=subscription_crud,
-        event_strategy_factory=event_strategy_factory
+        subscription_crud=subscription_crud
     )

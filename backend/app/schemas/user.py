@@ -5,6 +5,7 @@ from fastapi_users import schemas
 from pydantic import BaseModel, ConfigDict
 
 
+
 class UserRead(schemas.BaseUser):
     id: int
     name: str

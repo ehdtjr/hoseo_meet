@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import List
 
-from fastapi_users.db import SQLAlchemyBaseUserTable, \
-    SQLAlchemyBaseOAuthAccountTable
+from fastapi_users_db_sqlalchemy import (SQLAlchemyBaseUserTable,
+                                         SQLAlchemyBaseOAuthAccountTable)
+
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Mapped, mapped_column, relationship

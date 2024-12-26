@@ -6,7 +6,6 @@ from sqlalchemy import insert
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import and_
 
 from app.crud.base import CRUDBase
@@ -87,7 +86,6 @@ class MessageQueryBuilder:
         return all_messages
 
 
-
 class MessageCRUDProtocol:
     async def create(self, db: AsyncSession,
                      message: MessageCreate) -> MessageBase:
@@ -101,6 +99,11 @@ class MessageCRUDProtocol:
                                   num_after: int) -> List[MessageBase]:
         pass
 
+    async def send_message_create(
+        self, db: AsyncSession, message: MessageCreate
+    ) -> MessageBase:
+        pass
+
 
 class MessageCRUD(CRUDBase[Message, MessageBase], MessageCRUDProtocol):
     def __init__(self):
@@ -112,6 +115,26 @@ class MessageCRUD(CRUDBase[Message, MessageBase], MessageCRUDProtocol):
 
     async def get(self, db: AsyncSession, id: int) -> MessageBase:
         return await super().get(db, id)
+
+    async def send_message_create(
+        self, db: AsyncSession, message: MessageCreate
+    ) -> MessageBase:
+        """
+        메시지 전송용으로 INSERT만 하고, refresh()는 생략하는 메서드
+        """
+        obj_in_data = message.model_dump()
+        db_obj = self.model(**obj_in_data)
+        db.add(db_obj)
+        await db.flush()
+        await db.commit()
+        return MessageBase.model_construct(
+            id=db_obj.id,
+            sender_id=db_obj.sender_id,
+            type=db_obj.type,
+            recipient_id=db_obj.recipient_id,
+            content=db_obj.content,
+            rendered_content=db_obj.rendered_content,
+            date_sent=db_obj.date_sent)
 
     async def get_stream_messages(self, db: AsyncSession, stream_id: int,
                                   anchor_id: int, num_before: int,
