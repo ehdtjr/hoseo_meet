@@ -9,12 +9,12 @@ logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
 # 상수 설정
 BASE_URL = 'http://localhost/api/v1'
-LOGIN_URL = f'{BASE_URL}/auth/jwt/login'
+LOGIN_URL = f'{BASE_URL}/auth/login'
 CREATE_STREAM_URL = f'{BASE_URL}/stream/create/'
 SUBSCRIBE_URL = f'{BASE_URL}/users/me/subscriptions'
 
-USERS_COUNT = 300
-STREAM_COUNT = 30  # 한 방에 10명씩, 총 30개의 방
+USERS_COUNT = 500
+STREAM_COUNT = 50  # 한 방에 10명씩, 총 30개의 방
 USERS_PER_STREAM = USERS_COUNT // STREAM_COUNT  # 300 // 30 = 10
 
 USERS = [{
@@ -70,7 +70,7 @@ def create_streams(token: str, count: int) -> List[str]:
     for i in range(count):
         create_payload = {
             "name": f"Stream-{i + 1}",
-            "type": "배달"
+            "type": "meet"
         }
         try:
             res = requests.post(CREATE_STREAM_URL, json=create_payload,
@@ -106,9 +106,6 @@ def subscribe_users_to_streams(users: List[Dict[str, str]],
     이미 스트림 생성자인 경우 생략.
     """
     for i, user in enumerate(users):
-        if user["email"] == creator_email:
-            continue  # 스트림 생성자는 이미 자동 구독 상태
-
         token = token_map.get(user["email"])
         if not token:
             logging.warning(f"{user['email']} 구독 불가: 토큰 없음")

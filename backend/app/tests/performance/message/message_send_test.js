@@ -5,12 +5,14 @@ import { Trend } from 'k6/metrics';
 // 메시지 전송 시간 측정용 메트릭
 let messageSendTime = new Trend('message_send_time');
 
-// 테스트에 사용할 상수들
-const USERS_COUNT = 300;
-const STREAM_COUNT = 30;
-const USERS_PER_STREAM = USERS_COUNT / STREAM_COUNT; // 300 / 30 = 10
+// 1) 환경 변수에서 유저 수, 스트림 수 읽기 (기본값 설정)
+const USERS_COUNT = parseInt(__ENV.USERS_COUNT) || 100;
+const STREAM_COUNT = parseInt(__ENV.STREAM_COUNT) || 10;
 
-// 메시지 전송에 사용할 샘플 메시지들
+// 2) per-stream 계산
+const USERS_PER_STREAM = USERS_COUNT / STREAM_COUNT;
+
+// 메시지 전송에 사용할 샘플 메시지
 const messages = [
   'Hello World',
   'Test Message',
@@ -19,31 +21,38 @@ const messages = [
   'Message from load test',
 ];
 
-// 300명의 유저 (첫 번째 유저 test1은 스트림 생성자 가정)
+// 유저 배열 생성
 const users = Array.from({ length: USERS_COUNT }, (_, i) => ({
   email: `test${i + 1}@vision.hoseo.edu`,
   password: 'test123',
 }));
 
-// 30개의 스트림 ID (실제 사전 준비 과정에서 얻은 ID를 기입해야 함)
+// 스트림 ID (사전에 생성된 방의 ID)
 const streamIds = [
-  // 예: 72101, 72102, ... 72130
-  72101, 72102, 72103, 72104, 72105,
-  72106, 72107, 72108, 72109, 72110,
-  72111, 72112, 72113, 72114, 72115,
-  72116, 72117, 72118, 72119, 72120,
-  72121, 72122, 72123, 72124, 72125,
-  72126, 72127, 72128, 72129, 72130,
+  // 여기에 *최대* 필요할 수 있는 개수를 넣어둠
+  // 실제 STREAM_COUNT만큼만 사용할 것
+  51, 52, 53, 54, 55,
+  56, 57, 58, 59, 60,
+  61, 62, 63, 64, 65,
+  66, 67, 68, 69, 70,
+  71, 72, 73, 74, 75,
+  76, 77, 78, 79, 80,
+  81, 82, 83, 84, 85,
+  86, 87, 88, 89, 90,
+  91, 92, 93, 94, 95,
+  96, 97, 98, 99, 100
 ];
 
-// k6 시나리오 옵션 설정
+// k6 시나리오 옵션
 export let options = {
+  setupTimeout: '360s',
   scenarios: {
     message_send_test: {
       executor: 'ramping-vus',
       startVUs: 10,
       stages: [
-        { duration: '1m', target: USERS_COUNT }, // 1분 동안 VU를 300명까지 증가
+        // 1분 동안 VU를 USERS_COUNT명까지 증가
+        { duration: '1m', target: USERS_COUNT },
       ],
       gracefulRampDown: '0s',
     },
@@ -53,12 +62,13 @@ export let options = {
 // 로그인 엔드포인트
 const loginUrl = 'http://localhost/api/v1/auth/login';
 
-// setup 함수:
-// 테스트 시작 전 모든 유저를 로그인해 tokenMap 생성
-// streamIds를 검증한 뒤 tokenMap과 streamIds를 return
+// setup 함수
 export function setup() {
-  if (!streamIds || streamIds.length !== STREAM_COUNT) {
-    fail(`Expected ${STREAM_COUNT} stream IDs but got ${streamIds ? streamIds.length : 0}`);
+  // 스트림 ID 개수 확인 (실제 STREAM_COUNT만큼 사용)
+  const neededStreams = streamIds.slice(0, STREAM_COUNT); // 예: 앞에서 n개만 추출
+
+  if (!neededStreams || neededStreams.length !== STREAM_COUNT) {
+    fail(`Expected ${STREAM_COUNT} stream IDs but got ${neededStreams.length}`);
   }
 
   let tokenMap = {};
@@ -67,9 +77,13 @@ export function setup() {
     const loginPayload = `grant_type=password&username=${user.email}&password=${user.password}`;
     const loginHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' };
 
+    // 로그인 요청
     const loginRes = http.post(loginUrl, loginPayload, { headers: loginHeaders });
+
+    // 응답에서 토큰 추출
     const token = loginRes.json('access_token');
 
+    // 로그인 체크
     const loginChecks = check(loginRes, {
       'login successful': (res) => res.status === 200,
       'token received': () => token !== undefined,
@@ -87,56 +101,42 @@ export function setup() {
     }
   }
 
-  return { tokenMap, streamIds };
+  return { tokenMap, streamIds: neededStreams };
 }
 
-// default 함수:
-// 1) 스트림 활성화 (active)
-// 2) 메시지 전송 (시간 측정)
-// 3) 스트림 비활성화 (deactive)
+// default 함수
 export default function (data) {
   const { tokenMap, streamIds } = data;
 
-  // 현재 VU 인덱스 (1부터 시작)
+  // VU 인덱스 (0부터 시작)
   const userIndex = (__VU - 1) % USERS_COUNT;
   const user = users[userIndex];
 
-  // 첫 유저(인덱스 0) 스킵 (스트림 생성자 가정)
-  if (userIndex === 0) {
-    sleep(1);
-    return;
-  }
-
+  // 토큰 확인
   const token = tokenMap[user.email];
   if (!token) {
     console.error(`No token found for ${user.email}`);
     fail(`No token found for ${user.email}`);
   }
 
-  // 유저가 속한 스트림 인덱스 계산
+  // 유저가 할당될 스트림 결정
   const streamIndex = Math.floor(userIndex / USERS_PER_STREAM);
   const assignedStreamId = streamIds[streamIndex];
 
-  // ---------- 1) 스트림 활성화 (time 측정 X) ----------
+  // ---------- (1) 스트림 활성화 ----------
   let activeUrl = `http://localhost/api/v1/stream/${assignedStreamId}/active?lifetime_seconds=3600`;
   let activeHeaders = {
-    'accept': 'application/json',
-    'Authorization': `Bearer ${token}`,
+    accept: 'application/json',
+    Authorization: `Bearer ${token}`,
   };
   let activeRes = http.post(activeUrl, null, { headers: activeHeaders });
   check(activeRes, {
     'active success': (r) => r.status === 200 || r.status === 201,
   });
 
-  // 메시지 전송에 사용할 랜덤 메시지
+  // ---------- (2) 메시지 전송 (시간 측정) ----------
   const msgContent = messages[Math.floor(Math.random() * messages.length)];
-
-  console.debug(
-    `Sending message. User: ${user.email}, UserIndex: ${userIndex}, StreamID: ${assignedStreamId}, Token: ${token ? 'present' : 'absent'}`
-  );
-
-  // ---------- 2) 메시지 전송 (시간 측정) ----------
-  const start = Date.now(); // 시간 측정 시작
+  const start = Date.now(); // 시작
 
   const messageUrl = `http://localhost/api/v1/messages/send/stream/${assignedStreamId}?lifetime_seconds=3600`;
   const messageHeaders = {
@@ -147,31 +147,23 @@ export default function (data) {
   const messagePayload = `message_content=${encodeURIComponent(msgContent)}`;
 
   const messageRes = http.post(messageUrl, messagePayload, { headers: messageHeaders });
-
   const msgChecks = check(messageRes, {
     'message sent successfully': (r) => r.status === 200,
   });
 
   if (!msgChecks) {
-    console.error(
-      `Message send failed. Status: ${messageRes.status}, Body: ${messageRes.body}`
-    );
-    fail(
-      `Message not sent successfully for user ${user.email}, stream ${assignedStreamId}`
-    );
+    console.error(`Message send failed. Status: ${messageRes.status}, Body: ${messageRes.body}`);
+    fail(`Message not sent successfully for user ${user.email}, stream ${assignedStreamId}`);
   }
 
-  const end = Date.now(); // 시간 측정 종료
+  const end = Date.now();
   messageSendTime.add(end - start);
 
-  // ---------- 3) 스트림 비활성화 (time 측정 X) ----------
+  // ---------- (3) 스트림 비활성화 ----------
   let deactiveUrl = `http://localhost/api/v1/stream/deactive?lifetime_seconds=3600`;
-  // 혹은 /api/v1/stream/${assignedStreamId}/deactive
-  // 만약 stream_id가 URL에 필요하면 동일하게 넣어주세요.
-
   let deactiveHeaders = {
-    'accept': 'application/json',
-    'Authorization': `Bearer ${token}`,
+    accept: 'application/json',
+    Authorization: `Bearer ${token}`,
   };
   let deactiveRes = http.post(deactiveUrl, null, { headers: deactiveHeaders });
   check(deactiveRes, {
