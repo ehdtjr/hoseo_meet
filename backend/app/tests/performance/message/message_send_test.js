@@ -6,8 +6,8 @@ import { Trend } from 'k6/metrics';
 let messageSendTime = new Trend('message_send_time');
 
 // 1) 환경 변수에서 유저 수, 스트림 수 읽기 (기본값 설정)
-const USERS_COUNT = parseInt(__ENV.USERS_COUNT) || 100;
-const STREAM_COUNT = parseInt(__ENV.STREAM_COUNT) || 10;
+const USERS_COUNT = parseInt(__ENV.USERS_COUNT) || 500;
+const STREAM_COUNT = parseInt(__ENV.STREAM_COUNT) || 50;
 
 // 2) per-stream 계산
 const USERS_PER_STREAM = USERS_COUNT / STREAM_COUNT;
@@ -29,18 +29,13 @@ const users = Array.from({ length: USERS_COUNT }, (_, i) => ({
 
 // 스트림 ID (사전에 생성된 방의 ID)
 const streamIds = [
-  // 여기에 *최대* 필요할 수 있는 개수를 넣어둠
-  // 실제 STREAM_COUNT만큼만 사용할 것
-  51, 52, 53, 54, 55,
-  56, 57, 58, 59, 60,
-  61, 62, 63, 64, 65,
-  66, 67, 68, 69, 70,
-  71, 72, 73, 74, 75,
-  76, 77, 78, 79, 80,
-  81, 82, 83, 84, 85,
-  86, 87, 88, 89, 90,
-  91, 92, 93, 94, 95,
-  96, 97, 98, 99, 100
+  // 여기에는 *최대* 필요할 수 있는 개수를 넣어둡니다.
+  // 실제 STREAM_COUNT만큼만 slice 해서 사용.
+  1,2,3,4,5,6,7,8,9,10,
+  11,12,13,14,15,16,17,18,19,20,
+  21,22,23,24,25,26,27,28,29,30,
+  31,32,33,34,35,36,37,38,39,40,
+  41,42,43,44,45,46,47,48,49,50
 ];
 
 // k6 시나리오 옵션
@@ -65,7 +60,7 @@ const loginUrl = 'http://localhost/api/v1/auth/login';
 // setup 함수
 export function setup() {
   // 스트림 ID 개수 확인 (실제 STREAM_COUNT만큼 사용)
-  const neededStreams = streamIds.slice(0, STREAM_COUNT); // 예: 앞에서 n개만 추출
+  const neededStreams = streamIds.slice(0, STREAM_COUNT);
 
   if (!neededStreams || neededStreams.length !== STREAM_COUNT) {
     fail(`Expected ${STREAM_COUNT} stream IDs but got ${neededStreams.length}`);
@@ -79,8 +74,6 @@ export function setup() {
 
     // 로그인 요청
     const loginRes = http.post(loginUrl, loginPayload, { headers: loginHeaders });
-
-    // 응답에서 토큰 추출
     const token = loginRes.json('access_token');
 
     // 로그인 체크
@@ -89,11 +82,13 @@ export function setup() {
       'token received': () => token !== undefined,
     });
 
+    // 로그인 실패 시 전체 테스트 중단
     if (!loginChecks) {
       console.error(`Login failed for user ${user.email}. Status: ${loginRes.status}, Body: ${loginRes.body}`);
       fail(`Failed to login ${user.email}`);
     }
 
+    // 토큰 저장
     if (token) {
       tokenMap[user.email] = token;
     } else {
@@ -116,59 +111,71 @@ export default function (data) {
   const token = tokenMap[user.email];
   if (!token) {
     console.error(`No token found for ${user.email}`);
+    // 로그인 토큰이 없으면 테스트를 진행할 수 없으므로 fail()
     fail(`No token found for ${user.email}`);
   }
 
-  // 유저가 할당될 스트림 결정
+  // 유저에게 할당될 스트림 결정
   const streamIndex = Math.floor(userIndex / USERS_PER_STREAM);
   const assignedStreamId = streamIds[streamIndex];
 
   // ---------- (1) 스트림 활성화 ----------
-  let activeUrl = `http://localhost/api/v1/stream/${assignedStreamId}/active?lifetime_seconds=3600`;
-  let activeHeaders = {
-    accept: 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
-  let activeRes = http.post(activeUrl, null, { headers: activeHeaders });
-  check(activeRes, {
-    'active success': (r) => r.status === 200 || r.status === 201,
-  });
-
-  // ---------- (2) 메시지 전송 (시간 측정) ----------
-  const msgContent = messages[Math.floor(Math.random() * messages.length)];
-  const start = Date.now(); // 시작
-
-  const messageUrl = `http://localhost/api/v1/messages/send/stream/${assignedStreamId}?lifetime_seconds=3600`;
-  const messageHeaders = {
-    accept: 'application/json',
-    'Content-Type': 'application/x-www-form-urlencoded',
-    Authorization: `Bearer ${token}`,
-  };
-  const messagePayload = `message_content=${encodeURIComponent(msgContent)}`;
-
-  const messageRes = http.post(messageUrl, messagePayload, { headers: messageHeaders });
-  const msgChecks = check(messageRes, {
-    'message sent successfully': (r) => r.status === 200,
-  });
-
-  if (!msgChecks) {
-    console.error(`Message send failed. Status: ${messageRes.status}, Body: ${messageRes.body}`);
-    fail(`Message not sent successfully for user ${user.email}, stream ${assignedStreamId}`);
+  {
+    let activeUrl = `http://localhost/api/v1/stream/${assignedStreamId}/active?lifetime_seconds=3600`;
+    let activeHeaders = {
+      accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    let activeRes = http.post(activeUrl, null, { headers: activeHeaders });
+    check(activeRes, {
+      'active success': (r) => r.status === 200 || r.status === 201,
+    });
   }
 
-  const end = Date.now();
-  messageSendTime.add(end - start);
+  // ---------- (2) 메시지 전송 (시간 측정) ----------
+  {
+    const msgContent = messages[Math.floor(Math.random() * messages.length)];
+    const start = Date.now(); // 시작 시각
+
+    const messageUrl = `http://localhost/api/v1/messages/send/stream/${assignedStreamId}?lifetime_seconds=3600`;
+    const messageHeaders = {
+      accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: `Bearer ${token}`,
+    };
+    const messagePayload = `message_content=${encodeURIComponent(msgContent)}`;
+
+    const messageRes = http.post(messageUrl, messagePayload, { headers: messageHeaders });
+
+    // 서버 응답이 200이 아닐 경우 체크 실패 (하지만 fail()로 테스트 중단은 안 함)
+    const msgChecks = check(messageRes, {
+      'message sent successfully': (r) => r.status === 200,
+    });
+
+    if (!msgChecks) {
+      console.error(
+        `Message send failed. Status: ${messageRes.status}, Body: ${messageRes.body}`
+      );
+      // fail() 대신 체크만 실패 처리 -> 전체 테스트 중단 방지
+      // fail(`Message not sent successfully for user ${user.email}, stream ${assignedStreamId}`);
+    }
+
+    const end = Date.now();
+    messageSendTime.add(end - start);
+  }
 
   // ---------- (3) 스트림 비활성화 ----------
-  let deactiveUrl = `http://localhost/api/v1/stream/deactive?lifetime_seconds=3600`;
-  let deactiveHeaders = {
-    accept: 'application/json',
-    Authorization: `Bearer ${token}`,
-  };
-  let deactiveRes = http.post(deactiveUrl, null, { headers: deactiveHeaders });
-  check(deactiveRes, {
-    'deactive success': (r) => r.status === 200 || r.status === 201,
-  });
+  {
+    let deactiveUrl = `http://localhost/api/v1/stream/deactive?lifetime_seconds=3600`;
+    let deactiveHeaders = {
+      accept: 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+    let deactiveRes = http.post(deactiveUrl, null, { headers: deactiveHeaders });
+    check(deactiveRes, {
+      'deactive success': (r) => r.status === 200 || r.status === 201,
+    });
+  }
 
   // 메시지 전송 후 1초 대기
   sleep(1);

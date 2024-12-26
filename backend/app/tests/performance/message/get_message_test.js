@@ -2,13 +2,13 @@ import http from 'k6/http';
 import { check, sleep, fail } from 'k6';
 import { Trend } from 'k6/metrics';
 
-// 메시지 읽기 시간 측정용 메트릭
+// 메시지 읽기 시간 측정용 메트릭 (K6 커스텀 Trend)
 let messageReadTime = new Trend('message_read_time');
 
 // 테스트에 사용할 상수들
-const USERS_COUNT = 300;
-const STREAM_COUNT = 30;
-const USERS_PER_STREAM = USERS_COUNT / STREAM_COUNT; // 300 / 30 = 10
+const USERS_COUNT = 500;    // 500명까지 테스트
+const STREAM_COUNT = 50;    // 스트림 50개
+const USERS_PER_STREAM = USERS_COUNT / STREAM_COUNT; // 500 / 50 = 10
 
 // 테스트에 사용할 유저 정보
 const users = Array.from({ length: USERS_COUNT }, (_, i) => ({
@@ -16,14 +16,13 @@ const users = Array.from({ length: USERS_COUNT }, (_, i) => ({
   password: 'test123',
 }));
 
-// 30개의 스트림 ID (실제 사전 준비 과정에서 얻은 ID를 기입해야 함)
+// 50개의 스트림 ID (1 ~ 50까지)
 const streamIds = [
-    72101, 72102, 72103, 72104, 72105,
-    72106, 72107, 72108, 72109, 72110,
-    72111, 72112, 72113, 72114, 72115,
-    72116, 72117, 72118, 72119, 72120,
-    72121, 72122, 72123, 72124, 72125,
-    72126, 72127, 72128, 72129, 72130,
+  1,2,3,4,5,6,7,8,9,10,
+  11,12,13,14,15,16,17,18,19,20,
+  21,22,23,24,25,26,27,28,29,30,
+  31,32,33,34,35,36,37,38,39,40,
+  41,42,43,44,45,46,47,48,49,50,
 ];
 
 // k6 시나리오 옵션 설정
@@ -33,7 +32,8 @@ export let options = {
       executor: 'ramping-vus',
       startVUs: 10,
       stages: [
-        { duration: '1m', target: USERS_COUNT }, // 1분 동안 VU를 300명까지 증가
+        // 1분 동안 VU를 0 → 500명까지 점진적 증가
+        { duration: '1m', target: USERS_COUNT },
       ],
       gracefulRampDown: '0s',
     },
@@ -41,7 +41,7 @@ export let options = {
 };
 
 // 로그인 엔드포인트
-const loginUrl = 'http://localhost/api/v1/auth/jwt/login';
+const loginUrl = 'http://localhost/api/v1/auth/login';
 
 // setup 함수:
 // 모든 유저를 로그인해 tokenMap 생성
@@ -60,13 +60,16 @@ export function setup() {
     const loginRes = http.post(loginUrl, loginPayload, { headers: loginHeaders });
     const token = loginRes.json('access_token');
 
+    // 로그인 체크
     const loginChecks = check(loginRes, {
       'login successful': (res) => res.status === 200,
       'token received': () => token !== undefined,
     });
 
     if (!loginChecks) {
-      console.error(`Login failed for user ${user.email}. Status: ${loginRes.status}, Body: ${loginRes.body}`);
+      console.error(
+        `Login failed for user ${user.email}. Status: ${loginRes.status}, Body: ${loginRes.body}`
+      );
       fail(`Failed to login ${user.email}`);
     }
 
@@ -95,25 +98,17 @@ export default function (data) {
     fail(`No token found for ${user.email}`);
   }
 
-  // 첫 번째 유저(인덱스 0) 스킵 (스트림 접근 권한 문제 또는 스트림 생성자로 가정)
-  if (userIndex === 0) {
-    sleep(1);
-    return;
-  }
-
-  // 유저가 속한 스트림 인덱스 계산
+  // userIndex를 기반으로 사용자가 속한 스트림 ID 결정
   const streamIndex = Math.floor(userIndex / USERS_PER_STREAM);
   const assignedStreamId = streamIds[streamIndex];
 
   // 메시지 조회 엔드포인트
-  const readUrl = `http://localhost/api/v1/messages/stream?stream_id=${assignedStreamId}`;
+  // 예: num_before=10 (메시지 조회 시 이전 메시지 10개 불러오는 로직)
+  const readUrl = `http://localhost/api/v1/messages/stream?stream_id=${assignedStreamId}&num_before=10`;
   const readHeaders = {
-    'accept': 'application/json',
-    'Authorization': `Bearer ${token}`,
+    accept: 'application/json',
+    Authorization: `Bearer ${token}`,
   };
-
-  // 시간 측정 시작
-  const start = Date.now();
 
   // 메시지 조회 요청 (GET)
   const readRes = http.get(readUrl, { headers: readHeaders });
@@ -124,13 +119,15 @@ export default function (data) {
   });
 
   if (!readChecks) {
-    console.error(`Message read failed. Status: ${readRes.status}, Body: ${readRes.body}`);
+    console.error(
+      `Message read failed. Status: ${readRes.status}, Body: ${readRes.body}`
+    );
     fail(`Message not fetched successfully for user ${user.email}, stream ${assignedStreamId}`);
   }
 
-  // 시간 측정 종료
-  const end = Date.now();
-  messageReadTime.add(end - start);
+  // ----------- 시간 측정: K6 내장 타이밍 활용 ----------- //
+  // 요청-응답에 걸린 전체 시간(ms)을 K6가 측정해둔 res.timings.duration 값으로 수집
+  messageReadTime.add(readRes.timings.duration);
 
   // 1초 대기 후 다음 요청
   sleep(1);
