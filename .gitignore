@@ -7,3 +7,5 @@
 /backend/app/tests/performance/k6
 /backend/app/tests/performance/prepare/*
 *.pyc
+/backend/profile.html
+/backend/profile.speedscope.json
