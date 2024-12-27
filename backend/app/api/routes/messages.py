@@ -9,8 +9,8 @@ from app.core.db import get_async_session
 from app.core.exceptions import PermissionDeniedException
 from app.core.security import current_active_user
 from app.models import User
-from app.schemas.message import (MessageBase, UpdateUserMessageFlagsRequest,
-LocationBase)
+from app.schemas.message import (UpdateUserMessageFlagsRequest,
+                                 LocationBase, MessageResponse)
 from app.service.location import get_location_service, LocationService
 from app.service.message import MessageServiceProtocol, get_message_service, \
     MessageSendService, get_message_send_service
@@ -66,7 +66,7 @@ async def send_message_to_stream(
         raise HTTPException(status_code=400,
                             detail=f"Message sending failed: {str(e)}")
 
-@router.get("/stream", response_model=List[MessageBase])
+@router.get("/stream", response_model=List[MessageResponse])
 async def get_messages(
         stream_id: int,
         anchor: str = "first_unread",  # 앵커 기본값을 "first_unread"로 설정

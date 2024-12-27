@@ -11,7 +11,8 @@ from app.crud.recipient import RecipientCRUDProtocol, get_recipient_crud
 from app.crud.stream import SubscriptionCRUDProtocol, get_subscription_crud
 from app.models.message import MessageType
 from app.schemas.event import EventBase
-from app.schemas.message import MessageBase, MessageCreate, UserMessageBase
+from app.schemas.message import MessageBase, MessageCreate, UserMessageBase, \
+    MessageResponse
 from app.service.event.event_sender import EventSenderProtocol
 from app.service.event.event_strategy import SenderSelectionContext
 from app.service.event.events import EventStrategyFactory, \
@@ -111,7 +112,7 @@ class MessageServiceProtocol(Protocol):
                                   anchor: str,
                                   num_before: int,
                                   num_after: int) -> (
-            Optional)[List[MessageBase]]:
+            Optional)[List[MessageResponse]]:
         pass
 
 
@@ -129,7 +130,7 @@ class MessageService(MessageServiceProtocol):
                                   stream_id: int,
                                   anchor: str,
                                   num_before: int,
-                                  num_after: int) -> List[MessageBase]:
+                                  num_after: int) -> List[MessageResponse]:
 
         if not await self._check_stream_permission(db, user_id, stream_id):
             raise PermissionDeniedException(
@@ -151,7 +152,28 @@ class MessageService(MessageServiceProtocol):
                                            user_oldest_message.message_id)
             messages = messages[start_idx:]
 
-        return messages
+        message_ids = [msg.id for msg in messages]
+
+        unread_map: dict[int, int] = await (
+        self.user_message_crud.get_unread_counts_for_messages(db,
+        message_ids=message_ids))
+
+        response_list: List[MessageResponse] = []
+        for msg in messages:
+            unread_count = unread_map.get(msg.id, 0)
+            message_response = MessageResponse(
+                id=msg.id,
+                sender_id=msg.sender_id,
+                type=msg.type,
+                recipient_id=msg.recipient_id,
+                content=msg.content,
+                rendered_content=msg.rendered_content,
+                date_sent=msg.date_sent,
+                unread_count=unread_count
+            )
+            response_list.append(message_response)
+
+        return response_list
 
     async def mark_message_read_stream(self, db: AsyncSession, stream_id: int,
                                        user_id: int, anchor: str,

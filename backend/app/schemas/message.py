@@ -38,6 +38,8 @@ class MessageRead(BaseModel):
     rendered_content: Optional[str] = None
     date_sent: datetime
 
+class MessageResponse(MessageBase):
+    unread_count: int
 
 class UserMessageBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
