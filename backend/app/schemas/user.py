@@ -57,3 +57,6 @@ class UserFCMTokenCreate(BaseModel):
 class KakaoUserUpdate(BaseModel):  # 어떨때 BaseModel, 어떨때 schemas.BaseUserUpdate?
     name: Optional[str] = None
     gender: Optional[str] = None  # 추가
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
