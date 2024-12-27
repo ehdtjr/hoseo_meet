@@ -104,7 +104,7 @@ export default function (data) {
 
   // 메시지 조회 엔드포인트
   // 예: num_before=10 (메시지 조회 시 이전 메시지 10개 불러오는 로직)
-  const readUrl = `http://localhost/api/v1/messages/stream?stream_id=${assignedStreamId}&num_before=10`;
+  const readUrl = `http://localhost/api/v1/messages/stream?stream_id=${assignedStreamId}&num_after=10`;
   const readHeaders = {
     accept: 'application/json',
     Authorization: `Bearer ${token}`,

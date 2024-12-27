@@ -3,7 +3,7 @@ from enum import Enum as PyEnum
 from typing import List, Optional
 
 from sqlalchemy import (Boolean, Computed, DateTime, Enum, ForeignKey, Index,
-                        Integer, String)
+                        Integer, String, text)
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -67,21 +67,22 @@ class Message(Base):
 class UserMessage(Base):
     __tablename__ = "user_message"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True,
-                                    autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id",
-                                                    ondelete="CASCADE"))
-    message_id: Mapped[int] = mapped_column(
-        ForeignKey("message.id", ondelete="CASCADE"))
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
+    message_id: Mapped[int] = mapped_column(ForeignKey("message.id", ondelete="CASCADE"))
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # 관계 설정
-    user: Mapped["User"] = relationship("User",
-                                        back_populates="user_messages")
-    message: Mapped["Message"] = relationship("Message",
-                                              back_populates="user_messages")
+    user: Mapped["User"] = relationship("User", back_populates="user_messages")
+    message: Mapped["Message"] = relationship("Message", back_populates="user_messages")
 
     __table_args__ = (
-        Index("user_message_user_id_is_read_msgid_idx",
-         "user_id", "is_read", "message_id"),
+        # 기존 인덱스
+        Index("user_message_user_id_is_read_msgid_idx", "user_id", "is_read", "message_id"),
+
+        # 새 부분 인덱스 (PostgreSQL 전용), is_read = false인 행만 인덱싱
+        Index(
+            "idx_user_message_unread",
+            "message_id",
+            postgresql_where=text("is_read = false")
+        ),
     )
