@@ -1,71 +1,80 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../config.dart';
-import 'authme_service.dart';
 import '../chat/socket_message_service.dart';
-import '../../firebase/create_token.dart';
+import 'authme_service.dart';
 
 class AuthService with WidgetsBindingObserver {
+  // -------------------------------
+  // 싱글턴 패턴
+  // -------------------------------
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+
+  AuthService._internal();
+
+  // -------------------------------
+  // 필드
+  // -------------------------------
   String? _accessToken;
-  final String loginEndpoint = '${AppConfig.baseUrl}/auth/login?lifetime_seconds=3600';
+  String? _refreshToken;
   SocketMessageService? _socketMessageService;
 
-  static final AuthService _instance = AuthService._internal();
+  static const _secureStorage = FlutterSecureStorage(); // flutter_secure_storage
 
-  factory AuthService() {
-    return _instance;
-  }
+  final String _loginEndpoint = '${AppConfig.baseUrl}/auth/login?lifetime_seconds=3600';
+  final String _refreshEndpoint = '${AppConfig.baseUrl}/auth/refresh';
 
-  AuthService._internal() {
+  // -------------------------------
+  // init() -> SplashScreen에서 호출하여 토큰 복원
+  // -------------------------------
+  Future<void> init() async {
     WidgetsBinding.instance.addObserver(this);
-    _restoreToken(); // 앱 시작 시 토큰을 복원
+    await restoreRefreshToken(); // 기존에 private이었던 메서드를 public으로 변경 & await
   }
 
-  // 앱 시작 시 저장된 토큰 복원
-  Future<void> _restoreToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    _accessToken = prefs.getString('access_token');
-
-    // 토큰이 존재할 경우 로그인 상태로 유지하지만 소켓 연결은 하지 않음
-    if (_accessToken != null) {
-      print('Token restored from local storage, but socket connection will only initialize on login.');
-    }
-  }
-
-  // 소켓 서비스 초기화 메서드 (로그인 성공 시에만 호출)
-  Future<void> _initializeSocketService() async {
-    if (_accessToken != null && _socketMessageService == null) {
-      _socketMessageService = SocketMessageService(_accessToken!);
-      await _socketMessageService?.connectWebSocket();
-    }
-  }
-
-  // 백그라운드로 이동 시 토큰을 저장하고 소켓 종료
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      _saveToken(); // 앱이 백그라운드로 이동할 때 토큰을 저장
-      _socketMessageService?.closeWebSocket(); // WebSocket 종료
-    } else if (state == AppLifecycleState.resumed && _accessToken != null) {
-      // 앱이 다시 포그라운드로 돌아오면 토큰이 있을 때만 WebSocket 재연결
-      _initializeSocketService(); // 로그인 상태일 때만 WebSocket을 재연결
+      // 백그라운드 -> 소켓 닫기
+      _socketMessageService?.closeWebSocket();
+    } else if (state == AppLifecycleState.resumed) {
+      // 포어그라운드 -> 토큰 있으면 소켓 연결
+      if (_accessToken != null) {
+        _initializeSocketService();
+      }
     }
   }
 
-  Future<void> _saveToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (_accessToken != null) {
-      await prefs.setString('access_token', _accessToken!);
+  // -------------------------------
+  // (A) Refresh Token 복원 (public)
+  // -------------------------------
+  Future<void> restoreRefreshToken() async {
+    try {
+      final token = await _secureStorage.read(key: 'refresh_token');
+      if (token != null) {
+        _refreshToken = token;
+        print('[AuthService] Refresh Token restored: $_refreshToken');
+      } else {
+        print('[AuthService] No refresh token found in storage');
+      }
+    } catch (e) {
+      print('[AuthService] Failed to read refresh token: $e');
     }
   }
 
+  // -------------------------------
+  // (B) 로그인 로직
+  // -------------------------------
   Future<http.Response> loginUser({
     required String username,
     required String password,
   }) async {
-    final Map<String, String> requestData = {
+    print('[AuthService] loginUser() - username=$username');
+    final requestData = {
       'grant_type': 'password',
       'username': username,
       'password': password,
@@ -75,51 +84,120 @@ class AuthService with WidgetsBindingObserver {
     };
 
     final response = await http.post(
-      Uri.parse(loginEndpoint),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
+      Uri.parse(_loginEndpoint),
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: requestData,
     );
 
+    print('[AuthService] loginUser() -> code=${response.statusCode}');
     if (response.statusCode == 200) {
-      final responseBody = jsonDecode(response.body);
-      _accessToken = responseBody['access_token'];
+      final body = jsonDecode(response.body);
+      _accessToken = body['access_token'];
+      _refreshToken = body['refresh_token'];
 
-      // 로그인 성공 시 토큰 저장
-      _saveToken();
+      print('[AuthService] parsed tokens: access=$_accessToken, refresh=$_refreshToken');
 
+      // refresh 토큰 저장
+      if (_refreshToken != null) {
+        await _saveRefreshToken(_refreshToken!);
+      }
+
+      // 유저 정보 조회
       final authMeService = AuthMeService(_accessToken!);
       await authMeService.fetchAndStoreUserId();
 
-      // 로그인 성공 후 소켓 서비스 초기화 및 연결
+      // 소켓 연결
       await _initializeSocketService();
-
-      // 로그인 성공 시 FCM 토큰 발급
-      String? fcmToken = await TokenManager.createToken(); // FCM 토큰 발급 호출
-
-      // FCM 토큰이 정상적으로 발급되었는지 확인
-      if (fcmToken != null) {
-        print("로그인 후 FCM 토큰: $fcmToken");
-      } else {
-        print("FCM 토큰 발급 실패 또는 null 반환");
-      }
+    } else {
+      print('[AuthService] loginUser failed: ${response.body}');
     }
 
     return response;
   }
 
-  // 소켓 메시지 스트림 접근을 위한 메서드
+  // -------------------------------
+  // (C) Refresh Token 재발급 (자동로그인)
+  // -------------------------------
+  Future<bool> refreshAccessToken() async {
+    if (_refreshToken == null) {
+      print('[AuthService] refreshAccessToken() -> no refresh token available');
+      return false;
+    }
+
+    try {
+      print('[AuthService] Attempting to refresh token=$_refreshToken');
+      final response = await http.post(
+        Uri.parse(_refreshEndpoint),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"refresh_token": _refreshToken}),
+      );
+      print('[AuthService] refresh code: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _accessToken = data['access_token'];
+        final newRefresh = data['refresh_token'];
+        if (newRefresh != null) {
+          _refreshToken = newRefresh;
+          await _saveRefreshToken(newRefresh);
+        }
+        print('[AuthService] Access token refreshed successfully: $_accessToken');
+        await _initializeSocketService();
+        return true;
+      } else {
+        print('[AuthService] refresh failed: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('[AuthService] Exception in refreshAccessToken: $e');
+      return false;
+    }
+  }
+
+  // -------------------------------
+  // (D) Refresh Token 저장
+  // -------------------------------
+  Future<void> _saveRefreshToken(String token) async {
+    try {
+      print('[AuthService] _saveRefreshToken called with $token');
+      await _secureStorage.write(key: 'refresh_token', value: token);
+      print('[AuthService] Refresh Token saved');
+    } catch (e) {
+      print('[AuthService] Failed to save refresh token: $e');
+    }
+  }
+
+  // -------------------------------
+  // (E) 소켓 연결
+  // -------------------------------
+  Future<void> _initializeSocketService() async {
+    if (_accessToken != null && _socketMessageService == null) {
+      _socketMessageService = SocketMessageService(_accessToken!);
+      await _socketMessageService?.connectWebSocket();
+      print('[AuthService] WebSocket connected');
+    } else if (_accessToken != null && _socketMessageService != null) {
+      // 이미 소켓 객체 존재 -> 필요 시 재연결
+      print('[AuthService] SocketMessageService already exists');
+    }
+  }
+
+  // -------------------------------
+  // (F) WebSocket 메세지 스트림
+  // -------------------------------
   Stream<Map<String, dynamic>> get messageStream =>
       _socketMessageService?.messageStream ?? Stream.empty();
 
-  // SocketMessageService 인스턴스를 외부에서 접근할 수 있도록 메서드 추가
-  SocketMessageService? get socketMessageService => _socketMessageService;
-
+  // -------------------------------
+  // (G) Getter
+  // -------------------------------
   String? get accessToken => _accessToken;
+  String? get refreshToken => _refreshToken;
 
+  // -------------------------------
+  // (H) 종료
+  // -------------------------------
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _socketMessageService?.closeWebSocket(); // WebSocket 종료
+    _socketMessageService?.closeWebSocket();
   }
 }
