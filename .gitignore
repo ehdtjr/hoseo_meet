@@ -9,3 +9,4 @@
 *.pyc
 /backend/profile.html
 /backend/profile.speedscope.json
+/backend/celerybeat-schedule
