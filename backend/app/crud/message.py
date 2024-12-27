@@ -204,7 +204,7 @@ class UserMessageCRUDProtocol:
     async def mark_stream_messages_read(self, db: AsyncSession, user_id: int,
                                         stream_id: int, anchor_id: int,
                                         num_before: int,
-                                        num_after: int) -> None:
+                                        num_after: int) -> List[int]:
         pass
 
     async def get_unread_counts_for_messages(
@@ -344,20 +344,28 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
         unread_count = result.scalar() or 0  # 결과 없으면 0으로 처리
         return unread_count
 
-    async def mark_stream_messages_read(self, db: AsyncSession, user_id: int,
-                                        stream_id: int, anchor_id: int,
-                                        num_before: int, num_after: int) -> None:
+    async def mark_stream_messages_read(
+        self,
+        db: AsyncSession,
+        user_id: int,
+        stream_id: int,
+        anchor_id: int,
+        num_before: int,
+        num_after: int
+    ) -> List[int]:
         """
-        특정 유저의 특정 스트림에서 앵커를 기준으로 일정 범위의 메시지를 읽음으로 표시하는 함수.
+        특정 유저의 특정 스트림에서 앵커를 기준으로 일정 범위의 메시지를 읽음으로 표시.
+        업데이트된 메시지의 message_id 목록을 반환.
         """
-        # 앵커 이전 메시지들 가져오기 (num_before 개수)
+
+        # 1) 앵커 이전 메시지 (num_before 개수)
         before_query = (
             select(Message.id)
-            .join(Recipient, Message.recipient_id == Recipient.id)  # Recipient 테이블과 조인
+            .join(Recipient, Message.recipient_id == Recipient.id)
             .where(
-                Recipient.type == RecipientType.STREAM.value,  # 스트림 타입 필터링
-                Recipient.type_id == stream_id,  # stream_id와 일치하는지 확인
-                Message.id < anchor_id  # 앵커보다 이전 메시지
+                Recipient.type == RecipientType.STREAM.value,
+                Recipient.type_id == stream_id,
+                Message.id < anchor_id
             )
             .order_by(Message.id.desc())
             .limit(num_before)
@@ -365,14 +373,14 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
         before_message_ids_result = await db.execute(before_query)
         before_message_ids = before_message_ids_result.scalars().all()
 
-        # 앵커 이후 메시지들 가져오기 (num_after 개수)
+        # 2) 앵커 이후 메시지 (num_after 개수)
         after_query = (
             select(Message.id)
-            .join(Recipient, Message.recipient_id == Recipient.id)  # Recipient 테이블과 조인
+            .join(Recipient, Message.recipient_id == Recipient.id)
             .where(
-                Recipient.type == RecipientType.STREAM.value,  # 스트림 타입 필터링
-                Recipient.type_id == stream_id,  # stream_id와 일치하는지 확인
-                Message.id > anchor_id  # 앵커보다 이후 메시지
+                Recipient.type == RecipientType.STREAM.value,
+                Recipient.type_id == stream_id,
+                Message.id > anchor_id
             )
             .order_by(Message.id.asc())
             .limit(num_after)
@@ -380,20 +388,29 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
         after_message_ids_result = await db.execute(after_query)
         after_message_ids = after_message_ids_result.scalars().all()
 
-        # 이전 메시지들 + 앵커 메시지 + 이후 메시지들의 ID 목록
+        # 3) 이전 메시지들 + 앵커 메시지 + 이후 메시지들의 ID 합치기
         message_ids = list(before_message_ids) + [anchor_id] + list(after_message_ids)
+        if not message_ids:
+            return []
 
-        # UserMessage 테이블 업데이트 (읽음 표시)
+        # 4) UserMessage에서 아직 안 읽은(is_read=False) 것만 읽음 처리
         stmt = (
             update(UserMessage)
             .where(
-                UserMessage.user_id == user_id,  # 해당 유저의 메시지
-                UserMessage.message_id.in_(message_ids)  # 조회한 메시지 목록에 해당하는 것
+                UserMessage.user_id == user_id,
+                UserMessage.message_id.in_(message_ids),
+                UserMessage.is_read == False  # 이미 읽은 메시지 제외
             )
-            .values(is_read=True)  # 읽음으로 표시
+            .values(is_read=True)
+            .returning(UserMessage.message_id)  # 업데이트된 message_id 반환
         )
-        await db.execute(stmt)
+        result = await db.execute(stmt)
+        updated_ids = result.scalars().all()
+
         await db.commit()
+
+        # 실제로 새롭게 읽힘 처리된 message_id 리스트를 반환
+        return list(updated_ids)
 
     async def get_unread_counts_for_messages(
         self,

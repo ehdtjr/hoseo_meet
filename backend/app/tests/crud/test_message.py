@@ -623,14 +623,16 @@ class TestUserMessageCRUD(BaseTest):
         user_message_crud = get_user_message_crud()
         message_crud = get_message_crud()
         stream_id = 4
-        recipient_data = RecipientCreate(type=RecipientType.STREAM,
-                                         type_id=stream_id)
+
+        # 스트림 생성
+        recipient_data = RecipientCreate(type=RecipientType.STREAM, type_id=stream_id)
         recipient = Recipient(**recipient_data.model_dump())
         self.db.add(recipient)
         await self.db.commit()
         await self.db.refresh(recipient)
-        recipient_id = recipient.id  # Save recipient ID for use in tests
+        recipient_id = recipient.id
 
+        # 메시지 5개 생성 & UserMessage 전부 is_read=False
         messages = []
         for i in range(1, 6):
             message_data = MessageCreate(
@@ -643,7 +645,6 @@ class TestUserMessageCRUD(BaseTest):
             created_message = await message_crud.create(self.db, message_data)
             messages.append(created_message)
 
-            # Create UserMessage
             user_message_data = UserMessageCreate(
                 user_id=self.user_id,
                 message_id=created_message.id,
@@ -651,33 +652,43 @@ class TestUserMessageCRUD(BaseTest):
             )
             await user_message_crud.create(self.db, user_message_data)
 
-        # 특정 앵커 메시지와 범위 지정
-        anchor_id = messages[2].id  # 3번째 메시지를 앵커로 설정
+        # 앵커: 3번째 메시지
+        anchor_id = messages[2].id  # messages[2] → ID
         num_before = 2
         num_after = 2
 
         # when
-        await user_message_crud.mark_stream_messages_read(self.db,
-                                                          user_id=self.user_id,
-                                                          stream_id=stream_id,
-                                                          anchor_id=anchor_id,
-                                                          num_before=num_before,
-                                                          num_after=num_after)
+        updated_ids = await user_message_crud.mark_stream_messages_read(
+            db=self.db,
+            user_id=self.user_id,
+            stream_id=stream_id,
+            anchor_id=anchor_id,
+            num_before=num_before,
+            num_after=num_after
+        )
 
-        # 범위 내 모든 메시지가 읽음 처리되었는지 확인
-        anchor_index = next(
-            i for i, msg in enumerate(messages) if msg.id == anchor_id)
-        start_index = max(0, anchor_index - num_before)
-        end_index = min(len(messages), anchor_index + num_after + 1)
+        # then
+        # 1) 앵커 전후 2개씩 + 앵커 → 총 5개가 업데이트 대상
+        # 2) 모두 원래 is_read=False였으므로, 전부 is_read=True가 됨
+        self.assertEqual(len(updated_ids), 5)  # 5개 모두 업데이트 됨
 
+        # 메시지 목록 중 앵커 앞뒤 2개 + 앵커 메시지를 추출
+        anchor_index = 2  # messages[2]가 앵커
+        start_index = max(0, anchor_index - num_before)  # 0
+        end_index = min(len(messages), anchor_index + num_after + 1)  # 5
         messages_to_check = messages[start_index:end_index]
 
-        # 결과 검증 - 범위 내 모든 메시지가 읽음 처리되었는지 확인
-        for message in messages_to_check:
-            user_message_result = await self.db.execute(
+        # 반환된 updated_ids와, 실제 대상 메시지들의 ID가 일치하는지
+        expected_ids = [m.id for m in messages_to_check]
+        self.assertEqual(set(updated_ids), set(expected_ids))
+
+        # 실제 DB에서 is_read 상태 확인
+        for msg in messages_to_check:
+            user_msg_result = await self.db.execute(
                 select(UserMessage).where(UserMessage.user_id == self.user_id,
-                                          UserMessage.message_id == message.id)
+                                          UserMessage.message_id == msg.id)
             )
-            user_message = user_message_result.scalar_one_or_none()
-            self.assertIsNotNone(user_message)
-            self.assertTrue(user_message.is_read)
+            user_message_row = user_msg_result.scalar_one_or_none()
+            self.assertIsNotNone(user_message_row)
+            self.assertTrue(user_message_row.is_read)
+

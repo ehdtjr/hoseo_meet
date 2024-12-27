@@ -6,7 +6,8 @@ from app.core.db import get_async_session
 from app.core.exceptions import PermissionDeniedException
 from app.core.security import current_active_user
 from app.main import app
-from app.service.message import MessageServiceProtocol, get_message_service
+from app.service.message import MessageServiceProtocol, get_message_service, \
+    MessageSendServiceProtocol, get_message_send_service
 from app.tests.conftest import BaseTest, override_get_db
 
 
@@ -46,9 +47,14 @@ class TestSendMessageToStream(BaseTest):
         mock_message_service.send_message_stream = AsyncMock(return_value=None)
         return mock_message_service
 
+    def get_mock_message_send_service(self):
+        mock_message_send_service = AsyncMock(spec=MessageSendServiceProtocol)
+        mock_message_send_service.send_message_stream = AsyncMock(return_value=None)
+        return mock_message_send_service
+
     async def test_send_message_to_stream(self):
         # Mock 서비스 인스턴스를 호출
-        mock_message_service = self.get_mock_message_service()
+        mock_message_sernd_service = self.get_mock_message_send_service()
 
         # 정상적인 메시지 전송을 테스트
         async with AsyncClient(
@@ -58,7 +64,7 @@ class TestSendMessageToStream(BaseTest):
                 current_active_user] = self.override_current_user
             app.dependency_overrides[get_async_session] = override_get_db
             app.dependency_overrides[
-                get_message_service] = lambda: mock_message_service
+                get_message_send_service] = lambda: mock_message_sernd_service
 
             stream_id = 1
             message_content = "Hello, Stream!"
