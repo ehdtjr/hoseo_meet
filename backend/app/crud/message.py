@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 from typing import Optional
 
 from sqlalchemy import func
@@ -207,6 +207,12 @@ class UserMessageCRUDProtocol:
                                         num_after: int) -> None:
         pass
 
+    async def get_unread_counts_for_messages(
+        self,
+        db: AsyncSession,
+        message_ids: List[int]) -> Dict[int, int]:
+        pass
+
 
 class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
                       UserMessageCRUDProtocol):
@@ -389,6 +395,28 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
         await db.execute(stmt)
         await db.commit()
 
+    async def get_unread_counts_for_messages(
+        self,
+        db: AsyncSession,
+        message_ids: List[int]) -> Dict[int, int]:
+
+        if not message_ids:
+            return {}
+
+        query = (
+            select(
+                UserMessage.message_id,
+                func.count(UserMessage.id).label("unread_count")
+                )
+                .where(
+                    UserMessage.message_id.in_(message_ids),
+                    UserMessage.is_read == False,
+                ).group_by(UserMessage.message_id)
+        )
+        result = await db.execute(query)
+        row = result.all()
+        unread_map = {r.message_id: r.unread_count for r in row}
+        return unread_map
 
 
 def get_user_message_crud() -> UserMessageCRUDProtocol:
