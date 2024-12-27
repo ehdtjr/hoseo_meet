@@ -1,35 +1,23 @@
-from app.service.auth import CustomJWTStrategy, RedisTokenStorage
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi_users import models
+from fastapi_users.manager import BaseUserManager
+from fastapi_users.router.common import ErrorCode
+
+from app.core.security import fastapi_users
 from app.core.security import (
-    auth_backend,
     get_custom_jwt_strategy,
     get_redis_token_storage,
 )
-from app.service.email import EmailVerificationService, get_email_verification_service
-from app.schemas.user import UserRead, UserCreate, UserUpdate
-from app.core.security import fastapi_users
-from app.service.user import UserManager, get_user_manager
-from typing import Optional
+from app.schemas.user import UserRead, UserCreate, RefreshTokenRequest
 from app.schemas.user import UserUpdate
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import APIKeyHeader, OAuth2PasswordRequestForm
-from app.schemas.auth import Token
-from fastapi_users.manager import BaseUserManager
-from fastapi_users import models
-from fastapi_users.router.common import ErrorCode
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi_users.jwt import decode_jwt
-from app.core.config import settings
-from app.core.redis import redis_client
-import jwt
+from app.service.auth import CustomJWTStrategy, RedisTokenStorage
+from app.service.email import EmailVerificationService, \
+    get_email_verification_service
+from app.service.user import UserManager, get_user_manager
 
 router = APIRouter()
 
-# Access Token을 위한 헤더
-access_token_header = APIKeyHeader(name="access_token", auto_error=False)
-
-# Refresh Token을 위한 커스텀 헤더
-refresh_token_header = APIKeyHeader(name="refresh_token", auto_error=False)
 
 
 # 이메일 인증
@@ -83,21 +71,12 @@ async def login(
 # 로그아웃
 @router.post("/logout", tags=["auth"])
 async def logout(
-    access_token: str = Depends(access_token_header),
-    refresh_token: str = Depends(refresh_token_header),
+    data: RefreshTokenRequest,
     redis_storage: RedisTokenStorage = Depends(get_redis_token_storage),
     jwt_strategy: CustomJWTStrategy = Depends(get_custom_jwt_strategy),
 ):
     try:
-        # Access Token 검증 (유효성 체크만)
-        access_token = access_token.split(" ")[1]
-        await jwt_strategy.decode_token(access_token)
-
-        # Refresh Token 검증 및 사용자 ID 추출
-        refresh_token = refresh_token.split(" ")[1]
-        user_id = await jwt_strategy.validate_refresh_token(refresh_token)
-
-        # Redis에서 Refresh Token 삭제
+        user_id = await jwt_strategy.validate_refresh_token(data.refresh_token)
         await redis_storage.delete_token(user_id)
 
         return {"message": "Logout successful"}
@@ -106,7 +85,7 @@ async def logout(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred",
@@ -116,13 +95,12 @@ async def logout(
 # Access Token, Refresh Token 갱신
 @router.post("/refresh", tags=["auth"])
 async def refresh_token(
-    refresh_token: str = Depends(refresh_token_header),
+    data: RefreshTokenRequest,
     user_manager: BaseUserManager[models.UP, models.ID] = Depends(get_user_manager),
     jwt_strategy: CustomJWTStrategy = Depends(get_custom_jwt_strategy),
 ):
     try:
-        refresh_token = refresh_token.split(" ")[1]
-        user_id = await jwt_strategy.validate_refresh_token(refresh_token)
+        user_id = await jwt_strategy.validate_refresh_token(data.refresh_token)
 
         user = await user_manager.get(int(user_id))
         if user is None or not user.is_active:
@@ -138,36 +116,6 @@ async def refresh_token(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
-
-
-# JWT 토큰 디코딩 테스트용
-@router.get("/decode", tags=["auth"])
-async def decode_jwt_token(
-    authorization: Optional[str] = Depends(
-        access_token_header
-    ),  # Authorization 헤더에서 JWT 토큰 추출
-):
-
-    token = authorization.split(" ")[1]
-
-    try:
-        # JWT 디코딩
-        payload = decode_jwt(
-            token,
-            secret=settings.SECRET_KEY,
-            audience=["fastapi-users:auth"],
-            algorithms=["HS256"],
-        )
-        return {"message": "Token decoded successfully", "payload": payload}
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired"
-        )
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
 
 
