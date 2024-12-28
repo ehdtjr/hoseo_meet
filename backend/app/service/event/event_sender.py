@@ -21,11 +21,13 @@ class EventSenderProtocol:
     async def send_event(self, user_id: int, event_data: EventBase):
         pass
 
+
 class WebSocketEventSender(EventSenderProtocol):
     async def send_event(self, user_id: int, event_data: EventBase):
         if not event_data:
             raise ValueError("이벤트 데이터가 비어 있거나 유효하지 않습니다")
         await redis_client.redis.xadd(f"queue:{user_id}", event_data.to_str_dict())
+
 
 class FCMEventSender(EventSenderProtocol):
     def __init__(self, fcm_token: Optional[str]):
