@@ -43,7 +43,7 @@ class SocketMessageService {
       } catch (error) {
         retryCount++;
         print('WebSocket 연결 실패: $error. 재시도 중... ($retryCount/$maxRetries)');
-        await Future.delayed(Duration(seconds: 2)); // 2초 후에 다시 시도
+        await Future.delayed(const Duration(seconds: 2)); // 2초 후에 다시 시도
       }
     }
 
@@ -58,12 +58,14 @@ class SocketMessageService {
       final decodedData = jsonDecode(data);
       print('수신한 메시지: $decodedData');
 
-      if (decodedData['type'] == 'stream' && decodedData['data'] != null) {
-        // 'type'이 'stream'일 때, 'data' 필드의 전체를 스트림으로 전달
-        _messageStreamController.add(decodedData['data']);
-        print('스트림 데이터 추가: ${decodedData['data']}');
+      // (A) 기존처럼 'type'이 'stream'인지 여부만 확인하는 것이 아니라,
+      // 메시지가 Map 형태인지(키-값 형태인지) 확인한 뒤 전체를 스트림으로 보내도록 수정
+      if (decodedData is Map<String, dynamic>) {
+        // 서버가 보내주는 type: read, stream, typing 등
+        // 어떤 유형이든, 전부 컨트롤러로 전달
+        _messageStreamController.add(decodedData);
       } else {
-        print('유효하지 않은 메시지 형식');
+        print('유효하지 않은 메시지 형식 (Map 형태가 아님)');
       }
     } catch (error) {
       print('메시지 처리 중 오류 발생: $error');
