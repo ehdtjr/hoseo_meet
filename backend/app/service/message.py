@@ -94,7 +94,7 @@ class MessageServiceProtocol(Protocol):
     async def mark_message_read_stream(self, db: AsyncSession, stream_id: int,
                                        user_id: int, anchor: str,
                                        num_before: int,
-                                       num_after: int) -> None:
+                                       num_after: int) -> List[int]:
         pass
 
     async def get_stream_messages(self, db: AsyncSession,
@@ -172,7 +172,7 @@ class MessageService(MessageServiceProtocol):
                                        user_id: int,
                                        anchor: str,
                                        num_before: int,
-                                       num_after: int) -> None:
+                                       num_after: int) -> List[int]:
         if not await self._check_stream_permission(db, user_id, stream_id):
             raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -202,6 +202,8 @@ class MessageService(MessageServiceProtocol):
                                              user_ids=subscribers,
                                              stream_id=stream_id,
                                              event_data=event)
+
+        return read_messages
 
     async def _check_stream_permission(self,
                                        db: AsyncSession,

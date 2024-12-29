@@ -58,8 +58,10 @@ class EventDispatcher:
                 event=event_data
             )
             strategy = self.event_strategy_factory.get_strategy(event_data.type)
-            event_sender: EventSenderProtocol = await strategy.get_sender(db, context)
-            await event_sender.send_event(user_id=user_id, event_data=event_data)
+            event_sender: EventSenderProtocol = await strategy.get_sender(
+                db, context)
+            await event_sender.send_event(user_id=user_id,
+                                          event_data=event_data)
 
 
 def get_event_dispatcher(
