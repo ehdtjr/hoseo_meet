@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../config.dart'; // config 파일 import
-import '../login/login_service.dart'; // 로그인 서비스 파일 import
+import '../../config.dart';
+import '../login/login_service.dart'; // AuthService
 
 class LoadMessageService {
   final String messageEndpoint = '${AppConfig.baseUrl}/messages/stream';
@@ -9,39 +9,34 @@ class LoadMessageService {
 
   LoadMessageService(this._authService);
 
-  // 메시지를 불러오는 함수
-  Future<List<dynamic>> loadMessages(int streamId) async {
-    // 저장된 토큰을 가져옵니다.
-    String? token = _authService.accessToken;
+  /// 메시지를 불러오는 함수
+  /// - [anchor]: 기본 'first_unread' 이지만, 특정 messageId 등으로 설정 가능
+  /// - [numBefore], [numAfter]: 불러올 이전/이후 메시지 개수
+  Future<List<dynamic>> loadMessages({
+    required int streamId,
+    String anchor = 'first_unread', // 처음 진입 시, 안 읽은 메시지를 중심으로 로딩 가능
+    int numBefore = 10,
+    int numAfter = 30,
+  }) async {
+    final url = '$messageEndpoint'
+        '?stream_id=$streamId'
+        '&anchor=$anchor'
+        '&num_before=$numBefore'
+        '&num_after=$numAfter';
 
-    if (token == null) {
-      throw Exception('로그인 토큰이 없습니다. 로그인이 필요합니다.');
-    }
-
-    // 요청 헤더 설정 (Bearer 토큰 추가)
-    final headers = {
-      'accept': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-
-    // 요청 URL 설정
-    final url =
-        '$messageEndpoint?stream_id=$streamId&anchor=first_unread&num_before=100&num_after=100';
-
-    // GET 요청 보내기
-    final response = await http.get(
-      Uri.parse(url),
-      headers: headers,
-    );
+    // AuthService 내부에 getRequest가 있다고 가정 (401 시 자동 리프레시 처리)
+    final http.Response response = await _authService.getRequest(url);
 
     if (response.statusCode == 200) {
-      // 응답을 UTF-8로 디코딩
-      final responseData = utf8.decode(response.bodyBytes);
-      final List<dynamic> decodedData = jsonDecode(responseData);
-
-      return decodedData;
+      final decoded = jsonDecode(
+        utf8.decode(response.bodyBytes),
+      );
+      // 서버가 List 형태를 반환한다고 가정
+      return decoded as List<dynamic>;
     } else {
-      throw Exception('메시지를 불러오는데 실패했습니다: ${response.statusCode}');
+      throw Exception(
+        '메시지를 불러오는데 실패했습니다: ${response.statusCode}, 응답: ${response.body}',
+      );
     }
   }
 }

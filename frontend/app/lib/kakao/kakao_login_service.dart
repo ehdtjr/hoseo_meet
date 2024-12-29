@@ -17,8 +17,8 @@ class KakaoLoginService {
       }
 
       // 로그인 성공 시 토큰 정보를 안전하게 저장
-      if (token.accessToken != null && token.refreshToken != null) {
-        await _storeToken(token.accessToken!, token.refreshToken!);
+      if (token.refreshToken != null) {
+        await _storeToken(token.accessToken, token.refreshToken!);
       } else {
         print("토큰 정보가 없습니다.");
         return false;

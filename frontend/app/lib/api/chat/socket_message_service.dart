@@ -58,16 +58,6 @@ class SocketMessageService {
       final decodedData = jsonDecode(data);
       print('수신한 메시지: $decodedData');
 
-      // 서버에서 보내는 JSON 예시:
-      // {
-      //   "type": "stream",
-      //   "data": {
-      //     "id": 1926,
-      //     "stream_id": 27,
-      //     "sender_id": 5,
-      //     ...
-      //   }
-      // }
       if (decodedData['type'] == 'stream' && decodedData['data'] != null) {
         // 'type'이 'stream'일 때, 'data' 필드의 전체를 스트림으로 전달
         _messageStreamController.add(decodedData['data']);

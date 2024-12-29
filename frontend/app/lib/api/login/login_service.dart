@@ -1,19 +1,16 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config.dart';
-import '../chat/socket_message_service.dart';
 import 'authme_service.dart';
 
-class AuthService with WidgetsBindingObserver {
+class AuthService {
   // -------------------------------
   // 싱글턴 패턴
   // -------------------------------
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
-
   AuthService._internal();
 
   // -------------------------------
@@ -21,7 +18,6 @@ class AuthService with WidgetsBindingObserver {
   // -------------------------------
   String? _accessToken;
   String? _refreshToken;
-  SocketMessageService? _socketMessageService;
 
   static const _secureStorage = FlutterSecureStorage(); // flutter_secure_storage
 
@@ -32,25 +28,11 @@ class AuthService with WidgetsBindingObserver {
   // init() -> SplashScreen에서 호출하여 토큰 복원
   // -------------------------------
   Future<void> init() async {
-    WidgetsBinding.instance.addObserver(this);
-    await restoreRefreshToken(); // 기존에 private이었던 메서드를 public으로 변경 & await
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
-      // 백그라운드 -> 소켓 닫기
-      _socketMessageService?.closeWebSocket();
-    } else if (state == AppLifecycleState.resumed) {
-      // 포어그라운드 -> 토큰 있으면 소켓 연결
-      if (_accessToken != null) {
-        _initializeSocketService();
-      }
-    }
+    await restoreRefreshToken();
   }
 
   // -------------------------------
-  // (A) Refresh Token 복원 (public)
+  // (A) Refresh Token 복원
   // -------------------------------
   Future<void> restoreRefreshToken() async {
     try {
@@ -105,9 +87,6 @@ class AuthService with WidgetsBindingObserver {
       // 유저 정보 조회
       final authMeService = AuthMeService(_accessToken!);
       await authMeService.fetchAndStoreUserId();
-
-      // 소켓 연결
-      await _initializeSocketService();
     } else {
       print('[AuthService] loginUser failed: ${response.body}');
     }
@@ -142,7 +121,6 @@ class AuthService with WidgetsBindingObserver {
           await _saveRefreshToken(newRefresh);
         }
         print('[AuthService] Access token refreshed successfully: $_accessToken');
-        await _initializeSocketService();
         return true;
       } else {
         print('[AuthService] refresh failed: ${response.body}');
@@ -168,36 +146,108 @@ class AuthService with WidgetsBindingObserver {
   }
 
   // -------------------------------
-  // (E) 소켓 연결
+  // (E) 자동 토큰 갱신을 위한 공통 요청 메서드 예시
   // -------------------------------
-  Future<void> _initializeSocketService() async {
-    if (_accessToken != null && _socketMessageService == null) {
-      _socketMessageService = SocketMessageService(_accessToken!);
-      await _socketMessageService?.connectWebSocket();
-      print('[AuthService] WebSocket connected');
-    } else if (_accessToken != null && _socketMessageService != null) {
-      // 이미 소켓 객체 존재 -> 필요 시 재연결
-      print('[AuthService] SocketMessageService already exists');
+
+  /// GET 요청 시도 -> 401이면 refresh 후 재시도
+  Future<http.Response> getRequest(String url) async {
+    // 1) 엑세스 토큰을 헤더에 넣어서 GET
+    final headers = {
+      'Authorization': 'Bearer $_accessToken',
+      'Content-Type': 'application/json',
+    };
+
+    final response = await http.get(Uri.parse(url), headers: headers);
+
+    // 2) 401(Unauthorized)라면 -> 토큰 재발급 시도 후 재요청
+    if (response.statusCode == 401) {
+      final refreshed = await refreshAccessToken();
+      if (refreshed) {
+        // 토큰 재발급 성공 -> 새 토큰으로 재시도
+        final retryHeaders = {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        };
+        return await http.get(Uri.parse(url), headers: retryHeaders);
+      }
     }
+
+    return response;
   }
 
-  // -------------------------------
-  // (F) WebSocket 메세지 스트림
-  // -------------------------------
-  Stream<Map<String, dynamic>> get messageStream =>
-      _socketMessageService?.messageStream ?? Stream.empty();
+  /// POST 요청 시도 -> 401이면 refresh 후 재시도
+  Future<http.Response> postRequest(String url, Map<String, dynamic> body) async {
+    final headers = {
+      'Authorization': 'Bearer $_accessToken',
+      'Content-Type': 'application/json',
+    };
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: headers,
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 401) {
+      final refreshed = await refreshAccessToken();
+      if (refreshed) {
+        final retryHeaders = {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/json',
+        };
+        return await http.post(
+          Uri.parse(url),
+          headers: retryHeaders,
+          body: jsonEncode(body),
+        );
+      }
+    }
+
+    return response;
+  }
+  Future<http.Response> postRequestFormUrlEncoded(String url, Map<String, String> formFields) async {
+    final headers = {
+      'Authorization': 'Bearer $_accessToken',
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    // 1) 첫 번째 요청
+    var response = await http.post(
+      Uri.parse(url),
+      headers: headers,
+      body: formFields, // formFields: Map<String, String>
+    );
+
+    // 2) 401 -> 토큰 리프레시 + 재시도
+    if (response.statusCode == 401) {
+      final refreshed = await refreshAccessToken();
+      if (refreshed) {
+        final retryHeaders = {
+          'Authorization': 'Bearer $_accessToken',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        };
+        response = await http.post(
+          Uri.parse(url),
+          headers: retryHeaders,
+          body: formFields,
+        );
+      }
+    }
+
+    return response;
+  }
+
 
   // -------------------------------
-  // (G) Getter
+  // (F) Getter
   // -------------------------------
   String? get accessToken => _accessToken;
   String? get refreshToken => _refreshToken;
 
   // -------------------------------
-  // (H) 종료
+  // (G) 종료
   // -------------------------------
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _socketMessageService?.closeWebSocket();
+    print('[AuthService] dispose() called');
   }
 }

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../config.dart'; // config 파일 import
 
-class AuthService {
+class RegistrationService {
   final String registerEndpoint = '${AppConfig.baseUrl}/auth/register'; // baseUrl + 엔드포인트
 
   // 회원가입 요청 함수

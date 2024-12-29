@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../api/login/signup_service.dart';
 
 class SignUpDetailsPage extends StatefulWidget {
@@ -11,7 +12,9 @@ class _SignUpDetailsPageState extends State<SignUpDetailsPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
   String? _gender; // 성별 저장
-  final AuthService _authService = AuthService();
+
+  // 변경 포인트: AuthService -> RegistrationService
+  final RegistrationService _registrationService = RegistrationService();
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +90,7 @@ class _SignUpDetailsPageState extends State<SignUpDetailsPage> {
                     _nameController.text.isNotEmpty &&
                     _gender != null) {
                   // 회원가입 요청
-                  final response = await _authService.registerUser(
+                  final response = await _registrationService.registerUser(
                     email: _emailController.text,
                     password: _passwordController.text,
                     name: _nameController.text,

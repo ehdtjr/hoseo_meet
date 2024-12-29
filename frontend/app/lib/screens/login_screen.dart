@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   final TextEditingController _tokenController = TextEditingController(); // FCM 토큰을 표시할 컨트롤러
   final AuthService _authService = AuthService();
   final KakaoLoginService _kakaoLoginService = KakaoLoginService(); // Kakao Login 서비스
-  String? _accessToken; // 휘발성 토큰
+// 휘발성 토큰
   final String domain = "@vision.hoseo.edu";
 
   @override
@@ -40,7 +40,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      _accessToken = null;
     }
   }
 
@@ -102,8 +101,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     );
 
                     if (response.statusCode == 200) {
-                      final responseBody = jsonDecode(response.body);
-                      _accessToken = responseBody['access_token'];
+                      jsonDecode(response.body);
 
                       Navigator.push(
                         context,

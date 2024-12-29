@@ -14,7 +14,6 @@ class RoomList extends StatefulWidget {
 class _RoomListState extends State<RoomList> {
   final List<String> _selectOptions = ['거리순', '별점순', '리뷰순'];
   String _selectedOption = '거리순';
-  bool _isDropdownOpened = false;
   List<dynamic> items = [];
   String userName = '';
 
@@ -61,7 +60,7 @@ class _RoomListState extends State<RoomList> {
 
   void _showCustomDropdown(BuildContext context) async {
     final RenderBox button = context.findRenderObject() as RenderBox;
-    final RenderBox overlay = Overlay.of(context)!.context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
 
     final RelativeRect position = RelativeRect.fromRect(
       Rect.fromPoints(

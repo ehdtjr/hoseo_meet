@@ -22,32 +22,6 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     _chatRoomsFuture = loadRoomListService.loadRoomList(); // API 호출을 통해 채팅방 목록을 로드
-    // _connectWebSocket(); // 웹소켓 연결 및 메시지 수신 처리
-  }
-
-  // // 웹소켓 연결 및 메시지 수신 처리
-  // void _connectWebSocket() {
-  //   socketMessageService = SocketMessageService(AuthService().accessToken!);
-  //   socketMessageService.connectWebSocket();
-  //   socketMessageService.messageStream.listen((message) {
-  //     _handleNewMessage(message);
-  //   });
-  // }
-
-  // 새로운 메시지 수신 시 처리
-  void _handleNewMessage(Map<String, dynamic> message) {
-    setState(() {
-      final streamId = message['stream_id'];
-      final updatedChatRooms = chatRooms.map((chatRoom) {
-        if (chatRoom['stream_id'] == streamId) {
-          chatRoom['unread_message_count'] = (chatRoom['unread_message_count'] ?? 0) + 1;
-          chatRoom['last_message'] = message;
-          chatRoom['last_message']['date_sent'] = _formatTime(message['date_sent']);
-        }
-        return chatRoom;
-      }).toList();
-      chatRooms = updatedChatRooms;
-    });
   }
 
   // 시간을 "오전/오후 h:mm" 형태로 변환
