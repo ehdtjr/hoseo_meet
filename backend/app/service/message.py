@@ -68,7 +68,6 @@ class MessageSendService(MessageSendServiceProtocol):
         user_messages_data = [{"user_id": subscriber, "message_id": message.id}
                               for subscriber in subscribers]
         await self.user_message_crud.bulk_create(db, user_messages_data)
-
         # EventBase 생성
         event_data: EventBase = EventBase(
             type="stream",
@@ -79,7 +78,8 @@ class MessageSendService(MessageSendServiceProtocol):
                 "recipient_id": message.recipient_id,
                 "content": message.content,
                 "date_sent": int(message.date_sent.timestamp()),
-                "is_read": False
+                "is_read": False,
+                "unread_count": len(subscribers)
             }
         )
 
