@@ -3,9 +3,11 @@ from typing import Dict, Any, Literal
 from pydantic import BaseModel
 import json
 
+EventType = Literal["stream", "user", "location", "read"]
+
 
 class EventBase(BaseModel):
-    type: Literal["stream", "user", "location", "read"]
+    type: EventType
     data: Dict[str, Any]
 
     def to_str_dict(self) -> Dict[str, str]:

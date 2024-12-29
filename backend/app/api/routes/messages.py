@@ -20,17 +20,17 @@ router = APIRouter()
 
 @router.post("/flags/stream")
 async def update_message_flags(
-        request: UpdateUserMessageFlagsRequest,
-        db: AsyncSession = Depends(get_async_session),
-        user: User = Depends(current_active_user),
-        message_service: MessageServiceProtocol = Depends(get_message_service)
+    request: UpdateUserMessageFlagsRequest,
+    db: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+    message_service: MessageServiceProtocol = Depends(get_message_service)
 ):
     """
     주어진 앵커를 기준으로 메시지 범위 내에 읽음 상태를 업데이트하는 API.
     사용자 권한을 확인한 후, 메시지를 읽음 처리함.
     """
     try:
-        result = await message_service.mark_message_read_stream(
+        read_message_ids: List[int] = await message_service.mark_message_read_stream(
             db=db,
             stream_id=request.stream_id,
             user_id=user.id,
@@ -38,10 +38,17 @@ async def update_message_flags(
             num_before=request.num_before,
             num_after=request.num_after
         )
-        return result
+        return {
+            "detail": "Message read flags updated successfully",
+            "read_message_ids": read_message_ids
+        }
+
     except Exception as e:
-        raise HTTPException(status_code=400,
-                            detail=f"Message flag update failed: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Message flag update failed: {str(e)}"
+        )
+
 
 
 @router.post("/send/stream/{stream_id}", response_model=None)
@@ -65,6 +72,7 @@ async def send_message_to_stream(
     except Exception as e:
         raise HTTPException(status_code=400,
                             detail=f"Message sending failed: {str(e)}")
+
 
 @router.get("/stream", response_model=List[MessageResponse])
 async def get_messages(
@@ -112,7 +120,6 @@ async def send_message_to_location(
     """
     await location_service.send_location_stream(
         db=db,
-        user_id=user.id,
         stream_id=stream_id,
         location=location
     )
