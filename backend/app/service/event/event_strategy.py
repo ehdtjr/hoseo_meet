@@ -6,7 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.crud.user_crud import get_user_fcm_token_crud
 from app.schemas.event import EventBase
 from app.schemas.user import UserFCMTokenBase
-from app.service.event.event_registry import register_strategy
+from app.service.event.event_registry import register_event_strategy
 from app.service.event.event_sender import WebSocketEventSender, FCMEventSender, \
     NoopEventSender, EventSenderProtocol
 from app.service.stream import ActiveStreamServiceProtocol
@@ -31,7 +31,7 @@ class EventStrategyProtocol(Protocol):
         pass
 
 
-@register_strategy("stream")
+@register_event_strategy("stream")
 class ChatMessageEventStrategy(EventStrategyProtocol):
     """
     채팅 메시지 이벤트에 대한 전략
@@ -53,7 +53,7 @@ class ChatMessageEventStrategy(EventStrategyProtocol):
             return FCMEventSender(fcm_token)
 
 
-@register_strategy("location")
+@register_event_strategy("location")
 class LocationEventStrategy(EventStrategyProtocol):
     """
     위치 이벤트에 대한 전략
@@ -70,7 +70,7 @@ class LocationEventStrategy(EventStrategyProtocol):
             return NoopEventSender()
 
 
-@register_strategy("read")
+@register_event_strategy("read")
 class ReadMessageEventStrategy(EventStrategyProtocol):
     """
     읽음 이벤트에 대한 전략

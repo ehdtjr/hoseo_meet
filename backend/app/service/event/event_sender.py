@@ -51,9 +51,20 @@ class FCMEventSender(EventSenderProtocol):
             fcm.notify(
                 fcm_token=self.fcm_token,
                 notification_title="새로운 메시지",
-                notification_body=json.dumps(event_data, ensure_ascii=False)
+                notification_body=json.dumps(event_data, ensure_ascii=False),
+                apns_config={
+                    "payload": {
+                        "aps": {
+                            "alert": {
+                                "title": "새로운 메시지",
+                                "body": json.dumps(event_data,
+                                                   ensure_ascii=False)
+                            },
+                            "sound": "default"  # iOS 기본 사운드 설정
+                        }
+                    }
+                }
             )
-            logger.info(f"사용자 {user_id}에게 FCM 알림이 전송되었습니다.")
         except Exception as e:
             logger.error(f"FCM 알림 전송 실패: {e}")
 
