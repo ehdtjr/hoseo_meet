@@ -5,7 +5,7 @@ import json
 
 
 class EventBase(BaseModel):
-    type: Literal["stream", "user", "location"]
+    type: Literal["stream", "user", "location", "read"]
     data: Dict[str, Any]
 
     def to_str_dict(self) -> Dict[str, str]:
