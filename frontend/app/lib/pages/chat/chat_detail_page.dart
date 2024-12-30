@@ -68,11 +68,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
 
   @override
   void dispose() {
-    // 스크롤 리스너/관찰자 해제
     _scrollController.removeListener(_onScroll);
     WidgetsBinding.instance.removeObserver(this);
 
-    // 타이머/소켓 해제
     _activateTimer?.cancel();
     _activateTimer = null;
     _deactivateCurrentChatRoom();
@@ -81,7 +79,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
     socketMessageService.closeWebSocket();
     socketMessageService.dispose();
 
-    // TextField 리소스 해제
     _messageController.dispose();
     _scrollController.dispose();
     _messageFocusNode.dispose();
@@ -114,13 +111,10 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
     setState(() => _isLoadingMore = true);
 
     try {
-      // 만약 messages가 비어 있더라도(= 0개라도) 이전 메시지를 로딩할 수 있도록
       final oldestId = messages.isNotEmpty
           ? messages.first['id']
-          : null; // messages가 비어 있다면 null
+          : null;
 
-      // anchor에 null이 들어가는 경우, 서버 API에서 "처음부터" 불러오거나
-      // 별도의 로직으로 처리할 수 있도록 해야 함(백엔드 로직 확인)
       final moreMessages = await loadMessageService.loadMessages(
         streamId: widget.chatRoom['stream_id'],
         anchor: oldestId?.toString() ?? 'first_unread',
@@ -143,30 +137,28 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
   }
 
   /// --------------------------
-  /// (수정된) WebSocket 초기화 메서드
+  /// WebSocket 초기화
   /// --------------------------
   Future<void> _initWebSocket(AuthService authService) async {
     socketMessageService = SocketMessageService(authService.accessToken!);
     await socketMessageService.connectWebSocket();
 
-    _socketSubscription = socketMessageService.messageStream.listen((incomingMessage) async {
-      print('[ChatDetailPage] 수신한 메시지: $incomingMessage');
+    _socketSubscription =
+        socketMessageService.messageStream.listen((incomingMessage) async {
+          print('[ChatDetailPage] 수신 메시지: $incomingMessage');
 
-      // (A) type 분기
-      switch (incomingMessage['type']) {
-        case 'read':
-          _handleReadMessage(incomingMessage);
-          break;
-
-        case 'stream':
-          await _handleStreamMessage(incomingMessage);
-          break;
-
-        default:
-          print('[ChatDetailPage] 다른 방 메시지 or 다룰 필요 없는 타입: ${incomingMessage['type']}');
-          break;
-      }
-    });
+          switch (incomingMessage['type']) {
+            case 'read':
+              _handleReadMessage(incomingMessage);
+              break;
+            case 'stream':
+              await _handleStreamMessage(incomingMessage);
+              break;
+            default:
+              print('[ChatDetailPage] 다룰 필요 없는 타입: ${incomingMessage['type']}');
+              break;
+          }
+        });
   }
 
   /// "type: read" 처리
@@ -188,17 +180,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
 
   /// "type: stream" 처리
   Future<void> _handleStreamMessage(Map<String, dynamic> incomingMessage) async {
-    final data = incomingMessage['data']; // 'data' 부분을 꺼냄
-
-    // 현재 보고 있는 채팅방의 stream_id와 동일하면 새 메시지 추가
+    final data = incomingMessage['data'];
     if (data['stream_id'] == widget.chatRoom['stream_id']) {
       setState(() {
-        // 실제 메시지 배열에 저장할 때는 `data`가 메시지 본문이므로, 이를 사용
         messages.add(data);
       });
       _scrollToBottom();
 
-      // 새 메시지를 읽음 처리
       try {
         await messageReadService.markNewestMessageAsRead(
           streamId: widget.chatRoom['stream_id'],
@@ -207,10 +195,9 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
         print('[ChatDetailPage] newest message read fail: $error');
       }
     } else {
-      print('[ChatDetailPage] 다른 방 메시지 or type이 다름');
+      print('[ChatDetailPage] 다른 방 메시지');
     }
   }
-
 
   void _activateRoomRegularly() {
     _activateCurrentChatRoom();
@@ -278,12 +265,8 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
     });
   }
 
-  /// --------------------------
-  /// (A) 여유 거리(Threshold) 300으로 확장
-  /// --------------------------
   void _onScroll() {
     final position = _scrollController.position;
-    // 맨 위쪽 300px 이내로 당기면 이전 메시지 로드
     if (position.pixels <= 300 && !_isLoadingMore) {
       _loadMoreMessages();
     }
@@ -410,17 +393,14 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 닉네임
                   Text(
                     senderName,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
-
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      // 말풍선
                       ConstrainedBox(
                         constraints: BoxConstraints(
                           maxWidth: MediaQuery.of(context).size.width * 0.7,
@@ -438,8 +418,6 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
                         ),
                       ),
                       const SizedBox(width: 6),
-
-                      // 안 읽은 수 / 시간
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -471,16 +449,13 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      // 뒤로가기 시 방 비활성화
       onWillPop: () async {
         await _deactivateCurrentChatRoom();
         Navigator.pop(context, 'reload');
         return false;
       },
       child: Scaffold(
-        // 키보드 올라올 때 화면 리사이즈
         resizeToAvoidBottomInset: true,
-
         appBar: AppBar(
           title: Text(widget.chatRoom['name'] ?? 'No Title'),
           centerTitle: true,
@@ -500,7 +475,7 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
               onPressed: () {
                 // 필요 시 메뉴
               },
-            )
+            ),
           ],
           bottom: const PreferredSize(
             preferredSize: Size.fromHeight(1.0),
@@ -544,43 +519,90 @@ class _ChatDetailPageState extends State<ChatDetailPage> with WidgetsBindingObse
 
               // (C) 메시지 입력창
               Container(
+                // (1) 화면 폭에 맞게
+                width: double.infinity,
+                height: 72,
                 color: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        focusNode: _messageFocusNode,
-                        controller: _messageController,
-                        onTap: () {
-                          FocusScope.of(context).requestFocus(_messageFocusNode);
+                    // 왼쪽 여백
+                    const SizedBox(width: 19),
+
+                    // 케밥 메뉴 아이콘
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: IconButton(
+                        icon: const Icon(Icons.more_vert, color: Colors.red),
+                        onPressed: () {
+                          // TODO: 메뉴 열기 동작
                         },
-                        decoration: InputDecoration(
-                          hintText: '메시지를 입력하세요...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(30),
-                            borderSide: BorderSide.none,
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey.shade200,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 10.0,
-                            horizontal: 20.0,
+                        // (1) 내부 패딩 없애기
+                        padding: EdgeInsets.zero,
+                        // (2) IconButton의 기본 constraints도 없애주면,
+                        //     SizedBox 크기에 정확히 맞춰짐
+                        constraints: const BoxConstraints(),
+                        // (3) 필요하다면 iconSize로 아이콘 크기를 지정
+                        iconSize: 20,
+                      ),
+                    ),
+
+                    const SizedBox(width: 10),
+
+                    // (2) Expanded로 감싸, 남은 공간 차지
+                    Expanded(
+                      child: Container(
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color.fromRGBO(236, 236, 236, 1),
+                          borderRadius: BorderRadius.circular(115),
+                        ),
+                        child: TextField(
+                          focusNode: _messageFocusNode,
+                          controller: _messageController,
+                          onTap: () {
+                            FocusScope.of(context).requestFocus(_messageFocusNode);
+                          },
+                          decoration: const InputDecoration(
+                            hintText: '메시지를 입력하세요...',
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              vertical: 10,
+                              horizontal: 15,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
+
+                    const SizedBox(width: 10),
 
                     // 전송 버튼
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: Colors.red,
-                      child: IconButton(
-                        icon: const Icon(Icons.send, color: Colors.white),
-                        onPressed: _sendMessage,
+                    InkWell(
+                      onTap: _sendMessage,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(
+                            color: Color.fromRGBO(231, 36, 16, 1),
+                            width: 1,
+                          ),
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.arrow_upward,
+                            color: Colors.red,
+                            size: 18,
+                          ),
+                        ),
                       ),
                     ),
+
+                    const SizedBox(width: 19),
                   ],
                 ),
               ),
