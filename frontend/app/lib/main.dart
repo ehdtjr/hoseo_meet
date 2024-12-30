@@ -47,12 +47,6 @@ void main() async {
     javaScriptAppKey: dotenv.env['KAKAO_JAVASCRIPT_APP_KEY'] ?? '',
   );
 
-
-  // Naver Map SDK 초기화
-  await NaverMapSdk.instance.initialize(
-    clientId: dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '',
-  );
-
   // Firebase 초기화
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
@@ -163,6 +157,9 @@ void main() async {
     }
   });
 
+
+    // Naver map 초기화
+  await NaverMapSdk.instance.initialize(clientId: dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '');
   // 모든 초기화 완료 후, runApp
   runApp(const ProviderScope(child: MyApp()));
 }

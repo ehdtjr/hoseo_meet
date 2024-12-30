@@ -4,7 +4,7 @@ import '../../api/chat/load_roomlist_service.dart'; // LoadRoomListService impor
 import '../../api/chat/socket_message_service.dart'; // SocketMessageService import
 import '../../api/login/login_service.dart'; // AuthService import
 import '../../widgets/category_button.dart';
-import 'chat_detail_page.dart'; // ChatDetailPage 파일을 가져옴
+import 'detail/chat_detail_page.dart'; // ChatDetailPage 파일을 가져옴
 
 class ChatPage extends StatefulWidget {
   @override
