@@ -17,10 +17,12 @@ class LocationService:
 
     async def send_location_stream(self, db: AsyncSession,
                                    stream_id: int,
+                                   user_id: int,
                                    location: LocationBase) -> None:
         event = EventBase(
             type='location',
             data={
+                'user_id': user_id,
                 'lat': location.lat,
                 'lng': location.lng,
             }

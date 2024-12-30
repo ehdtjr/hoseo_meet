@@ -121,6 +121,7 @@ async def send_message_to_location(
     await location_service.send_location_stream(
         db=db,
         stream_id=stream_id,
+        user_id=user.id,
         location=location
     )
     return {"detail": "Location event sent successfully"}
