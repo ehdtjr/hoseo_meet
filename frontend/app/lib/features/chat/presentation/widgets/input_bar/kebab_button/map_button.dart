@@ -96,6 +96,9 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
               target: NLatLng(37.5666102, 126.9783881),
               zoom: 15,
             ),
+            scrollGesturesEnable: true,
+            zoomGesturesEnable: true,
+            rotationGesturesEnable: true,
           ),
           onMapReady: (controller) {
             _mapController = controller;
