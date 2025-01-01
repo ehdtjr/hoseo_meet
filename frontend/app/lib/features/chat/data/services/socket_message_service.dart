@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import '../../config.dart'; // AppConfig를 import합니다.
+
+import '../../../../config.dart';
 
 class SocketMessageService {
   final String _token;

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';  // DateFormat을 사용하기 위한 import
-import '../../api/chat/load_roomlist_service.dart'; // LoadRoomListService import
-import '../../api/chat/socket_message_service.dart'; // SocketMessageService import
-import '../../api/login/login_service.dart'; // AuthService import
-import '../../widgets/category_button.dart';
-import 'detail/chat_detail_page.dart'; // ChatDetailPage 파일을 가져옴
+import '../../../../api/login/login_service.dart'; // AuthService import
+import '../../../../widgets/category_button.dart';
+import '../../data/services/load_roomlist_service.dart';
+import '../../data/services/socket_message_service.dart';
+import 'chat_detail_page.dart'; // ChatDetailPage 파일을 가져옴
 
 class ChatPage extends StatefulWidget {
   @override

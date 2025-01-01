@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../config.dart'; // config 파일 import
-import '../login/login_service.dart'; // AuthService import
+
+import '../../../../api/login/login_service.dart';
+import '../../../../config.dart';
 
 class LoadRoomListService {
   final String roomListEndpoint = '${AppConfig.baseUrl}/users/me/subscriptions?lifetime_seconds=3600';

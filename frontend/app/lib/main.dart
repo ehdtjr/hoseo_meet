@@ -1,63 +1,126 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_naver_map/flutter_naver_map.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
+// Firebase
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:intl/date_symbol_data_local.dart';
+
+// Riverpod
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+// Kakao, Naver, Dotenv
 import 'package:kakao_flutter_sdk/kakao_flutter_sdk.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 
-// Firebase 옵션 (자동 생성된 파일)
+// Geolocator
+import 'package:geolocator/geolocator.dart';
+
 import 'firebase_options.dart';
-
-// 예시: 간단한 SplashScreen
 import 'screens/splash_screen.dart';
 
-// ---------------------------
-// 1) 전역 변수 / 백그라운드 핸들러
-// ---------------------------
-
-// flutter_local_notifications 플러그인 전역 인스턴스
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
-// FCM 백그라운드 메시지 핸들러 (필수)
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // 백그라운드에서 Firebase를 재초기화해야 함
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
   print('[FCM 백그라운드] title: ${message.notification?.title}, '
       'body: ${message.notification?.body}');
 }
 
-// ---------------------------
-// 2) 메인 함수
-// ---------------------------
-void main() async {
-  // Flutter에서 비동기 초기화를 하려면 필요
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // .env 파일 로드 (API Key 등)
+  // 1) 위치 권한 먼저 확인
+  final locationGranted = await _checkAndRequestLocationPermission();
+  if (!locationGranted) {
+    // 권한 거부 시, 별도 처리 (앱 종료 or 경고 페이지 등)
+    // 여기서는 예시로 그냥 콘솔만 출력하고 진행
+    print('위치 권한이 거부되었습니다. 앱 기능 일부가 제한될 수 있습니다.');
+  }
+
+  // 2) .env 파일 로드
   await dotenv.load(fileName: ".env");
 
-  // Kakao SDK 초기화 (env에서 키 가져오기)
+  // 3) Kakao SDK 초기화
   KakaoSdk.init(
     nativeAppKey: dotenv.env['KAKAO_NATIVE_APP_KEY'] ?? '',
     javaScriptAppKey: dotenv.env['KAKAO_JAVASCRIPT_APP_KEY'] ?? '',
   );
 
-  // Firebase 초기화
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // 4) Firebase 초기화
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // FCM 백그라운드 메시지 핸들러 등록
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // -----------------------------------------------
-  // flutter_local_notifications 설정 (Android + iOS)
-  // -----------------------------------------------
+  // 5) flutter_local_notifications 설정
+  await _initLocalNotifications();
+
+  // 6) iOS 푸시 알림 권한 요청
+  final settings = await FirebaseMessaging.instance.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+  print('iOS 알림 권한 상태: ${settings.authorizationStatus}');
+
+  // iOS Foreground 알림 표시 허용
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  // 7) (선택) FCM 토큰 확인
+  final token = await FirebaseMessaging.instance.getToken();
+  print('FCM Token: $token');
+
+  // 8) 한국어 로케일 초기화
+  await initializeDateFormatting('ko_KR', null);
+
+  // 9) Naver Map 초기화
+  await NaverMapSdk.instance.initialize(
+    clientId: dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '',
+  );
+
+  // 모든 초기화 완료 후 runApp
+  runApp(const ProviderScope(child: MyApp()));
+}
+
+Future<bool> _checkAndRequestLocationPermission() async {
+  // 1) 위치 서비스 활성화 여부
+  bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+  if (!serviceEnabled) {
+    // 사용자가 위치 서비스를 비활성화한 경우
+    print('위치 서비스가 꺼져있습니다.');
+    // return false;  // 여기서 false를 반환해도 됨
+  }
+
+  // 2) 위치 권한 상태 확인
+  LocationPermission permission = await Geolocator.checkPermission();
+  if (permission == LocationPermission.denied) {
+    // 권한 요청
+    permission = await Geolocator.requestPermission();
+    if (permission == LocationPermission.denied) {
+      // 여전히 거부
+      print('위치 권한이 거부되었습니다.');
+      return false;
+    }
+  }
+
+  if (permission == LocationPermission.deniedForever) {
+    // 사용자가 '다시 묻지 않음'으로 설정
+    print('위치 권한이 영구적으로 거부되었습니다. 앱 설정에서 권한을 허용해주세요.');
+    return false;
+  }
+
+  // 여기까지 왔다면 권한이 허용된 상태
+  return true;
+}
+
+Future<void> _initLocalNotifications() async {
   // 1) Android 초기화 설정
   const AndroidInitializationSettings initializationSettingsAndroid =
   AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -68,10 +131,6 @@ void main() async {
     requestAlertPermission: true,
     requestBadgePermission: true,
     requestSoundPermission: true,
-    // (선택) iOS 포그라운드 상태에서 로컬 알림 콜백
-    // onDidReceiveLocalNotification: (id, title, body, payload) async {
-    //   // iOS에서 포그라운드 알림 수신 시 처리할 로직
-    // },
   );
 
   // 3) 통합 초기화 설정
@@ -84,84 +143,10 @@ void main() async {
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) {
-      // 알림 클릭 시 처리 로직
       debugPrint('알림 클릭됨, payload: ${response.payload}');
     },
-    // (선택) 백그라운드 알림 클릭 시 동작
     onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
   );
-
-  // iOS 푸시 알림 권한 요청
-  NotificationSettings settings =
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-  print('iOS 알림 권한 상태: ${settings.authorizationStatus}');
-
-  // iOS에서 Foreground 알림 배너/사운드 표시 허용
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-
-  // (선택) FCM 토큰 확인 - 디버그용
-  final token = await FirebaseMessaging.instance.getToken();
-  print('FCM Token: $token');
-
-  // 한국어 로케일 초기화
-  await initializeDateFormatting('ko_KR', null);
-
-  // FCM Foreground 알림 수신 리스너 등록
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print('[FCM Fore그라운드] 수신: '
-        '${message.notification?.title} / ${message.notification?.body}');
-
-    // 알림 정보
-    RemoteNotification? notification = message.notification;
-
-    if (notification != null) {
-      // Android 알림 설정
-      const AndroidNotificationDetails androidDetails =
-      AndroidNotificationDetails(
-        'foreground_channel_id',        // 채널 ID
-        'Foreground Notifications',     // 채널 이름
-        channelDescription: '앱이 활성일 때 표시될 알림 채널',
-        importance: Importance.max,
-        priority: Priority.high,
-        playSound: true,
-      );
-
-      // iOS 알림 설정 (소리 추가)
-      const DarwinNotificationDetails iOSDetails = DarwinNotificationDetails(
-        presentAlert: true,
-        presentSound: true,
-        sound: 'default',  // 기본 iOS 사운드
-      );
-
-      // 플랫폼별 설정 통합
-      const NotificationDetails platformDetails = NotificationDetails(
-        android: androidDetails,
-        iOS: iOSDetails,
-      );
-
-      // 로컬 알림 표시
-      flutterLocalNotificationsPlugin.show(
-        notification.hashCode,  // 알림 ID
-        notification.title,     // 알림 제목
-        notification.body,      // 알림 내용
-        platformDetails,        // 플랫폼별 설정
-      );
-    }
-  });
-
-
-    // Naver map 초기화
-  await NaverMapSdk.instance.initialize(clientId: dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '');
-  // 모든 초기화 완료 후, runApp
-  runApp(const ProviderScope(child: MyApp()));
 }
 
 // (선택) 백그라운드 알림 클릭 처리
@@ -170,9 +155,7 @@ void notificationTapBackground(NotificationResponse notificationResponse) {
   debugPrint('백그라운드에서 알림 클릭됨, payload: ${notificationResponse.payload}');
 }
 
-// ---------------------------
-// 3) MyApp & MaterialApp
-// ---------------------------
+// MyApp
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

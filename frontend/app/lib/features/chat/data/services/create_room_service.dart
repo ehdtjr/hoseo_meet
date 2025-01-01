@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../../config.dart'; // config 파일 import
-import '../login/login_service.dart'; // 로그인 서비스 파일 import
+import '../../../../config.dart'; // config 파일 import
+import '../../../../api/login/login_service.dart'; // 로그인 서비스 파일 import
 
 class CreateRoomService {
   final String createRoomEndpoint = '${AppConfig.baseUrl}/stream/create?lifetime_seconds=3600';

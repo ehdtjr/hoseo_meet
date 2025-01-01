@@ -1,6 +1,6 @@
 import 'package:http/http.dart' as http;
-import '../../config.dart'; // AppConfig import
-import '../login/login_service.dart'; // AuthService import
+import '../../../../config.dart'; // AppConfig import
+import '../../../../api/login/login_service.dart'; // AuthService import
 
 class MessageReadService {
   final String readMessageEndpoint = '${AppConfig.baseUrl}/messages/flags/stream';
