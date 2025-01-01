@@ -13,7 +13,7 @@ import '../../../api/login/login_service.dart';
 
 // (1) Import 분리된 위젯
 import 'chat_message_bubble.dart'; // 메시지 버블
-import 'chat_input_bar.dart';      // 입력창
+import 'input_bar/chat_input_bar.dart';      // 입력창
 
 class ChatDetailPage extends StatefulWidget {
   final Map<String, dynamic> chatRoom;
