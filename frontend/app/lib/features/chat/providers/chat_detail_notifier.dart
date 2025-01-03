@@ -15,7 +15,8 @@ import '../data/services/send_message_service.dart';
 import '../data/services/socket_message_service.dart';
 
 // Auth
-import '../../../../features/auth/providers/auth_notifier_provider.dart'; // (B) For accessToken
+import '../../../../features/auth/providers/auth_notifier_provider.dart';
+import 'map_provider.dart'; // (B) For accessToken
 
 // ---------------------------
 // 상태 모델
@@ -59,9 +60,13 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   bool _isInitialized = false;
   late final ChatRepository _chatRepository;
 
+  // ---------------------------
+  // 변경: 거리 기반 구독 대신 Timer로 5초 간격 위치 전송
+  // ---------------------------
+  Timer? _locationTimer; // 5초 간격 타이머
+
   StreamSubscription<Map<String, dynamic>>? _socketSubscription;
   Timer? _activateTimer;
-  StreamSubscription<Position>? _positionSubscription; // 위치 추적
 
   // ---------------------------
   // init() : 한 번만 실행
@@ -89,8 +94,6 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       sendService: SendMessageService(client),
       readService: MessageReadService(client),
       activateService: ActivateDeactivateService(client),
-      // SocketMessageService는 여전히 직접 토큰이 필요하다면,
-      // Notifier에서 전역 토큰을 가져와 생성
       socketService: SocketMessageService(token),
     );
 
@@ -104,21 +107,19 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
 
   // ---------------------------
   // 내 위치 추적 -> 서버로 전송
+  // (5초마다 현재 위치를 받아 전송)
   // ---------------------------
   Future<void> startLocationTracking() async {
-    const locationSettings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10,
-    );
-
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen((position) async {
-      final lat = position.latitude;
-      final lng = position.longitude;
-      debugPrint('[ChatDetailNotifier] 내 위치 변경: lat=$lat, lng=$lng');
-
+    // 5초마다 현재 위치를 확인해 서버 전송
+    _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       try {
+        final position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+        );
+        final lat = position.latitude;
+        final lng = position.longitude;
+        debugPrint('[ChatDetailNotifier] (5초) 내 위치 lat=$lat, lng=$lng');
+
         await _chatRepository.sendLocation(
           streamId: chatRoom['stream_id'],
           lat: lat,
@@ -132,12 +133,14 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   }
 
   void stopLocationTracking() {
-    _positionSubscription?.cancel();
-    _positionSubscription = null;
+    // 위치 전송 타이머 해제
+    _locationTimer?.cancel();
+    _locationTimer = null;
   }
 
   // disposeNotifier: 타이머, 스트림 해제
   Future<void> disposeNotifier() async {
+    // 위치 추적 중단
     stopLocationTracking();
     _activateTimer?.cancel();
     _activateTimer = null;
@@ -153,12 +156,6 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   // ---------------------------
   Future<void> _fetchUserId() async {
     try {
-      // 기존: AuthMeService(AuthService().accessToken!)
-      // 변경: socketMessageService나 다른 곳에서 userId를 가져오거나,
-      // 또는 Notifier에서 전역 Notifier/Repo를 사용해 유저 정보 가져오는 식으로 수정 가능.
-      // 아래는 예시로, userId를 그냥 0 or null 로 셋팅할 수도 있음.
-      // 실제로는 별도 유저 정보 API가 있으면 그걸 AuthHttpClient 통해 호출.
-
       // 임시로 userId를 0으로
       state = state.copyWith(userId: 0);
     } catch (e) {
@@ -291,8 +288,10 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     final userId = data['user_id'] as int?;
     final lat = data['lat'] as double?;
     final lng = data['lng'] as double?;
-
     debugPrint('[ChatDetailNotifier] 위치 메시지: user=$userId ($lat,$lng)');
+    if (userId != null && lat != null && lng != null) {
+      ref.read(mapNotifierProvider.notifier).updateUserCircle(userId, lat, lng);
+    }
   }
 
   // ---------------------------
