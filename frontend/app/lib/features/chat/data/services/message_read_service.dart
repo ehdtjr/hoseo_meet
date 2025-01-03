@@ -1,12 +1,12 @@
 import 'package:http/http.dart' as http;
-import '../../../../config.dart'; // AppConfig import
-import '../../../../api/login/login_service.dart'; // AuthService import
+import '../../../../commons/network/auth_http_client.dart'; // AuthHttpClient import
+import '../../../../config.dart';
 
 class MessageReadService {
   final String readMessageEndpoint = '${AppConfig.baseUrl}/messages/flags/stream';
-  final AuthService _authService;
+  final AuthHttpClient _client; // AuthHttpClient를 주입
 
-  MessageReadService(this._authService);
+  MessageReadService(this._client);
 
   /// (A) 기존 메시지 읽음 처리
   Future<void> markMessagesAsRead({
@@ -17,7 +17,7 @@ class MessageReadService {
   }) async {
     // (1) 요청 바디
     final body = {
-      "anchor": anchor,        // 기본값: 'first_unread'
+      "anchor": anchor,
       "stream_id": streamId,
       "num_before": numBefore,
       "num_after": numAfter,
@@ -25,8 +25,8 @@ class MessageReadService {
 
     print('[MessageReadService] markMessagesAsRead -> body=$body');
 
-    // (2) 래핑된 postRequest 사용
-    final http.Response response = await _authService.postRequest(
+    // (2) AuthHttpClient 사용
+    final http.Response response = await _client.postRequest(
       readMessageEndpoint,
       body,
     );
@@ -42,12 +42,10 @@ class MessageReadService {
   }
 
   /// (B) 신규 메시지에 대한 읽음 처리 (웹소켓 메시지 수신 시 호출)
-  Future<void> markNewestMessageAsRead({
-    required int streamId,
-  }) async {
+  Future<void> markNewestMessageAsRead({required int streamId}) async {
     // (1) 요청 바디
     final body = {
-      "anchor": "newest",  // 'newest'를 앵커로
+      "anchor": "newest",
       "stream_id": streamId,
       "num_before": 0,
       "num_after": 0,
@@ -55,8 +53,8 @@ class MessageReadService {
 
     print('[MessageReadService] markNewestMessageAsRead -> body=$body');
 
-    // (2) 래핑된 postRequest
-    final http.Response response = await _authService.postRequest(
+    // (2) AuthHttpClient 사용
+    final http.Response response = await _client.postRequest(
       readMessageEndpoint,
       body,
     );

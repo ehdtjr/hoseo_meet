@@ -1,24 +1,21 @@
-// features/chat/providers/chat_detail_notifier.dart
-
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:hoseomeet/features/chat/providers/map_provider.dart';
 import 'package:riverpod/riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'package:hoseomeet/features/chat/data/models/chat_message.dart';
 import 'package:hoseomeet/features/chat/data/repositories/chat_repository.dart';
 
-// Auth
-import '../../../../api/login/authme_service.dart';
-import '../../../../api/login/login_service.dart';
-
 // Services
+import '../../../commons/network/auth_http_client_provider.dart';
 import '../data/services/activate_deactivate_service.dart';
 import '../data/services/load_message_service.dart';
 import '../data/services/message_read_service.dart';
 import '../data/services/send_message_service.dart';
 import '../data/services/socket_message_service.dart';
+
+// Auth
+import '../../../../features/auth/providers/auth_notifier_provider.dart'; // (B) For accessToken
 
 // ---------------------------
 // 상태 모델
@@ -56,7 +53,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       this.chatRoom,
       ) : super(ChatDetailState());
 
-  final Ref ref;                        // Riverpod 2.x: ref 주입
+  final Ref ref; // Riverpod 2.x: ref 주입
   final Map<String, dynamic> chatRoom;
 
   bool _isInitialized = false;
@@ -76,24 +73,33 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     }
     _isInitialized = true;
 
-    // 1) AuthService 준비
-    final authService = AuthService();
+    // (1) AuthHttpClient 인스턴스 획득
+    final client = ref.read(authHttpClientProvider);
 
-    // 2) 필요한 Service들을 생성해 Repository에 주입
+    // (2) 현재 전역 토큰 상태에서 accessToken 가져오기 (SocketMessageService에 필요)
+    final token = ref.read(authNotifierProvider).accessToken;
+    if (token == null) {
+      debugPrint('[ChatDetailNotifier] init() 실패: 토큰이 없습니다.');
+      return;
+    }
+
+    // (3) 필요한 Service들을 생성 (AuthHttpClient 기반)
     _chatRepository = ChatRepository(
-      loadService: LoadMessageService(authService),
-      sendService: SendMessageService(authService),
-      readService: MessageReadService(authService),
-      activateService: ActivateDeactivateService(authService),
-      socketService: SocketMessageService(authService.accessToken!),
+      loadService: LoadMessageService(client),
+      sendService: SendMessageService(client),
+      readService: MessageReadService(client),
+      activateService: ActivateDeactivateService(client),
+      // SocketMessageService는 여전히 직접 토큰이 필요하다면,
+      // Notifier에서 전역 토큰을 가져와 생성
+      socketService: SocketMessageService(token),
     );
 
     // 기본 작업
     await _fetchUserId();
     await _loadMessagesAtFirstUnread();
     await _markMessagesAsRead();
-    await _initWebSocket();      // 웹소켓 연결
-    _activateRoomRegularly();    // 타이머로 방 활성화
+    await _initWebSocket();
+    _activateRoomRegularly();
   }
 
   // ---------------------------
@@ -147,9 +153,14 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   // ---------------------------
   Future<void> _fetchUserId() async {
     try {
-      final authMeService = AuthMeService(AuthService().accessToken!);
-      await authMeService.fetchAndStoreUserId();
-      state = state.copyWith(userId: authMeService.userId);
+      // 기존: AuthMeService(AuthService().accessToken!)
+      // 변경: socketMessageService나 다른 곳에서 userId를 가져오거나,
+      // 또는 Notifier에서 전역 Notifier/Repo를 사용해 유저 정보 가져오는 식으로 수정 가능.
+      // 아래는 예시로, userId를 그냥 0 or null 로 셋팅할 수도 있음.
+      // 실제로는 별도 유저 정보 API가 있으면 그걸 AuthHttpClient 통해 호출.
+
+      // 임시로 userId를 0으로
+      state = state.copyWith(userId: 0);
     } catch (e) {
       debugPrint('[ChatDetailNotifier] _fetchUserId 실패: $e');
     }
@@ -281,16 +292,14 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     final lat = data['lat'] as double?;
     final lng = data['lng'] as double?;
 
-    if (userId != null && lat != null && lng != null) {
-      debugPrint('[ChatDetailNotifier] location => user:$userId ($lat,$lng)');
-       ref.read(mapNotifierProvider.notifier).updateUserCircle(userId, lat, lng);
-    }
+    debugPrint('[ChatDetailNotifier] 위치 메시지: user=$userId ($lat,$lng)');
   }
 
   // ---------------------------
   // 채팅방 활성 / 비활성
   // ---------------------------
   void _activateRoomRegularly() {
+    print('ChatDetailNotifier: _activateRoomRegularly');
     _activateCurrentChatRoom();
     _activateTimer?.cancel();
     _activateTimer = Timer.periodic(const Duration(minutes: 5), (_) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hoseomeet/features/auth/presentation/pages/login_page.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 // Firebase
@@ -18,11 +19,12 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'firebase_options.dart';
-import 'screens/splash_screen.dart';
 
+/// 로컬 알림 플러그인 전역 변수
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
+/// FCM 백그라운드 메시지 핸들러
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   print('[FCM 백그라운드] title: ${message.notification?.title}, '
@@ -32,11 +34,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1) 위치 권한 먼저 확인
+  // 1) 위치 권한 확인 (Geolocator)
   final locationGranted = await _checkAndRequestLocationPermission();
   if (!locationGranted) {
-    // 권한 거부 시, 별도 처리 (앱 종료 or 경고 페이지 등)
-    // 여기서는 예시로 그냥 콘솔만 출력하고 진행
+    // 권한 거부 시, 별도 처리(예: 콘솔 출력)
     print('위치 권한이 거부되었습니다. 앱 기능 일부가 제한될 수 있습니다.');
   }
 
@@ -77,7 +78,7 @@ Future<void> main() async {
   final token = await FirebaseMessaging.instance.getToken();
   print('FCM Token: $token');
 
-  // 8) 한국어 로케일 초기화
+  // 8) 한국어 로케일 초기화 (intl)
   await initializeDateFormatting('ko_KR', null);
 
   // 9) Naver Map 초기화
@@ -85,33 +86,39 @@ Future<void> main() async {
     clientId: dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '',
   );
 
-  // 모든 초기화 완료 후 runApp
-  runApp(const ProviderScope(child: MyApp()));
+  // ★ 이 부분에서 원래 AuthService.init() + refreshAccessToken() 로직이 있었지만 제거.
+  //   토큰 관리/자동로그인은 Riverpod Notifier 등에서 구현 가능.
+
+  // 10) 첫 화면 결정 (간단히 LoginPage로)
+  Widget firstScreen = LoginPage();
+
+  runApp(
+    ProviderScope(
+      child: MyApp(firstScreen: firstScreen),
+    ),
+  );
 }
 
+/// 위치 권한 확인 함수
 Future<bool> _checkAndRequestLocationPermission() async {
-  // 1) 위치 서비스 활성화 여부
+  // (1) 위치 서비스 활성화 여부
   bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
   if (!serviceEnabled) {
-    // 사용자가 위치 서비스를 비활성화한 경우
     print('위치 서비스가 꺼져있습니다.');
-    // return false;  // 여기서 false를 반환해도 됨
+    // 필요 시 return false; 로 앱 종료 처리 가능
   }
 
-  // 2) 위치 권한 상태 확인
+  // (2) 위치 권한 상태 확인
   LocationPermission permission = await Geolocator.checkPermission();
   if (permission == LocationPermission.denied) {
     // 권한 요청
     permission = await Geolocator.requestPermission();
     if (permission == LocationPermission.denied) {
-      // 여전히 거부
       print('위치 권한이 거부되었습니다.');
       return false;
     }
   }
-
   if (permission == LocationPermission.deniedForever) {
-    // 사용자가 '다시 묻지 않음'으로 설정
     print('위치 권한이 영구적으로 거부되었습니다. 앱 설정에서 권한을 허용해주세요.');
     return false;
   }
@@ -120,12 +127,13 @@ Future<bool> _checkAndRequestLocationPermission() async {
   return true;
 }
 
+/// 로컬 알림 초기화
 Future<void> _initLocalNotifications() async {
-  // 1) Android 초기화 설정
+  // (1) Android 초기화 설정
   const AndroidInitializationSettings initializationSettingsAndroid =
   AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  // 2) iOS 초기화 설정
+  // (2) iOS 초기화 설정
   final DarwinInitializationSettings initializationSettingsIOS =
   DarwinInitializationSettings(
     requestAlertPermission: true,
@@ -133,13 +141,13 @@ Future<void> _initLocalNotifications() async {
     requestSoundPermission: true,
   );
 
-  // 3) 통합 초기화 설정
+  // (3) 통합 초기화 설정
   final InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
     iOS: initializationSettingsIOS,
   );
 
-  // 4) 플러그인 초기화
+  // (4) 플러그인 초기화
   await flutterLocalNotificationsPlugin.initialize(
     initializationSettings,
     onDidReceiveNotificationResponse: (NotificationResponse response) {
@@ -149,15 +157,16 @@ Future<void> _initLocalNotifications() async {
   );
 }
 
-// (선택) 백그라운드 알림 클릭 처리
+/// (선택) 백그라운드 알림 클릭 처리
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse notificationResponse) {
   debugPrint('백그라운드에서 알림 클릭됨, payload: ${notificationResponse.payload}');
 }
 
-// MyApp
+/// MyApp
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Widget firstScreen;
+  const MyApp({super.key, required this.firstScreen});
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +182,7 @@ class MyApp extends StatelessWidget {
           iconTheme: IconThemeData(color: Colors.black),
         ),
       ),
-      home: SplashScreen(),
+      home: firstScreen,
     );
   }
 }

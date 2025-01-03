@@ -1,236 +1,80 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';  // DateFormat을 사용하기 위한 import
-import '../../../../api/login/login_service.dart'; // AuthService import
-import '../../../../widgets/category_button.dart';
-import '../../data/services/load_roomlist_service.dart';
-import '../../data/services/socket_message_service.dart';
-import 'chat_detail_page.dart'; // ChatDetailPage 파일을 가져옴
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class ChatPage extends StatefulWidget {
+import '../../providers/chat_category_provider.dart';
+import '../../providers/chat_room_provicer.dart';
+import '../widgets/chat_header.dart';
+import '../widgets/chat_category_bar.dart';
+import '../widgets/chat_room_list.dart';
+
+class ChatPage extends ConsumerStatefulWidget {
+  const ChatPage({Key? key}) : super(key: key);
+
   @override
-  _ChatPageState createState() => _ChatPageState();
+  ConsumerState<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
-  String selectedCategory = "전체"; // 선택된 카테고리
-  late Future<List<dynamic>> _chatRoomsFuture; // 채팅방 목록을 저장할 Future
-  final LoadRoomListService loadRoomListService = LoadRoomListService(AuthService());
-  late final SocketMessageService socketMessageService;
-  List<Map<String, dynamic>> chatRooms = [];
+class _ChatPageState extends ConsumerState<ChatPage> {
+  bool _isLoading = true; // 간단한 로딩 상태 플래그
 
   @override
   void initState() {
     super.initState();
-    _chatRoomsFuture = loadRoomListService.loadRoomList(); // API 호출을 통해 채팅방 목록을 로드
-  }
 
-  // 시간을 "오전/오후 h:mm" 형태로 변환
-  String _formatTime(dynamic timestamp) {
-    try {
-      DateTime dateTime;
-      if (timestamp is int) {
-        dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp * 1000).toLocal();
-      } else if (timestamp is String) {
-        dateTime = DateTime.parse(timestamp).toLocal();
-      } else {
-        throw Exception('Invalid timestamp format');
-      }
-      return DateFormat('a h:mm', 'ko_KR').format(dateTime);
-    } catch (error) {
-      print('타임스탬프 변환 오류: $error');
-      return 'Unknown';
-    }
-  }
-
-  // 카테고리 선택
-  void _onCategorySelected(String category) {
-    setState(() {
-      selectedCategory = category;
+    // (A) 페이지 초기화 시, 채팅방 목록 불러오기
+    //     fetchRooms() 완료 후 _isLoading를 false로 전환
+    Future.microtask(() async {
+      await ref.read(chatRoomNotifierProvider.notifier).fetchRooms();
+      setState(() {
+        _isLoading = false;
+      });
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    // (1) 채팅방 목록 (List<ChatRoom>)
+    final chatRooms = ref.watch(chatRoomNotifierProvider);
+
+    // (2) 현재 카테고리
+    final selectedCategory = ref.watch(chatCategoryProvider);
+
+    // (3) 필터 로직
+    final filteredRooms = chatRooms.where((room) {
+      if (selectedCategory == '전체') return true;
+      return room.type == selectedCategory;
+    }).toList();
+
+    // (B) 만약 아직 로딩 중이면 프로그래스 표시
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // (C) 로딩 완료된 경우
     return Scaffold(
       body: SafeArea(
-        top: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(left: 16.0, right: 16.0, top: 20, bottom: 5.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'CHAT',
-                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 30),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.more_vert, color: Colors.black),
-                    onPressed: () {},
-                  ),
-                ],
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 25),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 상단 헤더
+              const ChatHeader(),
+
+              const SizedBox(height: 25),
+
+              // 카테고리 바
+              const ChatCategoryBar(),
+
+              Expanded(
+                child: ChatRoomList(rooms: filteredRooms),
               ),
-            ),
-            SizedBox(height: 5), // 제목과 카테고리 간의 간격 최소화
-
-            // 카테고리 버튼
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              height: 40,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                children: [
-                  CategoryButton(
-                    text: "전체",
-                    isSelected: selectedCategory == "전체",
-                    onPressed: () => _onCategorySelected("전체"),
-                  ),
-                  CategoryButton(
-                    text: "모임",
-                    isSelected: selectedCategory == "모임",
-                    onPressed: () => _onCategorySelected("모임"),
-                  ),
-                  CategoryButton(
-                    text: "배달",
-                    isSelected: selectedCategory == "배달",
-                    onPressed: () => _onCategorySelected("배달"),
-                  ),
-                  CategoryButton(
-                    text: "택시 · 카풀",
-                    isSelected: selectedCategory == "택시 · 카풀",
-                    onPressed: () => _onCategorySelected("택시 · 카풀"),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.search, color: Colors.grey),
-                    onPressed: () {},
-                  ),
-                ],
-              ),
-            ),
-            Divider(color: Colors.red, thickness: 1.0), // 이 Divider가 최상단에 가깝게 위치하게 됨
-
-            // 채팅 목록 (API 호출로 가져온 데이터)
-            Expanded(
-              child: FutureBuilder<List<dynamic>>(
-                future: _chatRoomsFuture, // 서버에서 가져온 데이터로 FutureBuilder 설정
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(child: CircularProgressIndicator()); // 로딩 중일 때
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('데이터를 불러오는데 실패했습니다.'));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return Center(child: Text('채팅방 목록이 없습니다.'));
-                  } else {
-                    chatRooms = List<Map<String, dynamic>>.from(snapshot.data!);
-                    final filteredChatRooms = _filteredChatRooms(chatRooms);
-                    return ListView.builder(
-                      itemCount: filteredChatRooms.length,
-                      itemBuilder: (context, index) {
-                        final chatRoom = filteredChatRooms[index];
-                        return GestureDetector(
-                          onTap: () async {
-                            final result = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ChatDetailPage(chatRoom: chatRoom),
-                              ),
-                            );
-
-                            if (result == 'reload') {
-                              setState(() {
-                                _chatRoomsFuture = loadRoomListService.loadRoomList();
-                              });
-                            }
-                          },
-                          child: _buildChatRoomItem(chatRoom), // _buildChatRoomItem 메서드 사용
-                        );
-                      },
-                    );
-                  }
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildChatRoomItem(Map<String, dynamic> chatRoom) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatDetailPage(chatRoom: chatRoom),
+            ],
           ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 5.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.red),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    chatRoom['type'] ?? 'Unknown',
-                    style: TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Spacer(),
-                if ((chatRoom['unread_message_count'] ?? 0) > 0)
-                  Container(
-                    padding: EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      '${chatRoom['unread_message_count'] ?? 0}',
-                      style: TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ),
-                SizedBox(width: 8),
-                Text(
-                  chatRoom['last_message'] is Map ? (chatRoom['last_message']['date_sent'] ?? 'Unknown') : 'Unknown',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-            ),
-            SizedBox(height: 4),
-            Text(
-              chatRoom['name'] ?? 'No Title',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            SizedBox(height: 2),
-            Text(
-              chatRoom['last_message'] is Map ? (chatRoom['last_message']['content'] ?? 'No messages') : 'No messages',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-            Divider(color: Colors.red, thickness: 1.0),
-          ],
         ),
       ),
     );
-  }
-
-  // 카테고리에 따라 채팅방 필터링
-  List<Map<String, dynamic>> _filteredChatRooms(List<Map<String, dynamic>> chatRooms) {
-    if (selectedCategory == "전체") {
-      return chatRooms; // "전체" 선택 시 모든 채팅방 표시
-    } else if (selectedCategory == "택시 · 카풀") {
-      return chatRooms.where((chatRoom) => chatRoom['type'] == "택시").toList(); // "택시 · 카풀" 선택 시 "택시" 데이터 필터링
-    } else {
-      return chatRooms.where((chatRoom) => chatRoom['type'] == selectedCategory).toList(); // 선택된 카테고리에 따른 필터링
-    }
   }
 }

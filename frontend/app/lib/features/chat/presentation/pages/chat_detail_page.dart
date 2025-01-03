@@ -6,8 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/chat_detail_notifier.dart';
 import '../../providers/chat_detail_provider.dart';
-import '../widgets/chat_message_bubble.dart';
-import '../widgets/input_bar/chat_input_bar.dart';
+import '../widgets/detail/chat_message_bubble.dart';
+import '../widgets/detail/input_bar/chat_input_bar.dart';
 
 class ChatDetailPage extends ConsumerStatefulWidget {
   final Map<String, dynamic> chatRoom;
