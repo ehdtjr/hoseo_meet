@@ -1,21 +1,40 @@
 // file: lib/features/navigation/presentation/pages/main_tab_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/home/presentation/pages/home_page.dart';
 
-import '../../../chat/presentation/pages/chat_page.dart';
+import 'package:hoseomeet/features/home/presentation/pages/home_page.dart';
+import 'package:hoseomeet/features/chat/presentation/pages/chat_page.dart';
+
+// 바텀 내비게이션 인덱스 Provider
 import '../../providers/bottom_nav_index_provider.dart';
 import '../widgets/app_bottom_nav_bar.dart';
+
+// (★) 로그인 상태 감시하기 위해 AuthNotifier import
+import 'package:hoseomeet/features/auth/providers/auth_notifier_provider.dart';
+import 'package:hoseomeet/features/auth/presentation/pages/login_page.dart';
 
 class MainTabPage extends ConsumerWidget {
   const MainTabPage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 현재 탭 인덱스 (Riverpod)
+    // ① 현재 사용자 로그인 상태
+    final authState = ref.watch(authNotifierProvider);
+
+    // ② 로그인되지 않았다면 → LoginPage 이동
+    if (!authState.isLoggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
+      });
+    }
+
+    // ③ 현재 탭 인덱스 (Riverpod)
     final currentIndex = ref.watch(bottomNavIndexProvider);
 
-    // 바텀 내비 아이템 목록
+    // ④ 바텀 내비 아이템
     final bottomNavItems = [
       BottomNavItem(svgAsset: 'assets/icons/fi-rr-home.svg', label: 'HOME'),
       BottomNavItem(svgAsset: 'assets/icons/fi-rr-laugh.svg', label: 'MENT'),
@@ -23,23 +42,19 @@ class MainTabPage extends ConsumerWidget {
       BottomNavItem(svgAsset: 'assets/icons/fi-rr-user.svg', label: 'ME'),
     ];
 
-    // 탭별 화면들 (IndexedStack에 배치)
-    // 실제로는 HomePage(), MentPage(), ChatPage(), MePage() 등을 넣으시면 됩니다.
+    // ⑤ 탭별 화면들
     final pages = [
       const HomePage(),
-      Center(child: Text('MENT 페이지')),
+      const Center(child: Text('MENT 페이지')),
       const ChatPage(),
-      Center(child: Text('ME 페이지')),
+      const Center(child: Text('ME 페이지')),
     ];
 
     return Scaffold(
-      // 탭 전환 시 이전 화면 상태를 유지하고 싶다면 IndexedStack 사용
       body: IndexedStack(
         index: currentIndex,
         children: pages,
       ),
-
-      // 커스텀 바텀 내비
       bottomNavigationBar: AppBottomNavBar(
         items: bottomNavItems,
         currentIndex: currentIndex,

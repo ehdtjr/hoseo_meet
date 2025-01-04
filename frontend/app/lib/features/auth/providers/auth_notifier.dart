@@ -13,17 +13,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// 앱 시작 시점 자동로그인
   Future<void> _initAutoLogin() async {
-    // 1) 로컬에 Refresh Token이 있는지 체크
+    // 1) 로컬에서 Refresh Token 읽기
     final storedRefresh = await _tokenStorage.readRefreshToken();
+
     if (storedRefresh != null) {
       // 2) state에 반영
       state = state.copyWith(refreshToken: storedRefresh);
 
       // 3) refreshAccessToken() 시도
       await refreshAccessToken();
-      // 만약 실패하면 state.errorMessage에 설정됨 → UI에서 처리
+
+      if (!state.isLoggedIn) {
+        await _tokenStorage.deleteRefreshToken();
+      }
     }
   }
+
 
   /// (1) 로그인
   Future<void> loginUser(String username, String password) async {
