@@ -52,7 +52,7 @@ class ChatCategoryBar extends ConsumerWidget {
             color: backgroundColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(43),
-              side: BorderSide(color: borderColor, width: 0.5),
+              side: BorderSide(color: borderColor, width: 0.2),
             ),
           ),
           child: Center(

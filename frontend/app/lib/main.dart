@@ -12,16 +12,17 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 // 예시: 로그인 페이지
 import 'features/auth/presentation/pages/login_page.dart';
+// (★) FCMService import
+import 'firebase/fcm_service.dart';
 
-/// 전역으로 로컬 알림 플러그인 선언
+/// 전역 로컬 알림 플러그인
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 /// FCM 백그라운드 메시지 핸들러 (top-level 함수)
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // (필요하다면) Firebase.initializeApp() 호출
-  // await Firebase.initializeApp();
   print('[백그라운드] 메시지 수신: ${message.notification?.title}');
+  // 필요하다면 여기에 await Firebase.initializeApp(); 추가
 }
 
 Future<void> main() async {
@@ -48,81 +49,33 @@ Future<void> main() async {
   // (6) Firebase 초기화
   await Firebase.initializeApp();
 
-  // (6-1) iOS 알림 권한 요청 + 포그라운드 배너 표시
-  final settings = await FirebaseMessaging.instance.requestPermission(
-    alert: true,   // 배너
-    badge: true,
-    sound: true,
-  );
-  print('iOS 알림 권한 상태: ${settings.authorizationStatus}');
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-
-  // (7) 로컬 알림 초기화 (안드로이드 포그라운드 표시용)
+  // (7) 로컬 알림 초기화 (안드로이드 포어그라운드 표시용)
   await _initLocalNotifications();
 
-  // (8) 포그라운드 메시지(안드로이드) 수신 시 시스템 알림 띄우는 콜백 설정
-  _setupForegroundFCMListener();
-
-  // (9) 백그라운드 메시지 핸들러 등록
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-  // (11) 앱 실행 (ProviderScope + MyApp)
+  // (8) 앱 실행. ProviderScope로 감싸서 Riverpod을 전역에서 사용 가능
   runApp(
     const ProviderScope(
-      child: MyApp(firstScreen: LoginPage()),
+      child: MyApp(),
     ),
   );
 }
 
 /// 로컬 알림 초기화
 Future<void> _initLocalNotifications() async {
-  const AndroidInitializationSettings androidInitSettings =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
-  final DarwinInitializationSettings iosInitSettings =
-  DarwinInitializationSettings();
+  const androidInitSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const iosInitSettings = DarwinInitializationSettings();
 
-  final InitializationSettings settings = InitializationSettings(
+  const initSettings = InitializationSettings(
     android: androidInitSettings,
     iOS: iosInitSettings,
   );
 
   await flutterLocalNotificationsPlugin.initialize(
-    settings,
-    onDidReceiveNotificationResponse: (NotificationResponse resp) {
+    initSettings,
+    onDidReceiveNotificationResponse: (resp) {
       print('알림 클릭됨: payload=${resp.payload}');
     },
   );
-}
-
-/// 안드로이드 포그라운드 메시지 수신 시, 로컬 알림으로 표시
-void _setupForegroundFCMListener() {
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-    print('포어그라운드 알림 수신: ${message.notification?.title}, ${message.notification?.body}');
-
-    // 안드로이드 알림 채널 설정
-    const AndroidNotificationDetails androidDetails =
-    AndroidNotificationDetails(
-      'my_channel_id',
-      '포그라운드 알림 채널',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
-    const NotificationDetails notiDetails =
-    NotificationDetails(android: androidDetails);
-
-    // 실제 알림 띄우기
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      message.notification?.title ?? 'No title',
-      message.notification?.body ?? 'No body',
-      notiDetails,
-      payload: 'foreground msg',
-    );
-  });
 }
 
 /// 위치 권한 확인 함수
@@ -145,19 +98,50 @@ Future<bool> _checkAndRequestLocationPermission() async {
   return true;
 }
 
-class MyApp extends StatelessWidget {
-  final Widget firstScreen;
-  const MyApp({super.key, required this.firstScreen});
+/// ConsumerStatefulWidget에서 FcmService를 초기화
+class MyApp extends ConsumerStatefulWidget {
+  const MyApp({Key? key}) : super(key: key);
+
+  @override
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  late final FcmService fcmService;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // (A) FcmService 생성, ref를 주입
+    fcmService = FcmService(
+      localNotificationsPlugin: flutterLocalNotificationsPlugin,
+      ref: ref, // <-- ConsumerStatefulWidget에서는 ref 접근 가능
+    );
+
+    // (B) FCM 관련 초기화
+    _initFCM();
+  }
+
+  Future<void> _initFCM() async {
+    // iOS 권한
+    await fcmService.requestIOSPermissions();
+    // 포어그라운드 메시지 리스너
+    fcmService.setupForegroundListener();
+    // 백그라운드 메시지 핸들러
+    fcmService.setupBackgroundHandler(firebaseMessagingBackgroundHandler);
+  }
 
   @override
   Widget build(BuildContext context) {
+    // 첫 화면으로 LoginPage를 띄운다고 가정
     return MaterialApp(
       title: 'Flutter Demo (with FCM)',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         scaffoldBackgroundColor: Colors.white,
       ),
-      home: firstScreen,
+      home: const LoginPage(),
     );
   }
 }

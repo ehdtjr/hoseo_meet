@@ -14,8 +14,18 @@ class ChatRoomNotifier extends StateNotifier<List<ChatRoom>> {
       final rooms = await service.loadRoomList();
 
       rooms.sort((a, b) {
-        // a.time, b.time: ISO 8601(또는 다른 형식)일 가능성
-        // 1) 문자열이 비었으면 가장 뒤로
+        // 1) 우선순위: unreadCount 비교
+        final aUnread = a.unreadCount > 0;
+        final bUnread = b.unreadCount > 0;
+
+        if (aUnread && !bUnread) {
+          // a는 unread > 0, b는 0 → a 먼저 (위로)
+          return -1;
+        } else if (!aUnread && bUnread) {
+          // b는 unread > 0, a는 0 → b 먼저
+          return 1;
+        }
+
         if (a.time.isEmpty && b.time.isNotEmpty) {
           return 1; // a 뒤로
         } else if (b.time.isEmpty && a.time.isNotEmpty) {
@@ -24,13 +34,14 @@ class ChatRoomNotifier extends StateNotifier<List<ChatRoom>> {
           return 0;
         }
 
-        // 2) 문자열이 있으면 DateTime.parse(...) → 비교
+        // 날짜 비교
         final dateA = parseToDateTime(a.time);
         final dateB = parseToDateTime(b.time);
 
-        // 3) 내림차순: b가 더 최신이면 양수 리턴
+        // 내림차순: b가 더 최신이면 양수
         return dateB.compareTo(dateA);
       });
+
 
       state = rooms;
     } catch (e) {
@@ -55,6 +66,28 @@ class ChatRoomNotifier extends StateNotifier<List<ChatRoom>> {
       if (room.streamId == streamId) {
         // ChatRoom 모델에 copyWith가 있다면 copyWith로 쉽게 처리 가능
         return room.copyWith(unreadCount: 0);
+      } else {
+        return room;
+      }
+    }).toList();
+
+    // 변경된 목록을 state에 반영 → UI 자동 리빌드
+    state = updatedRooms;
+  }
+
+  void handleIncomingMessage({
+    required int streamId,
+    required String content,
+    required String dateSent,
+  }) {
+    print('★ handleIncomingMessage: $streamId, $content, $dateSent');
+    final updatedRooms = state.map((room) {
+      if (room.streamId == streamId) {
+        return room.copyWith(
+          lastMessageContent: content,
+          time: dateSent,
+          unreadCount: room.unreadCount + 1,
+        );
       } else {
         return room;
       }
