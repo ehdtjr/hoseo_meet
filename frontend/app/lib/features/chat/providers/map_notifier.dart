@@ -11,7 +11,6 @@ class MapNotifier extends StateNotifier<List<NCircleOverlay>> {
 
   /// userId별 원(circle) 업데이트
   void updateUserCircle(int userId, double lat, double lng) {
-    final existingCircle = _circlesMap[userId];
       final newCircle = NCircleOverlay(
         id: 'circle_user_$userId',
         center: NLatLng(lat, lng),

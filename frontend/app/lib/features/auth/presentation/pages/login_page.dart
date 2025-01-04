@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+import '../../../../commons/network/auth_http_client_provider.dart';
 import '../../../../features/auth/providers/auth_notifier_provider.dart';
 import '../../../navigation/presentation/pages/main_tab_page.dart';
 import '../../data/models/auth_state.dart';
 import '../../providers/auth_notifier.dart';
+
+// (★) 추가: SendTokenService import
+import 'package:hoseomeet/firebase/api/send_token_service.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -13,7 +19,6 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
-  // TextField 컨트롤러
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _pwController = TextEditingController();
 
@@ -24,7 +29,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
-  // 디자인 기준
   static const double baseWidth = 430.0;
   static const double baseHeight = 932.0;
 
@@ -40,13 +44,31 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authNotifierProvider); // AuthState 구독
+    final authState = ref.watch(authNotifierProvider); // AuthState
     final authNotifier = ref.read(authNotifierProvider.notifier);
 
-    // 로그인 성공 시 화면 이동 처리 (예시)
+    // 로그인 성공 시 화면 이동 + FCM 토큰 서버 전송
     if (authState.isLoggedIn) {
-      // 이미 로그인된 상태라면 바로 HomeScreen 으로
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // (1) FCM 토큰 가져오기
+        final token = await FirebaseMessaging.instance.getToken();
+        print('로그인 후 FCM 토큰: $token');
+
+        // (2) 토큰 서버 전송
+        if (token != null && token.isNotEmpty) {
+          // 예) SendTokenService를 사용해 서버 API 호출
+          final authClient = ref.read(authHttpClientProvider);
+          final sendTokenService = SendTokenService(authClient);
+          final response = await sendTokenService.sendToken(token);
+
+          if (response.statusCode == 200) {
+            print('[FCM 토큰 등록] 서버 전송 성공');
+          } else {
+            print('[FCM 토큰 등록] 실패: code=${response.statusCode}, body=${response.body}');
+          }
+        }
+
+        // (3) 화면 전환
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => MainTabPage()),
@@ -58,18 +80,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // 로딩 상태 표시
           if (authState.isLoading)
             const Opacity(
               opacity: 0.6,
               child: ModalBarrier(dismissible: false, color: Colors.black),
             ),
           if (authState.isLoading)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
+            const Center(child: CircularProgressIndicator()),
 
-          // 메인 UI
           _buildMainUI(context, authState, authNotifier),
         ],
       ),
@@ -85,19 +103,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         decoration: const BoxDecoration(color: Colors.white),
         child: Stack(
           children: [
-            // 로고 영역
+            // 로고
             Positioned(
               left: w(context, 139),
               top: h(context, 198),
-              child: Container(
+              child: SizedBox(
                 width: w(context, 153),
                 height: h(context, 134),
-                color: Colors.transparent,
                 child: Image.asset("assets/img/login_logo.png"),
               ),
             ),
-
-            // 아이디 입력 영역
+            // 아이디 입력
             Positioned(
               left: w(context, 79),
               top: h(context, 369),
@@ -120,7 +136,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     style: const TextStyle(
                       fontSize: 14,
-                      fontFamily: 'Pretendard',
                       fontWeight: FontWeight.w500,
                       height: 1.60,
                       color: Colors.black,
@@ -129,8 +144,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ),
             ),
-
-            // 비밀번호 입력 영역
+            // 비밀번호 입력
             Positioned(
               left: w(context, 79),
               top: h(context, 414),
@@ -147,14 +161,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   padding: EdgeInsets.symmetric(horizontal: w(context, 19)),
                   child: TextField(
                     controller: _pwController,
-                    obscureText: true, // 비밀번호 마스킹
+                    obscureText: true,
                     decoration: const InputDecoration(
                       hintText: '비밀번호',
                       border: InputBorder.none,
                     ),
                     style: const TextStyle(
                       fontSize: 14,
-                      fontFamily: 'Pretendard',
                       fontWeight: FontWeight.w500,
                       height: 1.60,
                       color: Colors.black,
@@ -163,8 +176,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ),
             ),
-
-            // 로그인 버튼 (onTap)
+            // 로그인 버튼
             Positioned(
               left: w(context, 79),
               top: h(context, 469),
@@ -183,12 +195,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   // 로그인 시도
                   await authNotifier.loginUser(id, pw);
 
-                  // 에러가 있다면 스낵바 표시
+                  // 에러가 있다면 표시
                   final err = ref.read(authNotifierProvider).errorMessage;
                   if (err != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(err)),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
                   }
                 },
                 child: Container(
@@ -206,7 +216,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 15,
-                        fontFamily: 'Pretendard',
                         fontWeight: FontWeight.w600,
                         height: 1.60,
                       ),
@@ -215,8 +224,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ),
             ),
-
-            // 아이디/비밀번호 찾기, 회원가입
+            // 회원가입 / 아이디/비번 찾기
             Positioned(
               left: w(context, 129),
               top: h(context, 526),
@@ -225,13 +233,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 height: h(context, 30),
                 child: Stack(
                   children: [
-                    // 회원가입
                     Positioned(
                       left: 0,
                       top: 0,
                       child: GestureDetector(
                         onTap: () {
-                          // TODO: 회원가입 페이지로 이동
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('회원가입 페이지 이동 미구현')),
                           );
@@ -241,21 +247,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           style: TextStyle(
                             color: Color(0xFFB5B5B5),
                             fontSize: 13,
-                            fontFamily: 'Pretendard',
                             fontWeight: FontWeight.w500,
                             height: 1.60,
                           ),
                         ),
                       ),
                     ),
-
-                    // 아이디/비밀번호 찾기
                     Positioned(
                       left: 62,
                       top: 0,
                       child: GestureDetector(
                         onTap: () {
-                          // TODO: 아이디/비번 찾기 페이지
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('아이디/비번 찾기 미구현')),
                           );
@@ -265,14 +267,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                           style: TextStyle(
                             color: Color(0xFFB5B5B5),
                             fontSize: 13,
-                            fontFamily: 'Pretendard',
                             fontWeight: FontWeight.w500,
                             height: 1.60,
                           ),
                         ),
                       ),
                     ),
-
                     // 가운데 점
                     Positioned(
                       left: w(context, 52),
