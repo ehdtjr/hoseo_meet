@@ -1,13 +1,15 @@
+// file: lib/features/chat/providers/chat_detail_notifier.dart
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod/riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
-import 'package:hoseomeet/features/chat/data/models/chat_message.dart';
-import 'package:hoseomeet/features/chat/data/repositories/chat_repository.dart';
-
 // Services
 import '../../../commons/network/auth_http_client_provider.dart';
+import '../data/models/chat_message.dart';
+import '../data/models/chat_room.dart';
+import '../data/repositories/chat_repository.dart';
 import '../data/services/activate_deactivate_service.dart';
 import '../data/services/load_message_service.dart';
 import '../data/services/message_read_service.dart';
@@ -16,56 +18,25 @@ import '../data/services/socket_message_service.dart';
 
 // Auth
 import '../../../../features/auth/providers/auth_notifier_provider.dart';
-import 'map_provider.dart'; // (B) For accessToken
+// 맵 관련 (위치 표시)
+import 'map_provider.dart';
 
-// ---------------------------
-// 상태 모델
-// ---------------------------
-class ChatDetailState {
-  final int? userId;
-  final bool isLoadingMore;
-  final List<ChatMessage> messages;
-
-  ChatDetailState({
-    this.userId,
-    this.isLoadingMore = false,
-    this.messages = const [],
-  });
-
-  ChatDetailState copyWith({
-    int? userId,
-    bool? isLoadingMore,
-    List<ChatMessage>? messages,
-  }) {
-    return ChatDetailState(
-      userId: userId ?? this.userId,
-      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      messages: messages ?? this.messages,
-    );
-  }
-}
-
-// ---------------------------
-// Notifier
-// ---------------------------
 class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
-  ChatDetailNotifier(
-      this.ref,
-      this.chatRoom,
-      ) : super(ChatDetailState());
+  ChatDetailNotifier(this.ref, this.chatRoom) : super(ChatDetailState());
 
-  final Ref ref; // Riverpod 2.x: ref 주입
-  final Map<String, dynamic> chatRoom;
+  final Ref ref;
+  final ChatRoom chatRoom; // 변경: Map<String, dynamic> → ChatRoom
 
   bool _isInitialized = false;
   late final ChatRepository _chatRepository;
 
-  // ---------------------------
-  // 변경: 거리 기반 구독 대신 Timer로 5초 간격 위치 전송
-  // ---------------------------
-  Timer? _locationTimer; // 5초 간격 타이머
+  // 5초마다 위치 전송 (Timer)
+  Timer? _locationTimer;
 
+  // WebSocket listen
   StreamSubscription<Map<String, dynamic>>? _socketSubscription;
+
+  // 방 활성화 타이머
   Timer? _activateTimer;
 
   // ---------------------------
@@ -78,17 +49,17 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     }
     _isInitialized = true;
 
-    // (1) AuthHttpClient 인스턴스 획득
+    // (1) AuthHttpClient
     final client = ref.read(authHttpClientProvider);
 
-    // (2) 현재 전역 토큰 상태에서 accessToken 가져오기 (SocketMessageService에 필요)
+    // (2) 전역 토큰
     final token = ref.read(authNotifierProvider).accessToken;
     if (token == null) {
       debugPrint('[ChatDetailNotifier] init() 실패: 토큰이 없습니다.');
       return;
     }
 
-    // (3) 필요한 Service들을 생성 (AuthHttpClient 기반)
+    // (3) 필요한 Service들
     _chatRepository = ChatRepository(
       loadService: LoadMessageService(client),
       sendService: SendMessageService(client),
@@ -106,11 +77,9 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   }
 
   // ---------------------------
-  // 내 위치 추적 -> 서버로 전송
-  // (5초마다 현재 위치를 받아 전송)
+  // 내 위치 추적 -> 서버로 전송 (5초마다)
   // ---------------------------
   Future<void> startLocationTracking() async {
-    // 5초마다 현재 위치를 확인해 서버 전송
     _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       try {
         final position = await Geolocator.getCurrentPosition(
@@ -120,8 +89,9 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         final lng = position.longitude;
         debugPrint('[ChatDetailNotifier] (5초) 내 위치 lat=$lat, lng=$lng');
 
+        // (A) chatRoom.streamId 활용
         await _chatRepository.sendLocation(
-          streamId: chatRoom['stream_id'],
+          streamId: chatRoom.streamId,
           lat: lat,
           lng: lng,
         );
@@ -133,14 +103,12 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   }
 
   void stopLocationTracking() {
-    // 위치 전송 타이머 해제
     _locationTimer?.cancel();
     _locationTimer = null;
   }
 
-  // disposeNotifier: 타이머, 스트림 해제
+  // disposeNotifier
   Future<void> disposeNotifier() async {
-    // 위치 추적 중단
     stopLocationTracking();
     _activateTimer?.cancel();
     _activateTimer = null;
@@ -151,25 +119,22 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     _chatRepository.disposeSocketService();
   }
 
-  // ---------------------------
   // 사용자 ID
-  // ---------------------------
   Future<void> _fetchUserId() async {
     try {
-      // 임시로 userId를 0으로
+      // 임시로 userId = 0
       state = state.copyWith(userId: 0);
     } catch (e) {
       debugPrint('[ChatDetailNotifier] _fetchUserId 실패: $e');
     }
   }
 
-  // ---------------------------
   // 메시지 로드
-  // ---------------------------
   Future<void> _loadMessagesAtFirstUnread() async {
     try {
       final previousMessages = await _chatRepository.loadMessages(
-        streamId: chatRoom['stream_id'],
+        // (B) chatRoom.streamId 사용
+        streamId: chatRoom.streamId,
         anchor: 'first_unread',
         numBefore: 30,
         numAfter: 30,
@@ -187,9 +152,10 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     state = state.copyWith(isLoadingMore: true);
 
     try {
-      final oldestId = state.messages.isNotEmpty ? state.messages.first.id : null;
+      final oldestId =
+      state.messages.isNotEmpty ? state.messages.first.id : null;
       final moreMessages = await _chatRepository.loadMessages(
-        streamId: chatRoom['stream_id'],
+        streamId: chatRoom.streamId,
         anchor: oldestId?.toString() ?? 'first_unread',
         numBefore: 30,
         numAfter: 0,
@@ -208,16 +174,14 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     state = state.copyWith(isLoadingMore: false);
   }
 
-  // ---------------------------
-  // 메시지 보내기
-  // ---------------------------
+  // 메시지 전송
   Future<void> sendMessage(String content) async {
     final trimmed = content.trim();
     if (trimmed.isEmpty || state.userId == null) return;
 
     try {
       await _chatRepository.sendMessage(
-        streamId: chatRoom['stream_id'],
+        streamId: chatRoom.streamId,
         content: trimmed,
       );
     } catch (error) {
@@ -225,9 +189,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     }
   }
 
-  // ---------------------------
   // WebSocket 연결
-  // ---------------------------
   Future<void> _initWebSocket() async {
     await _chatRepository.connectWebSocket();
     _socketSubscription = _chatRepository.messageStream.listen((incoming) async {
@@ -240,7 +202,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
           await _handleStreamMessage(incoming);
           break;
         case 'location':
-          _handleLocationMessage(incoming); // 위치 메시지 처리
+          _handleLocationMessage(incoming);
           break;
         default:
           debugPrint('[ChatDetailNotifier] 다룰 필요 없는 타입: $type');
@@ -249,9 +211,8 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     });
   }
 
-  // 읽음 처리
   void _handleReadMessage(Map<String, dynamic> msg) {
-    final List<dynamic> readIds = msg['data']?['read_message'] ?? [];
+    final readIds = msg['data']?['read_message'] as List<dynamic>? ?? [];
     final updated = state.messages.map((m) {
       if (readIds.contains(m.id)) {
         final newCount = (m.unreadCount > 0) ? (m.unreadCount - 1) : 0;
@@ -262,17 +223,17 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     state = state.copyWith(messages: updated);
   }
 
-  // 일반 메시지(stream) 처리
   Future<void> _handleStreamMessage(Map<String, dynamic> msg) async {
     final data = msg['data'];
-    if (data['stream_id'] == chatRoom['stream_id']) {
+    // (C) data['stream_id'] == chatRoom.streamId 확인
+    if (data['stream_id'] == chatRoom.streamId) {
       final newMessage = ChatMessage.fromJson(data);
       state = state.copyWith(messages: [...state.messages, newMessage]);
 
       // newest message read
       try {
         await _chatRepository.markNewestMessageAsRead(
-          streamId: chatRoom['stream_id'],
+          streamId: chatRoom.streamId,
         );
       } catch (error) {
         debugPrint('[ChatDetailNotifier] newest message read fail: $error');
@@ -282,23 +243,22 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     }
   }
 
-  // 위치 메시지 처리 (서버 -> 클라이언트)
   void _handleLocationMessage(Map<String, dynamic> msg) {
     final data = msg['data'];
     final userId = data['user_id'] as int?;
     final lat = data['lat'] as double?;
     final lng = data['lng'] as double?;
+
     debugPrint('[ChatDetailNotifier] 위치 메시지: user=$userId ($lat,$lng)');
     if (userId != null && lat != null && lng != null) {
+      // 지도에 원 표시 (예: mapNotifier)
       ref.read(mapNotifierProvider.notifier).updateUserCircle(userId, lat, lng);
     }
   }
 
-  // ---------------------------
-  // 채팅방 활성 / 비활성
-  // ---------------------------
+  // 방 활성화
   void _activateRoomRegularly() {
-    print('ChatDetailNotifier: _activateRoomRegularly');
+    debugPrint('ChatDetailNotifier: _activateRoomRegularly');
     _activateCurrentChatRoom();
     _activateTimer?.cancel();
     _activateTimer = Timer.periodic(const Duration(minutes: 5), (_) {
@@ -308,8 +268,9 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
 
   Future<void> _activateCurrentChatRoom() async {
     try {
-      final streamId = chatRoom['stream_id'];
-      if (streamId != null) {
+      // (D) chatRoom.streamId
+      final streamId = chatRoom.streamId;
+      if (streamId != 0) {
         await _chatRepository.activateRoom(streamId);
       }
     } catch (e) {
@@ -325,12 +286,12 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     }
   }
 
-  // 메시지 읽음 처리
   Future<void> _markMessagesAsRead() async {
     try {
-      final unreadCount = chatRoom['unread_message_count'] ?? 0;
+      // (E) chatRoom.unreadCount
+      final unreadCount = chatRoom.unreadCount;
       await _chatRepository.markMessagesAsRead(
-        streamId: chatRoom['stream_id'],
+        streamId: chatRoom.streamId,
         numAfter: unreadCount,
       );
     } catch (error) {

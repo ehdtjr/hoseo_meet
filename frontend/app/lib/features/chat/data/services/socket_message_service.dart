@@ -62,8 +62,6 @@ class SocketMessageService {
       // (A) 기존처럼 'type'이 'stream'인지 여부만 확인하는 것이 아니라,
       // 메시지가 Map 형태인지(키-값 형태인지) 확인한 뒤 전체를 스트림으로 보내도록 수정
       if (decodedData is Map<String, dynamic>) {
-        // 서버가 보내주는 type: read, stream, typing 등
-        // 어떤 유형이든, 전부 컨트롤러로 전달
         _messageStreamController.add(decodedData);
       } else {
         print('유효하지 않은 메시지 형식 (Map 형태가 아님)');

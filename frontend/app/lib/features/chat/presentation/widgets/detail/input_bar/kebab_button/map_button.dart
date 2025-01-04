@@ -1,5 +1,3 @@
-// file: features/chat/presentation/widgets/input_bar/kebab_button/map_button.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -67,35 +65,18 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
   NaverMapController? _mapController;
   bool _isMapReady = false;
 
-  // 한 번만 listen 등록을 위한 플래그
-  bool _listening = false;
-
   @override
   Widget build(BuildContext context) {
-    // (A) build 시점에서 한 번만 listen 등록
-    if (!_listening) {
-      _listening = true;
-
-      // mapNotifierProvider 상태(List<NCircleOverlay>)를 listen
-      ref.listen<List<NCircleOverlay>>(mapNotifierProvider, (prev, next) {
-        // 지도 준비된 상태일 때에만 오버레이 적용
-        if (_isMapReady && _mapController != null) {
-          // 기존 원(Circle) 지우고
-          _mapController!.clearOverlays(type: NOverlayType.circleOverlay);
-
-          // 새 목록을 추가
-          _mapController!.addOverlayAll(next.toSet());
-        }
-      });
-    }
+    // (A) circles 목록을 watch 하여, 변경 시 build 재호출
+    final circles = ref.watch(mapNotifierProvider);
 
     return Stack(
       children: [
-        // (1) NaverMap 위젯
+        // (1) NaverMap
         NaverMap(
           options: const NaverMapViewOptions(
             initialCameraPosition: NCameraPosition(
-              target: NLatLng(37.5666102, 126.9783881), // 초기 카메라 위치(서울 광화문 근처)
+              target: NLatLng(37.5666102, 126.9783881),
               zoom: 15,
             ),
             scrollGesturesEnable: true,
@@ -103,20 +84,18 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
             rotationGesturesEnable: true,
           ),
           onMapReady: (controller) {
-            // 지도 준비 완료
             _mapController = controller;
             _isMapReady = true;
             debugPrint('[MapModalContent] NaverMap 준비 완료');
 
-            // (B) 지도 준비된 후, 기존 state에 이미 있던 overlay 반영
-            final circles = ref.read(mapNotifierProvider);
+            // 초기 오버레이 설정
             if (circles.isNotEmpty) {
               controller.addOverlayAll(circles.toSet());
             }
           },
         ),
 
-        // (2) 하단: 사용자 아이콘 Row
+        // (2) 사용자 아이콘 Row (하단)
         Positioned(
           left: 0,
           right: 0,
@@ -131,8 +110,29 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
     );
   }
 
-  /// (C) 사용자 아이콘 Row (유저별 Circle 클릭 이동)
+  /// (B) didUpdateWidget / didChangeDependencies / addPostFrameCallback 등을 통해
+  ///     맵 컨트롤러 준비 후 circles 반영
+  @override
+  void didUpdateWidget(MapModalContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // build 직후 한 프레임 뒤에 오버레이 재설정
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateMapOverlays();
+    });
+  }
+
+  void _updateMapOverlays() {
+    if (_isMapReady && _mapController != null) {
+      final circles = ref.read(mapNotifierProvider);
+      _mapController!.clearOverlays(type: NOverlayType.circleOverlay);
+      _mapController!.addOverlayAll(circles.toSet());
+      debugPrint('[MapModalContent] 오버레이 갱신 완료. circles=${circles.length}');
+    }
+  }
+
+  /// 사용자 아이콘 Row (유저별 Circle 클릭 이동)
   Widget _buildUserIcons() {
+    // (C) mapNotifier
     final mapNotifier = ref.read(mapNotifierProvider.notifier);
     final userIds = mapNotifier.userIds; // 등록된 userId 목록
 
@@ -140,7 +140,7 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
       return const Center(child: Text('사용자 없음'));
     }
 
-    // userIds만큼 아이콘 생성
+    // userIds만큼 아이콘
     final icons = userIds.map((id) {
       return GestureDetector(
         onTap: () => _moveCameraToUser(id),
@@ -158,7 +158,7 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
     );
   }
 
-  /// (D) 특정 userId로 카메라 이동
+  /// 특정 userId로 카메라 이동
   void _moveCameraToUser(int userId) {
     final mapNotifier = ref.read(mapNotifierProvider.notifier);
     final userLatLng = mapNotifier.getUserLatLng(userId);

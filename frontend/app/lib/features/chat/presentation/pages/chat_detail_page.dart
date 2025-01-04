@@ -1,16 +1,17 @@
-// features/chat/presentation/pages/chat_detail_page.dart
-
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter/material.dart' show PopScope;
 
-import '../../providers/chat_detail_notifier.dart';
-import '../../providers/chat_detail_provider.dart';
+import '../../data/models/chat_room.dart'; // ChatRoom 모델
+import '../../providers/chat_detail_provider.dart';   // ChatDetailNotifier 관련 Provider
+import '../../providers/chat_detail_notifier.dart';   // ChatDetailNotifier
+import '../../providers/chat_room_provicer.dart';
 import '../widgets/detail/chat_message_bubble.dart';
 import '../widgets/detail/input_bar/chat_input_bar.dart';
 
 class ChatDetailPage extends ConsumerStatefulWidget {
-  final Map<String, dynamic> chatRoom;
+  final ChatRoom chatRoom;
 
   const ChatDetailPage({
     Key? key,
@@ -23,27 +24,31 @@ class ChatDetailPage extends ConsumerStatefulWidget {
 
 class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
     with WidgetsBindingObserver {
-  // 컨트롤러/포커스
+  // 메시지 입력 관련
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _messageFocusNode = FocusNode();
 
-  /// 수정 포인트: late final _notifier
-  late final ChatDetailNotifier _notifier;
+  // ChatDetailNotifier 참조
+  late final ChatDetailNotifier _detailNotifier;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Notifier를 1회만 읽어서 _notifier에 저장
-    _notifier = ref.read(chatDetailNotifierProvider(widget.chatRoom).notifier);
+    // (A) ChatDetailNotifier 인스턴스 준비
+    _detailNotifier =
+        ref.read(chatDetailNotifierProvider(widget.chatRoom).notifier);
 
+    // (B) 화면 렌더링 직후 처리할 로직
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // 기존 init 로직
-      await _notifier.init();
-      // 위치 추적 (10m 이동 시 서버에 위치 전송)
-      await _notifier.startLocationTracking();
+      // 1) ChatDetailNotifier 초기화
+      await _detailNotifier.init();
+      await _detailNotifier.startLocationTracking();
+      ref
+          .read(chatRoomNotifierProvider.notifier)
+          .markRoomAsRead(widget.chatRoom.streamId);
     });
 
     // 스크롤 리스너
@@ -53,9 +58,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-
-    // _notifier.disposeNotifier() (ref.read(...) 필요 없음)
-    _notifier.disposeNotifier();
+    _detailNotifier.disposeNotifier(); // ChatDetailNotifier 해제
 
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
@@ -65,20 +68,17 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
   }
 
   void _onScroll() {
-    // state & notifier를 dispose에서 ref.read(...)로 가져오지 않고
-    // build 시점에 watch하거나, 여기서 _notifier를 쓰거나...
     final currentState = ref.read(chatDetailNotifierProvider(widget.chatRoom));
-    // 또는 final currentState = _notifier.state;
-    // (Riverpod에서 Notifier의 state를 직접 접근해도 됩니다)
-
-    if (_scrollController.position.pixels <= 300 &&
-        !currentState.isLoadingMore) {
-      _notifier.loadMoreMessages();
+    if (_scrollController.position.pixels <= 300 && !currentState.isLoadingMore) {
+      _detailNotifier.loadMoreMessages();
     }
   }
 
   Future<void> _sendMessage() async {
-    await _notifier.sendMessage(_messageController.text);
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+
+    await _detailNotifier.sendMessage(text);
     _messageController.clear();
     _scrollToBottom();
   }
@@ -97,27 +97,22 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
 
   @override
   Widget build(BuildContext context) {
-    // 위젯 rebuild 시 notifier를 watch. (혹은 state만 watch)
-    final state = ref.watch(chatDetailNotifierProvider(widget.chatRoom));
+    // ChatDetailState 구독
+    final detailState = ref.watch(chatDetailNotifierProvider(widget.chatRoom));
 
-    return WillPopScope(
-      onWillPop: () async {
-        // 여기서 notifier.disposeNotifier()를 굳이 호출하지 않음
-        // -> dispose()에서 자동으로 해제
-        Navigator.pop(context, 'reload');
-        return false;
-      },
+    return PopScope(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.chatRoom['name'] ?? 'No Title'),
+          title: Text(widget.chatRoom.name.isEmpty
+              ? 'No Title'
+              : widget.chatRoom.name),
           centerTitle: true,
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.red),
-            onPressed: () async {
-              // 여기서도 disposeNotifier()를 호출하지 않음 -> dispose()에서 처리
+            onPressed: () {
               Navigator.pop(context, 'reload');
             },
           ),
@@ -129,8 +124,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
         body: SafeArea(
           child: Column(
             children: [
-              // 이전 메시지 로딩 중...
-              if (state.isLoadingMore)
+              if (detailState.isLoadingMore)
                 Container(
                   color: Colors.grey.shade200,
                   padding: const EdgeInsets.all(8.0),
@@ -151,12 +145,12 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
-                  itemCount: state.messages.length,
+                  itemCount: detailState.messages.length,
                   physics: const BouncingScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 10),
                   itemBuilder: (context, index) {
-                    final msg = state.messages[index];
-                    final bool isMe = (msg.senderId == state.userId);
+                    final msg = detailState.messages[index];
+                    final isMe = (msg.senderId == detailState.userId);
                     final sendTime = _formatTime(msg.dateSent);
 
                     return ChatMessageBubble(
@@ -171,7 +165,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
                 ),
               ),
 
-              // 메시지 입력창
+              // 입력창
               ChatInputBar(
                 controller: _messageController,
                 focusNode: _messageFocusNode,

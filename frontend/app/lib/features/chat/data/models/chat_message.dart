@@ -82,3 +82,29 @@ class ChatMessage {
     );
   }
 }
+
+
+class ChatDetailState {
+  final int? userId;
+  final bool isLoadingMore;
+  final List<ChatMessage> messages;
+
+  ChatDetailState({
+    this.userId,
+    this.isLoadingMore = false,
+    this.messages = const [],
+  });
+
+  ChatDetailState copyWith({
+    int? userId,
+    bool? isLoadingMore,
+    List<ChatMessage>? messages,
+  }) {
+    return ChatDetailState(
+      userId: userId ?? this.userId,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      messages: messages ?? this.messages,
+    );
+  }
+}
+

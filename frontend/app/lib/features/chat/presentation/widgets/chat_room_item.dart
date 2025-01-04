@@ -9,9 +9,9 @@ class ChatRoomItem extends StatelessWidget {
   final ChatRoom room;
 
   const ChatRoomItem({
-    Key? key,
+    super.key,
     required this.room,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -53,23 +53,13 @@ class ChatRoomItem extends StatelessWidget {
       );
     }
 
-    // (B) ChatDetailPage는 Map<String,dynamic> 파라미터이므로 변환
-    final Map<String, dynamic> chatRoomMap = {
-      'stream_id': room.streamId,
-      'type': room.type,
-      'name': room.name,
-      'unreadCount': room.unreadCount,
-      'lastMessageContent': room.lastMessageContent,
-      'time': room.time,
-    };
-
     return GestureDetector(
       // 탭 시 ChatDetailPage 이동
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ChatDetailPage(chatRoom: chatRoomMap),
+            builder: (_) => ChatDetailPage(chatRoom: room),
           ),
         );
       },
@@ -119,7 +109,7 @@ class ChatRoomItem extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: Color(0xFFE72410), // 배지 빨간
+                            color: const Color(0xFFE72410), // 배지 빨간
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -141,7 +131,7 @@ class ChatRoomItem extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          message,
+                          message.length > 20 ? '${message.substring(0, 20)}...' : message,
                           style: const TextStyle(
                             color: Color(0xFF707070),
                             fontSize: 13,

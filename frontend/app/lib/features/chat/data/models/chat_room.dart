@@ -25,8 +25,27 @@ class ChatRoom {
       case 'taxi':
         return '택시';
       default:
-        return type.isEmpty ? '일반' : type;
+        return '일반';
     }
+  }
+
+  // (2) copyWith 구현
+  ChatRoom copyWith({
+    int? streamId,
+    String? type,
+    String? name,
+    int? unreadCount,
+    String? lastMessageContent,
+    String? time,
+  }) {
+    return ChatRoom(
+      streamId: streamId ?? this.streamId,
+      type: type ?? this.type,
+      name: name ?? this.name,
+      unreadCount: unreadCount ?? this.unreadCount,
+      lastMessageContent: lastMessageContent ?? this.lastMessageContent,
+      time: time ?? this.time,
+    );
   }
 
   // JSON -> ChatRoom 변환 (factory constructor)
