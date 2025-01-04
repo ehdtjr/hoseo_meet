@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import os
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -17,11 +19,18 @@ logger = logging.getLogger(__name__)
 
 instrumentator = Instrumentator()
 
+
 @asynccontextmanager  # 비동기 컨텍스트 관리자 정의
 async def lifespan(app: FastAPI):
+    # 시간대 설정
+    # os.environ["TZ"] = "Asia/Seoul"
+    # time.tzset()  # 운영 체제의 시간대 설정
+    # logger.info("Timezone set to Asia/Seoul.")
     logger.info("Starting application lifespan and connecting to Redis.")
     await redis_client.get_connection()  # Redis 연결
-    instrumentator.expose(app, include_in_schema=False, should_gzip=True)  # Prometheus 메트릭 노출
+    instrumentator.expose(
+        app, include_in_schema=False, should_gzip=True
+    )  # Prometheus 메트릭 노출
     try:
         yield
     except asyncio.CancelledError:
@@ -45,7 +54,7 @@ app = FastAPI(
 )
 
 
-register_profile_middleware(app) # 프로파일링 미들웨어 등록
+register_profile_middleware(app)  # 프로파일링 미들웨어 등록
 
 
 # Prometheus Instrumentator 초기화

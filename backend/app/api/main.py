@@ -8,6 +8,7 @@ from app.api.routes import (
     users,
     oauth,
     websocket,
+    room_post,
 )
 
 
@@ -21,4 +22,7 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(messages.router, prefix="/messages", tags=["messages"])
 api_router.include_router(
     meet_post.router, prefix="/meet_post", tags=["meet_post"]
+)
+api_router.include_router(
+    room_post.router, prefix="/room_post", tags=["room_post"]
 )
