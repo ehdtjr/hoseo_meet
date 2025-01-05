@@ -6,6 +6,8 @@ from app.schemas.event import EventBase
 from app.schemas.message import LocationBase
 from app.service.event.events import EventDispatcher, get_event_dispatcher
 
+import json
+
 
 class LocationService:
 
@@ -21,11 +23,11 @@ class LocationService:
                                    location: LocationBase) -> None:
         event = EventBase(
             type='location',
-            data={
+            data=json.dumps({
                 'user_id': user_id,
                 'lat': location.lat,
                 'lng': location.lng,
-            }
+            })
         )
         subscribers = await self.subscription_crud.get_subscribers(db,
                                                                    stream_id)
