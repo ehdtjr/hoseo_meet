@@ -32,8 +32,7 @@ class Message(Base):
     rendered_content: Mapped[Optional[str]] = mapped_column(String,
                                                             nullable=True)
     date_sent: Mapped[datetime] = mapped_column(DateTime(timezone=True),
-                                                default=datetime.now(
-                                                    timezone.utc))
+                                                default=datetime.now, onupdate=datetime.now)
     has_attachment: Mapped[bool] = mapped_column(Boolean, default=False,
                                                  index=True)
     has_image: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
