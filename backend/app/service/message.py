@@ -61,26 +61,29 @@ class MessageSendService(MessageSendServiceProtocol):
             "content": message_content
         }
         message_create = MessageCreate.model_validate(message_create_data)
-        message = await self.message_crud.send_message_create(db,
+        message:MessageBase = await self.message_crud.send_message_create(db,
                                                               message_create)
 
         # UserMessage 대량 생성
         user_messages_data = [{"user_id": subscriber, "message_id": message.id}
                               for subscriber in subscribers]
         await self.user_message_crud.bulk_create(db, user_messages_data)
+
+        message_response = MessageResponse(
+            id=message.id,
+            sender_id=message.sender_id,
+            type=message.type,
+            recipient_id=message.recipient_id,
+            content=message.content,
+            rendered_content=message.rendered_content,
+            date_sent=message.date_sent,
+            stream_id=stream_id,
+            unread_count=len(subscribers)
+        )
         # EventBase 생성
         event_data: EventBase = EventBase(
             type="stream",
-            data={
-                "id": message.id,
-                "stream_id": stream_id,
-                "sender_id": message.sender_id,
-                "recipient_id": message.recipient_id,
-                "content": message.content,
-                "date_sent": int(message.date_sent.timestamp()),
-                "is_read": False,
-                "unread_count": len(subscribers)
-            }
+            data= message_response.model_dump_json()
         )
 
         # EventDispatcher로 이벤트 전송
@@ -162,6 +165,7 @@ class MessageService(MessageServiceProtocol):
                 content=msg.content,
                 rendered_content=msg.rendered_content,
                 date_sent=msg.date_sent,
+                stream_id=stream_id,
                 unread_count=unread_count
             )
             response_list.append(message_response)
