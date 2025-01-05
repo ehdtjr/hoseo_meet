@@ -69,6 +69,9 @@ class MessageSendService(MessageSendServiceProtocol):
         user_messages_data = [{"user_id": subscriber, "message_id": message.id}
                               for subscriber in subscribers]
         await self.user_message_crud.bulk_create(db, user_messages_data)
+        # 타임존이 없는 경우 추가
+        from datetime import timezone
+        message.date_sent = message.date_sent.astimezone(timezone.utc)
 
         message_response = MessageResponse(
             id=message.id,
