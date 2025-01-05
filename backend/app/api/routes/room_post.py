@@ -88,8 +88,8 @@ async def create_review(
 
 
 # 리뷰 리스트 조회
-@router.get("/get_reviews", response_model=List[RoomReviewResponse])
-async def get_reviews(
+@router.get("/reviews", response_model=List[RoomReviewResponse])
+async def reviews(
     room_id: int,
     page: int = 1,
     page_size: int = 5,
