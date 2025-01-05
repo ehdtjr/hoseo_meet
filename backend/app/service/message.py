@@ -1,4 +1,5 @@
-import bisect, json
+import bisect
+import json
 from typing import List, Optional, Protocol
 
 from fastapi import HTTPException, Depends
@@ -14,6 +15,7 @@ from app.schemas.event import EventBase
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase, \
     MessageResponse
 from app.service.event.events import EventDispatcher, get_event_dispatcher
+
 
 class MessageSendServiceProtocol(Protocol):
     async def send_message_stream(
@@ -191,7 +193,7 @@ class MessageService(MessageServiceProtocol):
                 num_after
         ))
 
-        event: EventBase = EventBase(
+        event = EventBase(
             type="read",
             data=json.dumps({"read_message": read_messages})
         )
