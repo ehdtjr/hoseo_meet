@@ -1,4 +1,5 @@
 import bisect
+import json
 from typing import List, Optional, Protocol
 
 from fastapi import HTTPException, Depends
@@ -192,12 +193,11 @@ class MessageService(MessageServiceProtocol):
                 num_after
         ))
 
-        event: EventBase = EventBase(
+        event = EventBase(
             type="read",
-            data={
-               "read_message": read_messages
-            }
+            data=json.dumps({"read_message": read_messages})
         )
+
 
         subscribers = await self.subscription_crud.get_subscribers(db,
                                                                    stream_id)
