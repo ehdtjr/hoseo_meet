@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from pydantic import (
     AnyUrl,
     BeforeValidator,
+    Field,
     HttpUrl,
     PostgresDsn,
     computed_field,
@@ -59,6 +60,12 @@ class Settings(BaseSettings):
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = ""
+
+    # AWS S3 설정
+    AWS_ACCESS_KEY_ID: str = Field(..., env="AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
+    AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")
+    S3_BUCKET_NAME: str = Field(..., env="S3_BUCKET_NAME")
 
     # eamil settings
     SMTP_PORT: int
