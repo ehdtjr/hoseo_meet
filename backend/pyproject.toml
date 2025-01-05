@@ -6,10 +6,10 @@ authors = ["11kkw <11kkw@naver.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-fastapi = "^0.111.1"
+fastapi = "^0.115.6"
 sqlalchemy = {extras = ["asyncio"], version = "^2.0.34"}
 alembic = "^1.13.2"
-pydantic = "^2.8.2"
+pydantic = "^2.10.4"
 pydantic-settings = "^2.3.4"
 sqlmodel = "^0.0.21"
 fastapi-users = {extras = ["oauth", "sqlalchemy"], version = "^13.0.0"}

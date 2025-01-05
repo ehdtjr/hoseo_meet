@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from app.utils.date import convert_to_local_time
+from fastapi import UploadFile
 from pydantic import BaseModel, Field, computed_field, ConfigDict
 
 
@@ -30,12 +31,11 @@ class RoomPostListResponse(BaseModel):
     id: int
     name: str
 
-    # 리뷰 개수
     reviews_count: int = 0
-    # 평균 별점
     avg_rating: float = 0.0
-    # 유저 위치 기준 거리 (미터/킬로미터 단위? 여기서는 편의상 float)
     distance: float = 0.0
+
+    images: Optional[List[str]] = []
 
 
 class RoomPostDetailResponse(RoomPostListResponse):
@@ -50,6 +50,8 @@ class RoomPostDetailResponse(RoomPostListResponse):
     place: str
     latitude: float
     longitude: float
+
+    images: Optional[List[str]] = []
 
 
 # 작성자(public) 정보 예시
@@ -68,13 +70,7 @@ class RoomReviewResponse(BaseModel):
     created_at: datetime
 
     author: UserPublicRead
-    images: List[str] = []
-
-    def dict(self, **kwargs):
-        data = super().dict(**kwargs)
-        if "created_at" in data:
-            data["created_at"] = convert_to_local_time(data["created_at"], timezone="Asia/Seoul").isoformat()
-        return data
+    images: Optional[List[str]] = []
 
     model_config = ConfigDict(from_attributes=True)
 

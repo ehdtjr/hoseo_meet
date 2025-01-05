@@ -10,14 +10,14 @@ from app.schemas.room_post import RoomPostListResponse, RoomPostDetailResponse
 
 from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, delete
 from fastapi import UploadFile
 
 from app.models.room_post import RoomReview
 from app.models.room_post import RoomReviewImage
 from app.models.user import User
 from app.schemas.room_post import RoomReviewResponse, UserPublicRead
-from app.utils.s3 import upload_file_to_s3
+from app.core.s3 import s3_manager
 
 
 class RoomPostServiceProtocol(ABC):
@@ -58,9 +58,9 @@ class RoomPostService(RoomPostServiceProtocol):
         # distance_expr (None이면 거리계산 안 함)
         distance_expr = None
         if user_lat is not None and user_lon is not None:
-            distance_expr = (RoomPost.latitude - user_lat) ** 2 + (
-                RoomPost.longitude - user_lon
-            ) ** 2
+            distance_expr = func.pow(RoomPost.latitude - user_lat, 2) + func.pow(
+                RoomPost.longitude - user_lon, 2
+            )
 
         columns = [
             RoomPost,
@@ -91,7 +91,6 @@ class RoomPostService(RoomPostServiceProtocol):
         elif sort_by == "rating":
             stmt = stmt.order_by(desc(func.coalesce(func.avg(RoomReview.rating), 0)))
         else:
-            # 기본 정렬(예: id ASC) 등
             pass
 
         # 페이지네이션
@@ -100,7 +99,6 @@ class RoomPostService(RoomPostServiceProtocol):
         # 실제 실행
         rows = await db.execute(stmt)
         results = rows.all()
-        # results 각 row는 (RoomPost, avg_rating, reviews_count, distance 또는 None) tuple 형태
 
         response_list: List[RoomPostListResponse] = []
 
@@ -110,8 +108,8 @@ class RoomPostService(RoomPostServiceProtocol):
             avg_rating_val: float = float(row[1]) if row[1] else 0.0
             reviews_count_val: int = row[2]
             distance_val: float = 0.0
+            images: List[str] = s3_manager.list_room_images(room_obj.id)
             if distance_expr is not None:
-                # row[3]가 distance 값
                 distance_val = float(row[3] or 0.0)
 
             # Pydantic 모델로 변환
@@ -121,6 +119,7 @@ class RoomPostService(RoomPostServiceProtocol):
                 reviews_count=reviews_count_val,
                 avg_rating=avg_rating_val,
                 distance=distance_val,  # 필요에 따라 sqrt를 씌울 수도 있음
+                images=images,
             )
             response_list.append(item)
 
@@ -158,6 +157,9 @@ class RoomPostService(RoomPostServiceProtocol):
             ) ** 2
             # 거리에 sqrt를 취할지, 하버사인 공식을 쓸지 등은 선택
 
+        # S3에서 이미지 리스트 조회
+        images = s3_manager.list_room_images(room_id)
+
         # 4) Pydantic 변환
         detail = RoomPostDetailResponse(
             id=room_obj.id,
@@ -175,6 +177,7 @@ class RoomPostService(RoomPostServiceProtocol):
             place=room_obj.place,
             latitude=room_obj.latitude,
             longitude=room_obj.longitude,
+            images=images,
         )
         return detail
 
@@ -210,7 +213,7 @@ class RoomReviewService:
         # 2) 이미지가 있으면 S3 업로드 후 RoomReviewImage 생성
         for file in images:
             destination_path = f"reviews/{new_review.id}/{file.filename}"
-            s3_url = upload_file_to_s3(file, destination_path)
+            s3_url = s3_manager.upload_file(file, destination_path)
 
             review_image = RoomReviewImage(
                 review_id=new_review.id, room_id=room_id, image=s3_url
@@ -223,9 +226,7 @@ class RoomReviewService:
 
         # 4) 작성자 정보
         author = await db.get(User, user_id)
-        author_data = UserPublicRead(
-            name=author.name, profile=author.profile
-        )
+        author_data = UserPublicRead(name=author.name, profile=author.profile)
 
         # 5) 이미지 목록
         image_list = [img.image for img in new_review.images]
@@ -249,9 +250,6 @@ class RoomReviewService:
         page_size: int = 5,
         sort_by: str = "latest",  # "latest" 또는 "rating"
     ) -> List[RoomReviewResponse]:
-        """
-        room_id 기준 리뷰 목록 + 페이지네이션 + 정렬
-        """
         offset_val = (page - 1) * page_size
 
         # 기본 쿼리
@@ -290,6 +288,52 @@ class RoomReviewService:
             results.append(resp)
 
         return results
+
+    async def delete_review_by_id(
+        self,
+        db: AsyncSession,
+        review_id: int,
+        user_id: int,
+    ) -> Optional[RoomReviewResponse]:
+
+        # 1) 리뷰가 존재하고 본인(author_id == user_id) 인지 확인
+        stmt = select(RoomReview).where(RoomReview.id == review_id)
+        result = await db.scalars(stmt)
+        review = result.first()
+
+        if not review or (review.author_id != user_id):
+            return None  # 라우터에서 404 or 권한 에러
+
+        author_user = await db.get(User, review.author_id)
+        author_data = UserPublicRead(name=author_user.name, profile=author_user.profile)
+        # 이미지 목록(지금 상태에선 DB에 row가 존재)
+        image_list = [img.image for img in review.images]
+
+        for img_url in image_list:
+            await s3_manager.delete_file(img_url)
+
+        delete_images_stmt = delete(RoomReviewImage).where(
+            RoomReviewImage.review_id == review_id
+        )
+        await db.execute(delete_images_stmt)
+
+        # 4) 리뷰 삭제
+        delete_review_stmt = delete(RoomReview).where(RoomReview.id == review_id)
+        await db.execute(delete_review_stmt)
+
+        await db.commit()
+
+        return RoomReviewResponse(
+            id=review.id,
+            room_id=review.room_id,
+            content=review.content,
+            rating=float(review.rating),
+            created_at=review.created_at,
+            author=author_data,
+            # 이미지 목록은 이미 S3, DB에서 삭제됐지만,
+            # 응답에서 "원래 있었던 이미지"를 표현할 수도
+            images=image_list,
+        )
 
 
 room_review_service = RoomReviewService()

@@ -73,7 +73,7 @@ async def create_review(
     user: User = Depends(current_active_user),
     review_service: RoomReviewService = Depends(get_room_review_service),
 ):
-
+    print(images)
     images = images or []
 
     review = await review_service.create_room_review(
@@ -87,7 +87,7 @@ async def create_review(
     return review
 
 
-# 리뷰 조회
+# 리뷰 리스트 조회
 @router.get("/get_reviews", response_model=List[RoomReviewResponse])
 async def get_reviews(
     room_id: int,
@@ -100,3 +100,22 @@ async def get_reviews(
     return await review_service.get_room_reviews(
         db=db, room_id=room_id, page=page, page_size=page_size, sort_by=sort_by
     )
+
+@router.delete("/reviews/{review_id}", response_model=RoomReviewResponse)
+async def delete_review(
+    review_id: int,
+    db: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+    review_service: RoomReviewService = Depends(get_room_review_service),
+):
+    deleted_review = await review_service.delete_review_by_id(
+        db=db, review_id=review_id, user_id=user.id
+    )
+    if not deleted_review:
+        # None이 반환되었다면 "리뷰가 없거나 권한이 없음"
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Review not found or no permission",
+        )
+
+    return deleted_review
