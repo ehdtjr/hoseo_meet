@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hoseomeet/features/chat/data/models/chat_message.dart';
 
 import '../data/models/chat_room.dart';
 import '../data/services/chat_room_service.dart';
@@ -76,16 +77,14 @@ class ChatRoomNotifier extends StateNotifier<List<ChatRoom>> {
   }
 
   void handleIncomingMessage({
-    required int streamId,
-    required String content,
-    required String dateSent,
+    required ChatMessage newMessage,
   }) {
-    print('★ handleIncomingMessage: $streamId, $content, $dateSent');
+    print('★ handleIncomingMessage 호출됨: $newMessage');
     final updatedRooms = state.map((room) {
-      if (room.streamId == streamId) {
+      if (room.streamId == newMessage.streamId) {
         return room.copyWith(
-          lastMessageContent: content,
-          time: dateSent,
+          lastMessageContent: newMessage.content,
+          time: newMessage.dateSent.toString(),
           unreadCount: room.unreadCount + 1,
         );
       } else {

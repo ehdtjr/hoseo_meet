@@ -177,13 +177,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
       ),
     );
   }
-
   String _formatTime(DateTime dateTime) {
     try {
-      return DateFormat('a h:mm', 'ko_KR').format(dateTime);
-    } catch (e) {
-      debugPrint('[ChatDetailPage] 타임스탬프 변환 오류: $e');
+      final localTime = dateTime.toLocal();
+      return DateFormat('a h:mm', 'ko_KR').format(localTime);
+    } catch (e, stack) {
+      debugPrint('[ChatDetailPage] 타임스탬프 변환 오류: $e\n$stack');
       return 'Unknown';
     }
   }
+
+
 }

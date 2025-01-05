@@ -10,6 +10,7 @@ class ChatMessage {
   final DateTime dateSent;
   final int unreadCount;
   final int type;
+  final int streamId; // ★ stream_id 필드 추가
 
   ChatMessage({
     required this.id,
@@ -20,19 +21,22 @@ class ChatMessage {
     required this.dateSent,
     required this.unreadCount,
     required this.type,
+    required this.streamId,
   });
 
   /// JSON을 [ChatMessage]로 변환
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
-      id: _toInt(json['id']),            // 안전한 int 변환
+      id: _toInt(json['id']),
       senderId: _toInt(json['sender_id']),
       recipientId: _toInt(json['recipient_id']),
       content: (json['content'] as String?) ?? '',
       renderedContent: json['rendered_content'] as String?,
-      type: _toInt(json['type']),        // null이거나 문자열이면 0으로 처리
+      type: _toInt(json['type']),
       unreadCount: _toInt(json['unread_count']),
       dateSent: _parseDateSent(json['date_sent']),
+      // ★ "stream_id"도 함께 파싱
+      streamId: _toInt(json['stream_id']),
     );
   }
 
@@ -46,6 +50,7 @@ class ChatMessage {
     DateTime? dateSent,
     int? unreadCount,
     int? type,
+    int? streamId, // ★ 추가
   }) {
     return ChatMessage(
       id: id ?? this.id,
@@ -56,6 +61,7 @@ class ChatMessage {
       dateSent: dateSent ?? this.dateSent,
       unreadCount: unreadCount ?? this.unreadCount,
       type: type ?? this.type,
+      streamId: streamId ?? this.streamId, // ★ 반영
     );
   }
 
@@ -65,7 +71,7 @@ class ChatMessage {
       // 유닉스 타임(초) 가정 → 밀리초로 바꾸기 위해 * 1000
       return DateTime.fromMillisecondsSinceEpoch(raw * 1000).toLocal();
     } else if (raw is String) {
-      // ISO8601 날짜 문자열
+      // ISO8601 날짜 문자열 (예: "2025-01-05T10:21:36.429983Z")
       return DateTime.parse(raw).toLocal();
     }
     // null이거나 알 수 없는 형식이면 현재 시각으로 처리
@@ -84,7 +90,9 @@ class ChatMessage {
 
   @override
   String toString() {
-    return 'ChatMessage(id:$id, senderId:$senderId, recipientId:$recipientId, content:$content, dateSent:$dateSent, unreadCount:$unreadCount, type:$type)';
+    return 'ChatMessage(id:$id, senderId:$senderId, recipientId:$recipientId, '
+        'content:$content, dateSent:$dateSent, unreadCount:$unreadCount, '
+        'type:$type, streamId:$streamId)';
   }
 }
 
