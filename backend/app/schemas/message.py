@@ -39,6 +39,7 @@ class MessageRead(BaseModel):
     date_sent: datetime
 
 class MessageResponse(MessageBase):
+    stream_id: int
     unread_count: int
 
 class UserMessageBase(BaseModel):

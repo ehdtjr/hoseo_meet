@@ -26,7 +26,7 @@ class WebSocketEventSender(EventSenderProtocol):
     async def send_event(self, user_id: int, event_data: EventBase):
         if not event_data:
             raise ValueError("이벤트 데이터가 비어 있거나 유효하지 않습니다")
-        await redis_client.redis.xadd(f"queue:{user_id}", event_data.to_str_dict())
+        await redis_client.redis.xadd(f"queue:{user_id}", event_data.model_dump())
 
 
 class FCMEventSender(EventSenderProtocol):
@@ -43,9 +43,9 @@ class FCMEventSender(EventSenderProtocol):
         else:
             data_dict = {"event": str(event_data)}
 
-        await asyncio.to_thread(self._send_fcm_notification, user_id=user_id, event_data=data_dict)
+        await asyncio.to_thread(self._send_fcm_notification, event_data=data_dict)
 
-    def _send_fcm_notification(self, user_id: int, event_data: dict):
+    def _send_fcm_notification(self, event_data: dict):
         try:
             import json
             fcm.notify(
