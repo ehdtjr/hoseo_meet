@@ -6,6 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'firebase_options.dart';
 
 // 로컬 알림
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -29,6 +30,10 @@ Future<void> main() async {
   // (1) Flutter 바인딩 초기화
   WidgetsFlutterBinding.ensureInitialized();
 
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   // (2) .env 파일 로드
   await dotenv.load(fileName: ".env");
 
@@ -45,9 +50,6 @@ Future<void> main() async {
   await NaverMapSdk.instance.initialize(
     clientId: dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '',
   );
-
-  // (6) Firebase 초기화
-  await Firebase.initializeApp();
 
   // (7) 로컬 알림 초기화 (안드로이드 포어그라운드 표시용)
   await _initLocalNotifications();

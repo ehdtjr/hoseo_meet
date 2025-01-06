@@ -46,6 +46,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
       // 1) ChatDetailNotifier 초기화
       await _detailNotifier.init();
       await _detailNotifier.startLocationTracking();
+
       ref
           .read(chatRoomNotifierProvider.notifier)
           .markRoomAsRead(widget.chatRoom.streamId);
@@ -113,7 +114,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: Colors.red),
             onPressed: () {
-              Navigator.pop(context, 'reload');
+              Navigator.pop(context);
             },
           ),
           bottom: const PreferredSize(
@@ -124,6 +125,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
         body: SafeArea(
           child: Column(
             children: [
+              // (로딩 표시) 이전 메시지 불러오는 중
               if (detailState.isLoadingMore)
                 Container(
                   color: Colors.grey.shade200,
@@ -177,6 +179,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
       ),
     );
   }
+
   String _formatTime(DateTime dateTime) {
     try {
       final localTime = dateTime.toLocal();
@@ -186,6 +189,4 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
       return 'Unknown';
     }
   }
-
-
 }

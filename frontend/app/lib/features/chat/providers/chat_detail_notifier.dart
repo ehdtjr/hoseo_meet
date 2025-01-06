@@ -19,13 +19,14 @@ import '../data/services/socket_message_service.dart';
 // Auth
 import '../../../../features/auth/providers/auth_notifier_provider.dart';
 // 맵 관련 (위치 표시)
+import 'chat_room_provicer.dart';
 import 'map_provider.dart';
 
 class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   ChatDetailNotifier(this.ref, this.chatRoom) : super(ChatDetailState());
 
   final Ref ref;
-  final ChatRoom chatRoom; // 변경: Map<String, dynamic> → ChatRoom
+  final ChatRoom chatRoom;
 
   bool _isInitialized = false;
   late final ChatRepository _chatRepository;
@@ -137,7 +138,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         streamId: chatRoom.streamId,
         anchor: 'first_unread',
         numBefore: 30,
-        numAfter: 30,
+        numAfter: chatRoom.unreadCount,
       );
       state = state.copyWith(
         messages: [...state.messages, ...previousMessages],
@@ -225,10 +226,12 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
 
   Future<void> _handleStreamMessage(Map<String, dynamic> msg) async {
     final data = msg['data'];
-    // (C) data['stream_id'] == chatRoom.streamId 확인
     if (data['stream_id'] == chatRoom.streamId) {
       final newMessage = ChatMessage.fromJson(data);
       state = state.copyWith(messages: [...state.messages, newMessage]);
+
+      ref.read(chatRoomNotifierProvider.notifier)
+          .handleIncomingMessageOnOpen(newMessage: newMessage);
 
       // newest message read
       try {
@@ -289,10 +292,9 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   Future<void> _markMessagesAsRead() async {
     try {
       // (E) chatRoom.unreadCount
-      final unreadCount = chatRoom.unreadCount;
       await _chatRepository.markMessagesAsRead(
         streamId: chatRoom.streamId,
-        numAfter: unreadCount,
+        numAfter: chatRoom.unreadCount,
       );
     } catch (error) {
       debugPrint('[ChatDetailNotifier] markMessagesAsRead 오류: $error');

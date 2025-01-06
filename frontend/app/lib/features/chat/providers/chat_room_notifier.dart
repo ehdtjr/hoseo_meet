@@ -95,6 +95,25 @@ class ChatRoomNotifier extends StateNotifier<List<ChatRoom>> {
     // 변경된 목록을 state에 반영 → UI 자동 리빌드
     state = updatedRooms;
   }
+
+
+  void handleIncomingMessageOnOpen({
+    required ChatMessage newMessage,
+  }) {
+    final updatedRooms = state.map((room) {
+      if (room.streamId == newMessage.streamId) {
+        return room.copyWith(
+          lastMessageContent: newMessage.content,
+          time: newMessage.dateSent.toString(),
+          unreadCount: 0,
+        );
+      } else {
+        return room;
+      }
+    }).toList();
+
+    state = updatedRooms;
+  }
 }
 
 // 날짜 파싱 예시

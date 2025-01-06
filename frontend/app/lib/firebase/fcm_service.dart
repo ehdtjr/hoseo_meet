@@ -1,6 +1,7 @@
 // file: lib/firebase/fcm_service.dart
 
 import 'dart:convert';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -109,7 +110,7 @@ class FcmService {
   }
 
   /// 백그라운드 메시지 핸들러 등록 (top-level 함수 넘겨받아 세팅)
-  void setupBackgroundHandler(Future<void> Function(RemoteMessage) handler) {
+  void setupBackgroundHandler(Future<void> Function(RemoteMessage) handler){
     FirebaseMessaging.onBackgroundMessage(handler);
   }
 
