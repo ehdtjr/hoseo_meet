@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 /// [ChatMessage] 모델
 class ChatMessage {
   final int id;

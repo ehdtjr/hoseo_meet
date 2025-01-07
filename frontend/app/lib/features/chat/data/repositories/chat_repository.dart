@@ -30,7 +30,7 @@ class ChatRepository {
   Future<List<ChatMessage>> loadMessages({
     required int streamId,
     String anchor = 'first_unread',
-    int numBefore = 30,
+    int numBefore = 10,
     int numAfter = 30,
   }) {
     return _loadService.loadMessages(

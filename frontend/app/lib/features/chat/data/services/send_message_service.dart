@@ -20,13 +20,7 @@ class SendMessageService {
     final url = '${AppConfig.baseUrl}/messages/send/stream/$streamId?lifetime_seconds=3600';
 
     // AuthHttpClient의 postFormUrlEncoded 활용
-    final http.Response response = await _client.postFormUrlEncoded(url, formBody);
-
-    if (response.statusCode == 200) {
-      print('[SendMessageService] sendMessage 성공: ${response.body}');
-    } else {
-      throw Exception('[SendMessageService] sendMessage 실패: ${response.statusCode} / ${response.body}');
-    }
+    await _client.postFormUrlEncoded(url, formBody);
   }
 
   /// 2) 위치 전송
@@ -42,14 +36,6 @@ class SendMessageService {
       'lat': lat,
       'lng': lng,
     };
-
-    // AuthHttpClient의 postRequest 사용
-    final http.Response response = await _client.postRequest(url, jsonBody);
-
-    if (response.statusCode == 200) {
-      print('[SendMessageService] 위치 전송 성공: ${response.body}');
-    } else {
-      throw Exception('[SendMessageService] 위치 전송 실패: ${response.statusCode} / ${response.body}');
-    }
+    await _client.postRequest(url, jsonBody);
   }
 }

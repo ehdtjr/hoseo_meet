@@ -47,6 +47,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
       await _detailNotifier.init();
       await _detailNotifier.startLocationTracking();
 
+      // 채팅방 읽음 처리
       ref
           .read(chatRoomNotifierProvider.notifier)
           .markRoomAsRead(widget.chatRoom.streamId);
@@ -70,7 +71,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
 
   void _onScroll() {
     final currentState = ref.read(chatDetailNotifierProvider(widget.chatRoom));
-    if (_scrollController.position.pixels <= 300 && !currentState.isLoadingMore) {
+    // 스크롤이 최상단 근처(<= 100)일 때 이전 메시지 로드 시도
+    if (_scrollController.position.pixels <= 100 && !currentState.isLoadingMore) {
       _detailNotifier.loadMoreMessages();
     }
   }
@@ -148,7 +150,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
                 child: ListView.builder(
                   controller: _scrollController,
                   itemCount: detailState.messages.length,
-                  physics: const BouncingScrollPhysics(),
+                  // 중요: AlwaysScrollableScrollPhysics로 설정하여
+                  //      메시지가 화면보다 적어도 '위로 스크롤 시도'가 가능하게 만들기
+                  physics: const BouncingScrollPhysics(
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   padding: const EdgeInsets.only(bottom: 10),
                   itemBuilder: (context, index) {
                     final msg = detailState.messages[index];
