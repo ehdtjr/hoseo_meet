@@ -19,18 +19,19 @@ class ChatRoomService {
   // 생성자
   ChatRoomService(this._client);
 
-  /// (1) 채팅방 목록 조회
-  ///
-  /// 성공 시 `List<ChatRoom>` 반환,
-  /// 실패 시 Exception 발생
+  /// (1) 채팅방 목록 불러오기
+  /// - 서버에서 내려주는 JSON 중 "subscriptions" 배열을 파싱해 ChatRoom 리스트로 만든다.
   Future<List<ChatRoom>> loadRoomList() async {
     final http.Response response = await _client.getRequest(roomListEndpoint);
     if (response.statusCode == 200) {
       final decodedResponse = utf8.decode(response.bodyBytes);
       final Map<String, dynamic> responseData = jsonDecode(decodedResponse);
 
+      // "subscriptions" 배열 안에 각 채팅방 정보가 들어 있음
       final List<dynamic> subs = responseData['subscriptions'] as List<dynamic>;
       final List<ChatRoom> chatRooms = subs.map((sub) {
+        // 여기서 ChatRoom.fromJson(sub) 호출 시,
+        // ChatRoom 모델이 creatorId, isMuted, subscribers 등을 포함하도록 수정되어 있어야 함
         return ChatRoom.fromJson(sub as Map<String, dynamic>);
       }).toList();
 
