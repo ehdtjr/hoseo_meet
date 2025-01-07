@@ -109,7 +109,6 @@ class ChatDetailState {
 
   /// copyWith → 일부 필드만 변경해 새 [ChatDetailState] 반환
   ChatDetailState copyWith({
-    int? myUserId,
     bool? isLoadingMore,
     List<ChatMessage>? messages,
     List<User>? participants,

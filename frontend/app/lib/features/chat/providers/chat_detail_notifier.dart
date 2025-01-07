@@ -161,7 +161,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       final previousMessages = await _chatRepository.loadMessages(
         streamId: chatRoom.streamId,
         anchor: 'first_unread',
-        numBefore: 10,
+        numBefore: 15,
         numAfter: chatRoom.unreadCount,
       );
 
