@@ -40,6 +40,7 @@ class MeetPostRequest(BaseModel):
     content: str
     max_people: int = Field(..., ge=1, le=50)
 
+
 class MeetPostResponse(BaseModel):
     id: int
     title: str

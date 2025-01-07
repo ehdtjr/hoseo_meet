@@ -5,13 +5,13 @@ from fastapi_users import schemas
 from pydantic import BaseModel, ConfigDict
 
 
-
 class UserRead(schemas.BaseUser):
     id: int
     name: str
     gender: str
     profile: Optional[str] = None
     created_at: datetime
+
 
 class UserPublicRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

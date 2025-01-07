@@ -108,9 +108,9 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
         return {"user":user, "is_first_login":False}
 
 
-
 async def get_user_manager(
     user_db: SQLAlchemyUserDatabase = Depends(get_user_db),
     email_service: EmailServiceProtocol = Depends(get_email_service),
 ) -> AsyncGenerator[UserManager, None]:
     yield UserManager(user_db, email_service)
+
