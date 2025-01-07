@@ -11,6 +11,8 @@ import '../../providers/auth_notifier.dart';
 // (★) 추가: SendTokenService import
 import 'package:hoseomeet/firebase/api/send_token_service.dart';
 
+import '../../providers/user_profile_provider.dart';
+
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
 
@@ -46,6 +48,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authNotifierProvider); // AuthState
     final authNotifier = ref.read(authNotifierProvider.notifier);
+    final userProfileNotifier = ref.read(userProfileNotifierProvider.notifier);
 
     // 로그인 성공 시 화면 이동 + FCM 토큰 서버 전송
     if (authState.isLoggedIn) {
@@ -56,7 +59,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
         // (2) 토큰 서버 전송
         if (token != null && token.isNotEmpty) {
-          // 예) SendTokenService를 사용해 서버 API 호출
           final authClient = ref.read(authHttpClientProvider);
           final sendTokenService = SendTokenService(authClient);
           final response = await sendTokenService.sendToken(token);
@@ -67,6 +69,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
             print('[FCM 토큰 등록] 실패: code=${response.statusCode}, body=${response.body}');
           }
         }
+
+        // user profile 등록
+        await userProfileNotifier.fetchUserProfile();
 
         // (3) 화면 전환
         Navigator.pushReplacement(

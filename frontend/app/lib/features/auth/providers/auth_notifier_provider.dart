@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/auth_state.dart';
-import '../data/services/login_service.dart';
+import '../data/services/auth_service.dart';
 import '../data/services/token_storage_service.dart';
 import 'auth_notifier.dart';
 

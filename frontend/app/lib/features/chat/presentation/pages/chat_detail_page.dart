@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hoseomeet/features/auth/providers/user_profile_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart' show PopScope;
 
@@ -71,7 +72,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
 
   void _onScroll() {
     final currentState = ref.read(chatDetailNotifierProvider(widget.chatRoom));
-    // 스크롤이 최상단 근처(<= 100)일 때 이전 메시지 로드 시도
     if (_scrollController.position.pixels <= 100 && !currentState.isLoadingMore) {
       _detailNotifier.loadMoreMessages();
     }
@@ -102,13 +102,15 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
   Widget build(BuildContext context) {
     // ChatDetailState 구독
     final detailState = ref.watch(chatDetailNotifierProvider(widget.chatRoom));
+    // 로그인한 내 정보 (프로필)
+    final userProfileState = ref.watch(userProfileNotifierProvider);
 
     return PopScope(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.chatRoom.name.isEmpty
-              ? 'No Title'
-              : widget.chatRoom.name),
+          title: Text(
+            widget.chatRoom.name.isEmpty ? 'No Title' : widget.chatRoom.name,
+          ),
           centerTitle: true,
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
@@ -150,24 +152,39 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
                 child: ListView.builder(
                   controller: _scrollController,
                   itemCount: detailState.messages.length,
-                  // 중요: AlwaysScrollableScrollPhysics로 설정하여
-                  //      메시지가 화면보다 적어도 '위로 스크롤 시도'가 가능하게 만들기
                   physics: const BouncingScrollPhysics(
                     parent: AlwaysScrollableScrollPhysics(),
                   ),
                   padding: const EdgeInsets.only(bottom: 10),
                   itemBuilder: (context, index) {
                     final msg = detailState.messages[index];
-                    final isMe = (msg.senderId == detailState.userId);
+
+                    // 내가 보낸 메시지인지 판별
+                    final isMe =
+                    (msg.senderId == userProfileState.userProfile?.id);
+
+                    // 메시지 발신 시간 포맷팅
                     final sendTime = _formatTime(msg.dateSent);
+
+                    // (★) senderId에 해당하는 참여자(User) 찾기
+                    final sender = detailState.participants
+                        .where((u) => u.id == msg.senderId)
+                        .isNotEmpty
+                        ? detailState.participants.firstWhere(
+                          (u) => u.id == msg.senderId,
+                    )
+                        : null;
+
+                    final senderName = sender?.name ?? '알 수 없음';
+                    // senderProfileUrl 등 필요 시 sender?.profileImageUrl
 
                     return ChatMessageBubble(
                       isMe: isMe,
                       content: msg.content,
                       unreadCount: msg.unreadCount,
                       sendTime: sendTime,
-                      senderProfileUrl: null,
-                      senderName: '알 수 없음',
+                      senderProfileUrl: null, // 필요하다면 sender?.profileImageUrl
+                      senderName: senderName,
                     );
                   },
                 ),

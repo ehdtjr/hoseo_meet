@@ -1,4 +1,3 @@
-import 'package:http/http.dart' as http;
 import '../../../../commons/network/auth_http_client.dart'; // AuthHttpClient import
 import '../../../../config.dart';
 

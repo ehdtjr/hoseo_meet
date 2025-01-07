@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/auth_state.dart';
-import '../data/services/login_service.dart';
+import '../data/services/auth_service.dart';
 import '../../../../../features/auth/data/services/token_storage_service.dart';
 
 class AuthNotifier extends StateNotifier<AuthState> {

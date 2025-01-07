@@ -1,3 +1,5 @@
+import '../../../auth/data/models/user.dart';
+
 /// [ChatMessage] 모델
 class ChatMessage {
   final int id;
@@ -94,33 +96,39 @@ class ChatMessage {
   }
 }
 
-/// [ChatDetailState] 모델 (불변 상태)
 class ChatDetailState {
-  final int? userId;
+  final int? myUserId;
   final bool isLoadingMore;
   final List<ChatMessage> messages;
+  final List<User> participants;
 
   ChatDetailState({
-    this.userId,
+    this.myUserId,
     this.isLoadingMore = false,
     this.messages = const [],
+    this.participants = const [],
   });
 
   /// copyWith → 일부 필드만 변경해 새 [ChatDetailState] 반환
   ChatDetailState copyWith({
-    int? userId,
+    int? myUserId,
     bool? isLoadingMore,
     List<ChatMessage>? messages,
+    List<User>? participants,
   }) {
     return ChatDetailState(
-      userId: userId ?? this.userId,
+      myUserId: myUserId ?? this.myUserId,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       messages: messages ?? this.messages,
+      participants: participants ?? this.participants,
     );
   }
 
   @override
   String toString() {
-    return 'ChatDetailState(userId:$userId, isLoadingMore:$isLoadingMore, messages.length:${messages.length})';
+    return 'ChatDetailState(myUserId:$myUserId, '
+        'isLoadingMore:$isLoadingMore, '
+        'messages.length:${messages.length}, '
+        'participants.length:${participants.length})';
   }
 }

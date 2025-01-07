@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:riverpod/riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 
-// Services
 import '../../../commons/network/auth_http_client_provider.dart';
+import '../../auth/providers/user_profile_provider.dart';
 import '../data/models/chat_message.dart';
 import '../data/models/chat_room.dart';
 import '../data/repositories/chat_repository.dart';
@@ -16,7 +16,8 @@ import '../data/services/socket_message_service.dart';
 
 // Auth
 import '../../../../features/auth/providers/auth_notifier_provider.dart';
-// 맵 관련 (위치 표시)
+
+// 위치 표시
 import 'chat_room_provicer.dart';
 import 'map_provider.dart';
 
@@ -38,9 +39,9 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   // 방 활성화 타이머
   Timer? _activateTimer;
 
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   // init() : 한 번만 실행
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   Future<void> init() async {
     if (_isInitialized) {
       debugPrint('[ChatDetailNotifier] init() called again, ignoring...');
@@ -67,17 +68,54 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       socketService: SocketMessageService(token),
     );
 
-    // 기본 작업
-    await _fetchUserId();        // 내 userId 세팅 (예: 0)
+    // (A) 메시지 불러오기
     await _loadMessagesAtFirstUnread();
+
+    // (B) "해당 방의 참여자(IDs) → 실제 User 정보" 불러오기
+    await _loadParticipants();
+
+    // (C) 메시지 읽음 처리
     await _markMessagesAsRead();
+
+    // (D) WebSocket 연결
     await _initWebSocket();
+
+    // (E) 주기적으로 방 활성화
     _activateRoomRegularly();
   }
 
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
+  // [추가] 참여자 정보 로딩: chatRoom.subscribers -> User 목록
+  // ─────────────────────────────────────────────────────────
+  Future<void> _loadParticipants() async {
+    try {
+      // 1) UserService 가져오기
+      final userService = ref.read(userServiceProvider);
+
+      // 2) chatRoom.subscribers에 담긴 userId 목록
+      final userIds = chatRoom.subscribers; // List<int>
+
+      if (userIds.isEmpty) {
+        debugPrint('[ChatDetailNotifier] 구독자 ID가 없습니다');
+        return;
+      }
+
+      // 3) 각 userId별로 getUser(...) 호출 (동시에 요청)
+      final fetchedUsers = await Future.wait(
+        userIds.map((id) => userService.getUser(id)),
+      ); // List<User>
+
+      // 4) state.participants에 반영
+      state = state.copyWith(participants: fetchedUsers);
+      debugPrint('[ChatDetailNotifier] 참여자 정보 불러오기 완료: ${fetchedUsers.length}명');
+    } catch (e) {
+      debugPrint('[ChatDetailNotifier] 참여자 정보 불러오기 실패: $e');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
   // 내 위치 추적 -> 서버로 전송 (5초마다)
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   Future<void> startLocationTracking() async {
     _locationTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       try {
@@ -115,19 +153,9 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     _chatRepository.disposeSocketService();
   }
 
-  // 사용자 ID
-  Future<void> _fetchUserId() async {
-    try {
-      // 임시로 userId = 0
-      state = state.copyWith(userId: 0);
-    } catch (e) {
-      debugPrint('[ChatDetailNotifier] _fetchUserId 실패: $e');
-    }
-  }
-
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   // 메시지 로드 (처음 진입 시)
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   Future<void> _loadMessagesAtFirstUnread() async {
     try {
       final previousMessages = await _chatRepository.loadMessages(
@@ -137,12 +165,10 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         numAfter: chatRoom.unreadCount,
       );
 
-      // 기존 messages와 합치면서 중복(ID) 제거
-      // (처음 로딩이므로 그냥 덮어써도 되지만, 혹시 모를 중복 제거)
       final merged = _mergeMessagesIgnoringDuplicates(
         currentList: state.messages,
         incomingList: previousMessages,
-        prepend: false, // 뒤쪽(append)으로 합치기
+        prepend: false,
       );
 
       state = state.copyWith(messages: merged);
@@ -151,9 +177,9 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     }
   }
 
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   // 이전 메시지 더 불러오기 (위로 스크롤 페이징)
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   Future<void> loadMoreMessages() async {
     if (state.isLoadingMore) return;
     state = state.copyWith(isLoadingMore: true);
@@ -184,28 +210,27 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     state = state.copyWith(isLoadingMore: false);
   }
 
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   // 메시지 전송
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   Future<void> sendMessage(String content) async {
     final trimmed = content.trim();
-    if (trimmed.isEmpty || state.userId == null) return;
+    if (trimmed.isEmpty || state.myUserId == null) return;
 
     try {
-      // 서버에 전송하면, 소켓(WebSocket)으로 다시 돌아올 때
-      // _handleStreamMessage 에서 목록에 반영됨
       await _chatRepository.sendMessage(
         streamId: chatRoom.streamId,
         content: trimmed,
       );
+      // 소켓 통해 돌아올 때 _handleStreamMessage에서 state.messages에 반영됨
     } catch (error) {
       debugPrint('[ChatDetailNotifier] 메시지 전송 실패: $error');
     }
   }
 
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   // WebSocket 연결 및 이벤트 처리
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   Future<void> _initWebSocket() async {
     await _chatRepository.connectWebSocket();
     _socketSubscription = _chatRepository.messageStream.listen((incoming) async {
@@ -245,11 +270,10 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     if (data['stream_id'] == chatRoom.streamId) {
       final newMessage = ChatMessage.fromJson(data);
 
-      // 기존 메시지와 합치되, 중복 ID가 있으면 무시
       final merged = _mergeMessagesIgnoringDuplicates(
         currentList: state.messages,
         incomingList: [newMessage],
-        prepend: false, // 새 메시지는 뒤쪽에 추가
+        prepend: false,
       );
       state = state.copyWith(messages: merged);
 
@@ -259,9 +283,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
           .handleIncomingMessageOnOpen(newMessage: newMessage);
 
       try {
-        await _chatRepository.markNewestMessageAsRead(
-          streamId: chatRoom.streamId,
-        );
+        await _chatRepository.markNewestMessageAsRead(streamId: chatRoom.streamId);
       } catch (error) {
         debugPrint('[ChatDetailNotifier] newest message read fail: $error');
       }
@@ -281,9 +303,9 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     }
   }
 
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   // 방 활성화 타이머
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   void _activateRoomRegularly() {
     debugPrint('ChatDetailNotifier: _activateRoomRegularly');
     _activateCurrentChatRoom();
@@ -312,9 +334,9 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     }
   }
 
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   // 메시지 읽음 처리
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   Future<void> _markMessagesAsRead() async {
     try {
       await _chatRepository.markMessagesAsRead(
@@ -326,23 +348,19 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     }
   }
 
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   // [중복 메시지 제거] 헬퍼 함수
-  // ---------------------------
+  // ─────────────────────────────────────────────────────────
   List<ChatMessage> _mergeMessagesIgnoringDuplicates({
     required List<ChatMessage> currentList,
     required List<ChatMessage> incomingList,
     bool prepend = false,
   }) {
-    // 복사본
     final updated = [...currentList];
-
     for (final incoming in incomingList) {
-      // 같은 id의 메시지가 있는지 확인
       final idx = updated.indexWhere((m) => m.id == incoming.id);
-
       if (idx == -1) {
-        // 중복 아님 -> 새로 추가
+        // 중복 아님
         if (prepend) {
           updated.insert(0, incoming);
         } else {
@@ -350,7 +368,6 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         }
       }
     }
-
     return updated;
   }
 }
