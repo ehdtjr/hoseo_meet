@@ -4,16 +4,17 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_async_session
 from app.core.security import current_active_user
-from app.crud.user_crud import UserFCMTokenCRUDProtocol, get_user_fcm_token_crud
+from app.crud.user_crud import UserFCMTokenCRUDProtocol, \
+    get_user_fcm_token_crud, UserCRUDProtocol, get_user_crud
 from app.models import User
 from app.schemas.stream import SubscriptionRequest
-from app.schemas.user import UserFCMTokenCreate, UserFCMTokenRequest
+from app.schemas.user import (UserFCMTokenCreate, UserFCMTokenRequest,
+                              UserRead, UserPublicRead)
 from app.service.stream import SubscriberServiceProtocol, \
     get_subscription_service
+from fastapi import HTTPException
 
 router = APIRouter()
-
-from fastapi import HTTPException
 
 
 @router.post("/me/register/fcm-token")
@@ -54,6 +55,7 @@ async def register_fcm_token(
     except Exception as e:
         raise (HTTPException(status_code=500,
                              detail=f"Failed to register fcm token: {str(e)}"))
+
 
 @router.get("/me/subscriptions")
 async def get_subscriptions(
@@ -99,6 +101,7 @@ async def post_subscriptions(
         raise (HTTPException(status_code=500,
                              detail=f"Failed to subscribe: {str(e)}"))
 
+
 @router.delete("/me/subscriptions")
 async def delete_subscriptions(
         subscription_data: SubscriptionRequest,
@@ -118,4 +121,24 @@ async def delete_subscriptions(
     except Exception as e:
         raise (HTTPException(status_code=500,
                              detail=f"Failed to unsubscribe: {str(e)}"))
+
+
+@router.get("/{user_id}/profile", response_model=UserPublicRead)
+async def get_user_profile(
+        user_id: int,
+        db: AsyncSession = Depends(get_async_session),
+        user_crud: UserCRUDProtocol = Depends(get_user_crud)
+):
+    try:
+        user: UserRead = await user_crud.get(db, user_id)
+        user = UserPublicRead(
+            id=user.id,
+            name=user.name,
+            gender=user.gender,
+            profile=user.profile
+        )
+        return user
+    except Exception as e:
+        raise (HTTPException(status_code=500,
+                             detail=f"Failed to fetch user profile: {str(e)}"))
 
