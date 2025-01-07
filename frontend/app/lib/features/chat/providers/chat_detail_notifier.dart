@@ -215,7 +215,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   // ─────────────────────────────────────────────────────────
   Future<void> sendMessage(String content) async {
     final trimmed = content.trim();
-    if (trimmed.isEmpty || state.myUserId == null) return;
+    if (trimmed.isEmpty) return;
 
     try {
       await _chatRepository.sendMessage(

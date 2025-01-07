@@ -97,13 +97,11 @@ class ChatMessage {
 }
 
 class ChatDetailState {
-  final int? myUserId;
   final bool isLoadingMore;
   final List<ChatMessage> messages;
   final List<User> participants;
 
   ChatDetailState({
-    this.myUserId,
     this.isLoadingMore = false,
     this.messages = const [],
     this.participants = const [],
@@ -117,7 +115,6 @@ class ChatDetailState {
     List<User>? participants,
   }) {
     return ChatDetailState(
-      myUserId: myUserId ?? this.myUserId,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       messages: messages ?? this.messages,
       participants: participants ?? this.participants,
@@ -126,7 +123,7 @@ class ChatDetailState {
 
   @override
   String toString() {
-    return 'ChatDetailState(myUserId:$myUserId, '
+    return
         'isLoadingMore:$isLoadingMore, '
         'messages.length:${messages.length}, '
         'participants.length:${participants.length})';
