@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/chat/presentation/widgets/detail/chat_message_loading_indicator.dart';
 
+import '../../data/models/chat_message.dart';
 import '../../data/models/chat_room.dart';
 import '../../providers/chat_detail_provider.dart';
 import '../../providers/chat_detail_notifier.dart';
 import '../../providers/chat_room_provicer.dart';
-import '../widgets/detail/chat_message_bubble.dart';
+import '../widgets/detail/chat_message_list.dart';
 import '../widgets/detail/chat_room_app_bar.dart';
 import '../widgets/detail/input_bar/chat_input_bar.dart';
 
-/// Scroll Glow 제거용 커스텀 Behavior
-/// Flutter 3.7+에서는 buildViewportChrome -> buildOverscrollIndicator로 변경
+/// Scroll Glow 제거용 커스텀 Behavior (Flutter 3.7+에서 buildViewportChrome -> buildOverscrollIndicator로 변경)
 class _NoGlowScrollBehavior extends ScrollBehavior {
   const _NoGlowScrollBehavior();
 
@@ -45,30 +45,33 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
   final ScrollController _scrollController = ScrollController();
   final FocusNode _messageFocusNode = FocusNode();
 
-  // ChatDetailNotifier 참조
+  // 실제 비즈니스 로직 담당 Notifier
   late final ChatDetailNotifier _detailNotifier;
+
+  // "자동 스크롤" 판정에 사용할 하단 부근(threshold) 거리
+  static const double _scrollThreshold = 500.0;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // ChatDetailNotifier 인스턴스 초기화
+    // Notifier 인스턴스 초기화
     _detailNotifier =
         ref.read(chatDetailNotifierProvider(widget.chatRoom).notifier);
 
     // 화면 렌더링이 끝난 뒤 초기 작업
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // ChatDetailNotifier 초기화
       await _detailNotifier.init();
       await _detailNotifier.startLocationTracking();
 
       // 채팅방 읽음 처리
-      ref.read(chatRoomNotifierProvider.notifier)
+      ref
+          .read(chatRoomNotifierProvider.notifier)
           .markRoomAsRead(widget.chatRoom.streamId);
     });
 
-    // 스크롤 리스너 (위로 스크롤 시 이전 메시지 로드)
+    // 위로 스크롤 시 이전 메시지 로드
     _scrollController.addListener(_onScroll);
   }
 
@@ -84,10 +87,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
     super.dispose();
   }
 
-  /// 위로 스크롤 시 이전 메시지 로딩
+  /// (A) 스크롤 리스너
   void _onScroll() {
     final currentState = ref.read(chatDetailNotifierProvider(widget.chatRoom));
-    // 스크롤 맨 위쪽 근접 & 아직 로딩 중이 아닐 때
+    // 스크롤 맨 위쪽 근접 & 아직 로딩 중이 아닐 때 → 이전 메시지 로드
     if (_scrollController.position.pixels <= 100 && !currentState.isLoadingMore) {
       _loadMoreMessagesSafely();
     }
@@ -108,98 +111,93 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
     });
   }
 
-  /// 메시지 전송
+  /// (B) 메시지 전송
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
-    // 지금 사용자가 "하단 근처(예: 100px 이내)"에 있는지 체크
-    final currentOffset = _scrollController.offset;
-    final maxOffset = _scrollController.position.maxScrollExtent;
-    final bool isNearBottom = (maxOffset - currentOffset) < 100;
-
-    // 전송
     await _detailNotifier.sendMessage(text);
     _messageController.clear();
 
-    // 이미 아래를 보고 있었다면 전송 후 자동 스크롤
-    if (isNearBottom) {
+    _scrollToBottom();
+  }
+
+  /// (C) "사용자가 하단 부근"인지 판별
+  bool _isUserNearBottom() {
+    if (!_scrollController.hasClients) return false;
+    final currentOffset = _scrollController.offset;
+    final maxOffset = _scrollController.position.maxScrollExtent;
+
+    return (maxOffset - currentOffset) < _scrollThreshold;
+  }
+
+  /// (D) "새 메시지 수신 시" 자동 스크롤 여부 체크
+  void _scrollToBottomIfNeeded() {
+    if (_isUserNearBottom()) {
       _scrollToBottom();
     }
   }
 
-  /// "맨 아래로" 스크롤 (애니메이션 시간, 커브 조정 가능)
+  /// (E) 실제 스크롤을 맨 아래로 이동
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
+        _scrollController.jumpTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOut,
         );
       }
     });
   }
 
-
-
   @override
   Widget build(BuildContext context) {
-    // ChatDetailState 구독
+    // 최신 채팅 상태 watch
     final detailState = ref.watch(chatDetailNotifierProvider(widget.chatRoom));
-    // 로그인한 내 정보
 
-    return PopScope(
-      canPop: false, // prevent back
-      onPopInvokedWithResult: (bool didPop, Object? result)  async {
-        return;
+    // (1) 새 메시지 추가감지 → "이미 하단부근이라면" 자동 스크롤
+    ref.listen<ChatDetailState>(
+      chatDetailNotifierProvider(widget.chatRoom),
+          (previous, next) {
+        // 이전 상태가 없거나, 메시지 개수 변화가 없다면 무시
+        if (previous == null ||
+            previous.messages.length == next.messages.length) {
+          return;
+        }
+
+        // 새 메시지가 추가된 상황
+        if (next.messages.length > previous.messages.length) {
+          _scrollToBottomIfNeeded();
+        }
       },
-      child: ScrollConfiguration(
-        behavior: const _NoGlowScrollBehavior(),
-        child: Scaffold(
-          appBar: ChatRoomAppBar(chatRoomName: widget.chatRoom.name),
+    );
 
-          body: GestureDetector(
-            onTap: () => FocusScope.of(context).unfocus(),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  // (로딩 표시) 이전 메시지 불러오는 중
-                  if (detailState.isLoadingMore)
-                    const ChatMessageLoadingIndicator(),
+    return ScrollConfiguration(
+      behavior: const _NoGlowScrollBehavior(),
+      child: Scaffold(
+        appBar: ChatRoomAppBar(chatRoomName: widget.chatRoom.name),
+        body: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // (로딩 표시) 이전 메시지 불러오는 중
+                if (detailState.isLoadingMore)
+                  const ChatMessageLoadingIndicator(),
 
-                  Expanded(
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: detailState.messages.length,
-                      padding: const EdgeInsets.only(bottom: 10),
-                      itemBuilder: (context, index) {
-                        final msg = detailState.messages[index];
-                        final sender = detailState.participants
-                            .where((u) => u.id == msg.senderId)
-                            .isNotEmpty
-                            ? detailState.participants.firstWhere(
-                              (u) => u.id == msg.senderId,
-                        )
-                            : null;
+                // 분리된 ListView 위젯
+                ChatMessageListView(
+                  scrollController: _scrollController,
+                  messages: detailState.messages,
+                  participants: detailState.participants,
+                ),
 
-                        return ChatMessageBubble(
-                          msg: msg,
-                          sender: sender,
-                        );
-                      },
-                    ),
-                  ),
-
-                  // 입력창
-                  ChatInputBar(
-                    controller: _messageController,
-                    focusNode: _messageFocusNode,
-                    onSend: _sendMessage,
-                  ),
-                ],
-              ),
+                // 입력창
+                ChatInputBar(
+                  controller: _messageController,
+                  focusNode: _messageFocusNode,
+                  onSend: _sendMessage,
+                ),
+              ],
             ),
           ),
         ),
