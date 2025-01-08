@@ -171,12 +171,11 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
                   Expanded(
                     child: ListView.builder(
                       controller: _scrollController,
-                      physics: const BouncingScrollPhysics(),
+                      physics: const AlwaysScrollableScrollPhysics(),
                       itemCount: detailState.messages.length,
                       padding: const EdgeInsets.only(bottom: 10),
                       itemBuilder: (context, index) {
                         final msg = detailState.messages[index];
-                        // senderId에 해당하는 참여자(User) 찾기
                         final sender = detailState.participants
                             .where((u) => u.id == msg.senderId)
                             .isNotEmpty
