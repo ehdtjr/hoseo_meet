@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/auth/providers/user_profile_provider.dart';
-import 'package:intl/intl.dart';
+import 'package:hoseomeet/features/chat/presentation/widgets/detail/chat_message_loading_indicator.dart';
 
 import '../../data/models/chat_room.dart';
 import '../../providers/chat_detail_provider.dart';
 import '../../providers/chat_detail_notifier.dart';
 import '../../providers/chat_room_provicer.dart';
 import '../widgets/detail/chat_message_bubble.dart';
+import '../widgets/detail/chat_room_app_bar.dart';
 import '../widgets/detail/input_bar/chat_input_bar.dart';
 
 /// Scroll Glow 제거용 커스텀 Behavior
@@ -30,9 +30,9 @@ class ChatDetailPage extends ConsumerStatefulWidget {
   final ChatRoom chatRoom;
 
   const ChatDetailPage({
-    Key? key,
+    super.key,
     required this.chatRoom,
-  }) : super(key: key);
+  });
 
   @override
   ConsumerState<ChatDetailPage> createState() => _ChatDetailPageState();
@@ -70,17 +70,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
 
     // 스크롤 리스너 (위로 스크롤 시 이전 메시지 로드)
     _scrollController.addListener(_onScroll);
-
-    // (옵션) 키보드가 올라오면, 자동으로 스크롤 맨 아래로 이동
-    _messageFocusNode.addListener(() {
-      // 포커스가 생기는 순간(=키보드 열림) 약간의 딜레이 후 스크롤
-      if (_messageFocusNode.hasFocus) {
-        // 키보드가 완전히 올라올 시간을 조금 기다렸다가 스크롤
-        Future.delayed(const Duration(milliseconds: 200), () {
-          _scrollToBottom();
-        });
-      }
-    });
   }
 
   @override
@@ -152,56 +141,24 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
     });
   }
 
-  /// 메시지 발신 시간 포맷팅
-  String _formatTime(DateTime dateTime) {
-    try {
-      final localTime = dateTime.toLocal();
-      return DateFormat('a h:mm', 'ko_KR').format(localTime);
-    } catch (e, stack) {
-      debugPrint('[ChatDetailPage] 타임스탬프 변환 오류: $e\n$stack');
-      return 'Unknown';
-    }
-  }
+
 
   @override
   Widget build(BuildContext context) {
     // ChatDetailState 구독
     final detailState = ref.watch(chatDetailNotifierProvider(widget.chatRoom));
     // 로그인한 내 정보
-    final userProfileState = ref.watch(userProfileNotifierProvider);
 
-    return WillPopScope(
-      onWillPop: () async {
-        // 뒤로가기 시 별도 로직이 필요하다면 여기서 처리
-        return true; // true면 pop 진행
+    return PopScope(
+      canPop: false, // prevent back
+      onPopInvokedWithResult: (bool didPop, Object? result)  async {
+        return;
       },
       child: ScrollConfiguration(
         behavior: const _NoGlowScrollBehavior(),
         child: Scaffold(
-          // (중요) 키보드 열릴 때 채팅 목록을 자동으로 위로 올려주는 설정
-          resizeToAvoidBottomInset: true,
+          appBar: ChatRoomAppBar(chatRoomName: widget.chatRoom.name),
 
-          appBar: AppBar(
-            title: Text(
-              widget.chatRoom.name.isEmpty ? 'No Title' : widget.chatRoom.name,
-            ),
-            centerTitle: true,
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-            elevation: 0,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.red),
-              onPressed: () {
-                Navigator.pop(context);
-              },
-            ),
-            bottom: const PreferredSize(
-              preferredSize: Size.fromHeight(1.0),
-              child: Divider(color: Colors.red, thickness: 1.0),
-            ),
-          ),
-
-          // 화면을 탭하면 포커스를 해제 -> 키보드가 닫힘
           body: GestureDetector(
             onTap: () => FocusScope.of(context).unfocus(),
             child: SafeArea(
@@ -209,23 +166,8 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
                 children: [
                   // (로딩 표시) 이전 메시지 불러오는 중
                   if (detailState.isLoadingMore)
-                    Container(
-                      color: Colors.grey.shade200,
-                      padding: const EdgeInsets.all(8.0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          CircularProgressIndicator(strokeWidth: 2),
-                          SizedBox(width: 10),
-                          Text(
-                            '이전 메시지를 불러오는 중...',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
-                    ),
+                    const ChatMessageLoadingIndicator(),
 
-                  // 메시지 목록
                   Expanded(
                     child: ListView.builder(
                       controller: _scrollController,
@@ -234,14 +176,6 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
                       padding: const EdgeInsets.only(bottom: 10),
                       itemBuilder: (context, index) {
                         final msg = detailState.messages[index];
-
-                        // 내가 보낸 메시지인지 판별
-                        final isMe =
-                        (msg.senderId == userProfileState.userProfile?.id);
-
-                        // 메시지 발신 시간
-                        final sendTime = _formatTime(msg.dateSent);
-
                         // senderId에 해당하는 참여자(User) 찾기
                         final sender = detailState.participants
                             .where((u) => u.id == msg.senderId)
@@ -250,15 +184,10 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
                               (u) => u.id == msg.senderId,
                         )
                             : null;
-                        final senderName = sender?.name ?? '알 수 없음';
 
                         return ChatMessageBubble(
-                          isMe: isMe,
-                          content: msg.content,
-                          unreadCount: msg.unreadCount,
-                          sendTime: sendTime,
-                          senderProfileUrl: null, // 필요하면 추가
-                          senderName: senderName,
+                          msg: msg,
+                          sender: sender,
                         );
                       },
                     ),

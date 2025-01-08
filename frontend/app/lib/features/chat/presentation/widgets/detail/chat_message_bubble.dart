@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hoseomeet/features/chat/data/models/chat_message.dart';
+import 'package:intl/intl.dart';
 
-class ChatMessageBubble extends StatelessWidget {
-  final bool isMe;
-  final String? content;
-  final int unreadCount;
-  final String sendTime;
-  final String? senderProfileUrl;
-  final String? senderName;
+import '../../../../auth/data/models/user.dart';
+import '../../../../auth/providers/user_profile_provider.dart';
+
+class ChatMessageBubble extends ConsumerWidget {
+  final ChatMessage msg;
+  final User? sender;
 
   const ChatMessageBubble({
-    super.key,
-    required this.isMe,
-    required this.content,
-    required this.unreadCount,
-    required this.sendTime,
-    this.senderProfileUrl,
-    this.senderName,
+    super.key, required this.msg, required this.sender,
   });
 
   @override
-  Widget build(BuildContext context) {
-    // (1) 내 메시지
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userProfileState = ref.watch(userProfileNotifierProvider);
+    final isMe = (msg.senderId == userProfileState.userProfile?.id);
+    final sendTime = _formatTime(msg.dateSent);
+
     if (isMe) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -32,9 +31,9 @@ class ChatMessageBubble extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                if (unreadCount > 0)
+                if (msg.unreadCount> 0)
                   Text(
-                    '$unreadCount',
+                    '${msg.unreadCount}',
                     style: const TextStyle(color: Colors.red, fontSize: 14),
                   ),
                 Text(
@@ -58,7 +57,7 @@ class ChatMessageBubble extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    content ?? '',
+                    msg.content,
                     style: const TextStyle(color: Colors.black),
                     softWrap: true,         // 줄바꿈 허용
                     overflow: TextOverflow.clip, // 넘치면 잘라내기 (또는 ellipsis)
@@ -82,9 +81,9 @@ class ChatMessageBubble extends StatelessWidget {
             CircleAvatar(
               radius: 22,
               backgroundColor: Colors.grey.shade300,
-              backgroundImage: (senderProfileUrl != null)
-                  ? NetworkImage(senderProfileUrl!)
-                  : null,
+              backgroundImage: NetworkImage(
+                sender?.profile ?? '',
+              ),
             ),
             const SizedBox(width: 8),
 
@@ -93,11 +92,10 @@ class ChatMessageBubble extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (senderName != null)
-                    Text(
-                      senderName!,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
+                  Text(
+                    sender?.name ?? "알수 없는 사용자",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 4),
 
                   // 말풍선 + 시간(안읽은수)를 가로로 배치
@@ -117,7 +115,7 @@ class ChatMessageBubble extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              content ?? '',
+                              msg.content,
                               style: const TextStyle(color: Colors.black),
                               softWrap: true,
                               overflow: TextOverflow.clip,
@@ -131,9 +129,9 @@ class ChatMessageBubble extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (unreadCount > 0)
+                          if (msg.unreadCount > 0)
                             Text(
-                              '$unreadCount',
+                              '${msg.unreadCount}',
                               style: const TextStyle(color: Colors.red, fontSize: 14),
                             ),
                           Text(
@@ -151,5 +149,15 @@ class ChatMessageBubble extends StatelessWidget {
         ),
       );
     }
+  }
+}
+
+String _formatTime(DateTime dateTime) {
+  try {
+    final localTime = dateTime.toLocal();
+    return DateFormat('a h:mm', 'ko_KR').format(localTime);
+  } catch (e, stack) {
+    debugPrint('[ChatDetailPage] 타임스탬프 변환 오류: $e\n$stack');
+    return 'Unknown';
   }
 }
