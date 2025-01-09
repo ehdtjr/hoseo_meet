@@ -41,8 +41,10 @@ class ChatMessageEventStrategy(EventStrategyProtocol):
         self.active_stream_service = active_stream_service
 
     async def get_sender(self, db: AsyncSession,
-    context:SenderSelectionContext) -> EventSenderProtocol:
-        active_stream_id = await self.active_stream_service.get_active_stream(context.user_id)
+                         context:SenderSelectionContext) -> EventSenderProtocol:
+        active_stream_id = await (
+            self.active_stream_service.get_active_stream(context.user_id))
+
         if active_stream_id == context.stream_id:
             return WebSocketEventSender()
         else:
