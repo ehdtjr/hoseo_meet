@@ -1,6 +1,6 @@
 from asyncio import Protocol
 from dataclasses import dataclass
-import json
+
 from pyfcm import FCMNotification
 
 from app.schemas.event import EventBase
