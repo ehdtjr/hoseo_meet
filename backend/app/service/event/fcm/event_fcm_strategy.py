@@ -39,8 +39,9 @@ class ChatMessageFCMEventStrategy(FCMEventStrategyProtocol):
             message_model = MessageResponse.model_validate_json(context.event.data)
             content = message_model.content
 
-            #    다만 이 결과는 'JSON 문자열'이므로, data_payload에 딕셔너리를 주려면 json.loads()를 해야 한다.
-            data_dict = json.loads(message_model.model_dump_json())
+            data_dict = message_model.model_dump()
+            for k, v in data_dict.items():
+                data_dict[k] = str(v)
 
             # 3) FCM 전송
             fcm.notify(
