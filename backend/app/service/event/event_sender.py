@@ -35,7 +35,7 @@ class FCMEventSender(EventSenderProtocol):
 
         strategy = FCMEventStrategyFactory.get_strategy(event_data.type,
                                                         self.fcm_token)
-        print(f"strategy: {strategy}")
+        print(f"strategy2: {strategy}")
 
         context = FCMEventSelectionContext(
             user_id=user_id,
