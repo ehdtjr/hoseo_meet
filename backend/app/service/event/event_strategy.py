@@ -52,6 +52,7 @@ class ChatMessageEventStrategy(EventStrategyProtocol):
             user_fcm_data: UserFCMTokenBase = await (
             user_fcm_crud.get_user_fcm_token_by_user_id(db, context.user_id))
             fcm_token = user_fcm_data.fcm_token if user_fcm_data else None
+            print(f"FCM token: {fcm_token}")
             return FCMEventSender(fcm_token)
 
 

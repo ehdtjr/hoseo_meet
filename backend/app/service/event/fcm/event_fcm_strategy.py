@@ -14,7 +14,6 @@ fcm = FCMNotification(
 @dataclass
 class FCMEventSelectionContext:
     user_id: int
-    stream_id: int
     event: EventBase
 
 
@@ -31,6 +30,7 @@ class FCMEventStrategyProtocol(Protocol):
 class ChatMessageFCMEventStrategy(FCMEventStrategyProtocol):
 
     async def send_notification(self, context: FCMEventSelectionContext):
+        print("ChatMessageFCMEventStrategy")
         fcm.notify(
             fcm_token=self.fcm_token,
             notification_title="새로운 메시지",
