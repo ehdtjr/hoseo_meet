@@ -10,5 +10,5 @@ class FCMEventStrategyFactory:
         strategy_class = STRATEGY_FCM_EVENT_REGISTRY.get(event_type)
         if strategy_class is None:
             raise ValueError(f"Event type {event_type} is not supported.")
-
+        print(f"strategy_class: {strategy_class}")
         return strategy_class(fcm_token)

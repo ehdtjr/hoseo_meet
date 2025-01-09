@@ -24,23 +24,24 @@ class WebSocketEventSender(EventSenderProtocol):
 
 
 class FCMEventSender(EventSenderProtocol):
+
     def __init__(self, fcm_token: Optional[str]):
         self.fcm_token = fcm_token
 
     async def send_event(self, user_id: int, event_data: EventBase):
         if not self.fcm_token:
+            print(f"FCM token is not found for user_id: {user_id}")
             return
 
-        strategy = FCMEventStrategyFactory.get_strategy(event_data.type, self.fcm_token)
+        strategy = FCMEventStrategyFactory.get_strategy(event_data.type,
+                                                        self.fcm_token)
+        print(f"strategy: {strategy}")
 
         context = FCMEventSelectionContext(
             user_id=user_id,
-            stream_id=event_data.stream_id,
             event=event_data
         )
-        asyncio.create_task(
-            asyncio.to_thread(strategy.send_notification,context)
-        )
+        await asyncio.to_thread(strategy.send_notification, context=context)
 
 
 class NoopEventSender(EventSenderProtocol):
