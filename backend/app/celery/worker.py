@@ -6,7 +6,7 @@ from app.core.config import settings
 app = Celery('app',
              broker=f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}")
 
-app.autodiscover_tasks(['app.celery.tasks'])
+app.autodiscover_tasks(['app.celery.tasks', 'app.celery.event_fcm_task'])
 app.conf.beat_schedule = {
     'garbage-collection-every-10-minutes': {
         'task': 'app.celery.tasks.run_garbage_collection',  # tasks.py에 정의될 작업

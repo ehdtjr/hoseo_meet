@@ -216,6 +216,10 @@ class ActiveStreamServiceProtocol(Protocol):
     async def get_active_stream(self, user_id: int) -> Optional[int]:
         pass
 
+    async def get_active_stream_user_ids(self, user_ids: list[int]) -> Dict[int,
+    Optional[int]]:
+        pass
+
 
 class RedisActiveStreamService(ActiveStreamServiceProtocol):
     """
@@ -243,6 +247,23 @@ class RedisActiveStreamService(ActiveStreamServiceProtocol):
             return int(value)
         except ValueError:
             return None
+
+    async def get_active_stream_user_ids(self, user_ids: list[int]) -> Dict[int,
+    Optional[int]]:
+
+        keys = [f"active_stream:{user_id}" for user_id in user_ids]
+        values = await redis_client.redis.mget(*keys)
+
+        result: Dict[int, Optional[int]] = {}
+        for user_id, val in zip(user_ids, values):
+            if val is None:
+                # 키가 존재하지 않으면 None
+                result[user_id] = None
+            else:
+                # 저장된 문자열을 int 변환
+                result[user_id] = int(val)
+
+        return result
 
 
 def get_active_stream_service() -> ActiveStreamServiceProtocol:
