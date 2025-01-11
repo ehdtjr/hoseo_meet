@@ -3,6 +3,7 @@
 /backend/app/alembic/versions/*
 !/backend/app/alembic/versions/.gitkeep
 /backend/hoseo-meet-firebase-adminsdk-oswm2-1186906f2e.json
+hoseo-meet-firebase.json
 /.idea/*
 /backend/app/tests/performance/k6
 /backend/app/tests/performance/prepare/*

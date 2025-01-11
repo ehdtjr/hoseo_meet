@@ -8,7 +8,7 @@ from app.schemas.event import EventBase
 from app.service.event.event_registry import STRATEGY_EVENT_REGISTRY
 from app.service.event.event_sender import EventSenderProtocol
 from app.service.event.event_strategy import EventStrategyProtocol, \
-    SenderSelectionContext
+    SendersSelectionContext
 from app.service.stream import ActiveStreamServiceProtocol, \
     get_active_stream_service
 
@@ -51,17 +51,16 @@ class EventDispatcher:
         event_strategy_factory를 통해 적절한 전략(Strategy)을 선택하고,
         Sender를 생성하여 이벤트를 발송한다.
         """
-        for user_id in user_ids:
-            context = SenderSelectionContext(
-                user_id=user_id,
-                stream_id=stream_id,
-                event=event_data
-            )
-            strategy = self.event_strategy_factory.get_strategy(event_data.type)
-            event_sender: EventSenderProtocol = await strategy.get_sender(
-                db, context)
-            await event_sender.send_event(user_id=user_id,
-                                          event_data=event_data)
+        context = SendersSelectionContext(
+            user_ids=user_ids,
+            stream_id=stream_id,
+            event=event_data
+        )
+        strategy = self.event_strategy_factory.get_strategy(event_data.type)
+        sender_groups = await strategy.get_senders(db, context)
+
+        for group in sender_groups:
+            await group.sender.send_events(db, group.user_ids, event_data)
 
 
 def get_event_dispatcher(

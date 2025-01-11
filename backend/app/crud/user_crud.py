@@ -43,12 +43,18 @@ class UserCRUD(CRUDBase[User, UserRead], UserCRUDProtocol):
         users = result.scalars().unique().all()
         return [UserRead.model_construct(**u.__dict__) for u in users]
 
+
 class UserFCMTokenCRUDProtocol:
     async def get(self, db: AsyncSession, id: int) -> UserFCMTokenCreate:
         pass
 
     async def get_user_fcm_token_by_user_id(self, db: AsyncSession,
                                             user_id: int) -> Optional[
+        UserFCMTokenBase]:
+        pass
+
+    async def get_user_fcm_tokens_by_user_ids(self, db: AsyncSession,
+                                         user_ids: List[int]) -> List[
         UserFCMTokenBase]:
         pass
 
@@ -69,7 +75,7 @@ class UserFCMTokenCRUD(CRUDBase[UserFCMToken, UserFCMTokenBase],
     async def get_user_fcm_token_by_user_id(self, db: AsyncSession, user_id:
     int) -> Optional[UserFCMTokenBase]:
         # 유저 ID로 FCM 토큰을 찾는 쿼리
-        query = select(UserFCMToken).where(UserFCMToken.user_id== user_id)
+        query = select(UserFCMToken).where(UserFCMToken.user_id == user_id)
 
         # 쿼리 실행
         result = await db.execute(query)
@@ -81,6 +87,17 @@ class UserFCMTokenCRUD(CRUDBase[UserFCMToken, UserFCMTokenBase],
             return None
 
         return UserFCMTokenBase.model_validate(user_fcm_token)
+
+    async def get_user_fcm_tokens_by_user_ids(self, db: AsyncSession,
+                                         user_ids: List[Optional[int]]) -> List[
+        UserFCMTokenBase]:
+
+        query = select(UserFCMToken).where(UserFCMToken.user_id.in_(user_ids))
+        result = await db.execute(query)
+        user_fcm_tokens = result.scalars().all()
+
+        return [UserFCMTokenBase.model_validate(token) for token in
+                user_fcm_tokens]
 
     async def create(self, db: AsyncSession, obj_in: UserFCMTokenCreate) -> (
             Optional)[
