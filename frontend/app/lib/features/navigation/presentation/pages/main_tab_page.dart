@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:hoseomeet/features/home/presentation/pages/home_page.dart';
 import 'package:hoseomeet/features/chat/presentation/pages/chat_page.dart';
+import 'package:hoseomeet/features/meet/presentation/pages/meet_page.dart';
 
 // 바텀 내비게이션 인덱스 Provider
 import '../../providers/bottom_nav_index_provider.dart';
@@ -45,7 +46,7 @@ class MainTabPage extends ConsumerWidget {
     // ⑤ 탭별 화면들
     final pages = [
       const HomePage(),
-      const Center(child: Text('MENT 페이지')),
+      MeetPage(),
       const ChatPage(),
       const Center(child: Text('ME 페이지')),
     ];
