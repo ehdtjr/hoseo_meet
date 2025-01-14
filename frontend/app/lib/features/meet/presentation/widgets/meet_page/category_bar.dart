@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hoseomeet/features/meet/providers/meet_post_category_provider.dart';
 
-import '../../../../chat/providers/chat_category_provider.dart';
 
 class CategoryBar extends StatelessWidget {
-  final ChatCategory selectedCategory;
-  final ValueChanged<ChatCategory> onCategorySelected;
+  final MeetPostCategory selectedCategory;
+  final ValueChanged<MeetPostCategory> onCategorySelected;
 
   const CategoryBar({
     Key? key,
@@ -16,20 +16,20 @@ class CategoryBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _buildChip(label: '전체', category: ChatCategory.all, width: 53),
+        _buildChip(label: '전체', category: MeetPostCategory.all, width: 53),
         const SizedBox(width: 8),
-        _buildChip(label: '모임', category: ChatCategory.meet, width: 53),
+        _buildChip(label: '모임', category: MeetPostCategory.meet, width: 53),
         const SizedBox(width: 8),
-        _buildChip(label: '배달', category: ChatCategory.delivery, width: 53),
+        _buildChip(label: '배달', category: MeetPostCategory.delivery, width: 53),
         const SizedBox(width: 8),
-        _buildChip(label: '택시 · 카풀', category: ChatCategory.taxi, width: 88),
+        _buildChip(label: '택시 · 카풀', category: MeetPostCategory.taxi, width: 88),
       ],
     );
   }
 
   Widget _buildChip({
     required String label,
-    required ChatCategory category,
+    required MeetPostCategory category,
     required double width,
   }) {
     final isSelected = (selectedCategory == category);

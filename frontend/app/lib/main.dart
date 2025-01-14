@@ -30,7 +30,6 @@ Future<void> main() async {
   // (1) Flutter 바인딩 초기화
   WidgetsFlutterBinding.ensureInitialized();
 
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

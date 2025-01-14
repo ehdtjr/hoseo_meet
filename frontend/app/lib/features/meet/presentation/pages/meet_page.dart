@@ -1,60 +1,133 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// 기존 위젯 import
-import '../../../chat/providers/chat_category_provider.dart';
+// 실제 파일명과 경로에 맞추어 import 변경
+import '../../providers/meet_post_category_provider.dart';
+import '../../providers/meet_post_provider.dart';
+import '../../providers/meet_post_search.dart';
 import '../widgets/meet_page/meet_page_item.dart';
-import '../widgets/meet_page/meet_page_serchbar.dart';
 import '../widgets/meet_page/meet_circula_image_list.dart';
 import '../widgets/meet_page/category_bar.dart';
+import '../widgets/meet_page/meet_page_serchbar.dart';
 
-class MeetPage extends StatelessWidget {
+class MeetPage extends ConsumerStatefulWidget {
+  const MeetPage({Key? key}) : super(key: key);
+
+  @override
+  ConsumerState<MeetPage> createState() => _MeetPageState();
+}
+
+class _MeetPageState extends ConsumerState<MeetPage> {
+  late TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+
+    // 초기 검색어 상태 설정
+    _searchController.text = ref.read(searchQueryProvider);
+
+    // 위젯 트리가 완전히 빌드된 뒤 초기 데이터 로드
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(meetPostProvider.notifier).resetAndLoad();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    // 현재 검색어 상태
+    ref.watch(searchQueryProvider);
+
+    // 모임 게시글 목록 상태
+    final meetPosts = ref.watch(meetPostProvider);
+    // 모임 게시글 관련 notifier
+    final notifier = ref.read(meetPostProvider.notifier);
+
+    // 선택된 카테고리 상태
+    final selectedCategory = ref.watch(meetPostCategoryProvider);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         title: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: MeetSearchBarWidget(),
+          child: MeetSearchBarWidget(
+            controller: _searchController,
+            onSearch: (query) {
+              ref.read(searchQueryProvider.notifier).state = query;
+              notifier.resetAndLoad();
+            },
+            onClear: () {
+              _searchController.clear();
+              ref.read(searchQueryProvider.notifier).state = '';
+              notifier.resetAndLoad();
+            },
+          ),
         ),
       ),
-      body: Container(
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent, // 터치 이벤트가 감지되도록 설정
+        onTap: () {
+          FocusScope.of(context).unfocus(); // 현재 포커스 해제하여 키보드 닫기
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 20.0, top: 15.0, bottom: 20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      child: MeetCircularImageList(),
-                    ),
-                    const SizedBox(height: 25),
-                    CategoryBar(
-                      selectedCategory: ChatCategory.all,
-                      onCategorySelected: (category) {
-                        print('Selected Category: $category');
-                      },
-                    ),
-                  ],
-                ),
+            // 상단 이미지 리스트와 카테고리 바
+            Padding(
+              padding: const EdgeInsets.only(left: 20.0, top: 15.0, bottom: 20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 상단 이미지 리스트
+                  SizedBox(
+                    width: double.infinity,
+                    child: MeetCircularImageList(),
+                  ),
+                  const SizedBox(height: 25),
+                  // 카테고리 바
+                  CategoryBar(
+                    selectedCategory: selectedCategory,
+                    onCategorySelected: (category) {
+                      // 카테고리 변경 시
+                      ref.read(meetPostCategoryProvider.notifier).state = category;
+                      notifier.resetAndLoad();
+                    },
+                  ),
+                ],
               ),
             ),
+
+            // 구분선
             const Divider(
               height: 2,
               thickness: 2,
               color: Colors.red,
             ),
-            Expanded(  // 남은 공간을 ListView가 차지하도록 Expanded로 감싸기
-              child: ListView.builder(
-                itemCount: 5,  // 임시로 5개 아이템 표시
+
+            // 리스트 영역
+            Expanded(
+              child: meetPosts.isEmpty && notifier.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                itemCount: meetPosts.length + (notifier.hasMore ? 1 : 0),
                 itemBuilder: (context, index) {
-                  return MeetPageItem();
+                  if (index == meetPosts.length) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      notifier.loadMeetPosts(loadMore: true);
+                    });
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final post = meetPosts[index];
+                  return MeetPageItem(post: post);
                 },
               ),
             ),
