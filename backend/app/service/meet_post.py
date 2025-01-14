@@ -5,6 +5,7 @@ from datetime import timedelta
 from app.core.redis import redis_client
 from app.crud.meet_post_crud import MeetPostCRUDProtocol, get_meet_post_crud
 from app.crud.user_crud import UserCRUDProtocol, get_user_crud
+from app.models import User
 from app.schemas.meet_post import (MeetPostBase, MeetPostCreate,
                                    MeetPostRequest, MeetPostListResponse,
                                    MeetPostResponse)
@@ -47,7 +48,9 @@ class MeetPostServiceProtocol(Protocol):
                                meet_post: MeetPostRequest, user_id: int) -> MeetPostBase:
         ...
 
-    async def get_filtered_meet_posts(self, db: AsyncSession,
+    async def get_filtered_meet_posts(self,
+                                      db: AsyncSession,
+                                      user: User,
                                       title: Optional[str] = None,
                                       meet_post_type: Optional[str] = None,
                                       content: Optional[str] = None,
@@ -56,8 +59,12 @@ class MeetPostServiceProtocol(Protocol):
                                       ) -> Optional[list[MeetPostBase]]:
         ...
 
-    async def get_detail_meet_post(self, db: AsyncSession, meet_post_id: int,
-                                   ip_address: str) -> Optional[MeetPostResponse]:
+    async def get_detail_meet_post(self,
+                                   db: AsyncSession,
+                                   user: User,
+                                   meet_post_id: int,
+                                   ip_address: str) -> (
+            Optional)[MeetPostResponse]:
         ...
 
     async def subscribe_to_meet_post(self, db: AsyncSession,
@@ -111,6 +118,7 @@ class MeetPostService(MeetPostServiceProtocol):
     async def get_filtered_meet_posts(
         self,
         db: AsyncSession,
+        user: User,
         title: Optional[str] = None,
         meet_post_type: Optional[str] = None,
         content: Optional[str] = None,
@@ -127,6 +135,10 @@ class MeetPostService(MeetPostServiceProtocol):
             subscribers = await self.subscriber_service.get_subscribers(db, meet_post.stream_id)
             author = await self.user_crud.get(db, meet_post.author_id)
             author_public = UserPublicRead.model_validate(author)
+            is_subscribed = False
+
+            if user.id in subscribers:
+                is_subscribed = True
 
             meet_post_response = MeetPostListResponse(
                 id=meet_post.id,
@@ -138,7 +150,8 @@ class MeetPostService(MeetPostServiceProtocol):
                 page_views=meet_post.page_views,
                 created_at=meet_post.created_at,
                 max_people=meet_post.max_people,
-                current_people=len(subscribers)
+                current_people=len(subscribers),
+                is_subscribed=is_subscribed
             )
             result.append(meet_post_response)
 
@@ -173,6 +186,7 @@ class MeetPostService(MeetPostServiceProtocol):
     async def get_detail_meet_post(
         self,
         db: AsyncSession,
+        user: User,
         meet_post_id: int,
         ip_address: str
     ) -> Optional[MeetPostResponse]:
@@ -194,6 +208,10 @@ class MeetPostService(MeetPostServiceProtocol):
             db,
             meet_post.stream_id
             )
+        is_subscribed = False
+
+        if user.id in subscribers:
+            is_subscribed = True
 
         return MeetPostResponse(
             id=meet_post.id,
@@ -205,7 +223,8 @@ class MeetPostService(MeetPostServiceProtocol):
             page_views=meet_post.page_views,
             created_at=meet_post.created_at,
             max_people=meet_post.max_people,
-            current_people=len(subscribers)
+            current_people=len(subscribers),
+            is_subscribed=is_subscribed
         )
 
 

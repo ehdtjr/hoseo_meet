@@ -52,6 +52,8 @@ class MeetPostResponse(BaseModel):
     created_at: datetime
     max_people: int = Field(..., ge=1, le=50)
     current_people: int
+    is_subscribed: bool = False
+
 
 class MeetPostListResponse(MeetPostResponse):
     @computed_field
