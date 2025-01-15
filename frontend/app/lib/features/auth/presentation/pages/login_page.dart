@@ -14,7 +14,7 @@ import 'package:hoseomeet/firebase/api/send_token_service.dart';
 import '../../providers/user_profile_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   ConsumerState<LoginPage> createState() => _LoginPageState();

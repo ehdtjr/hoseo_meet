@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-class ChatHeader extends StatefulWidget {
-  const ChatHeader({super.key});
+class ChatHeader extends StatelessWidget {
+  final bool isExitMode; // 부모로부터 전달받는 나가기 모드 상태
+  final VoidCallback onToggleExitMode; // 나가기 버튼 클릭 시 호출할 콜백 함수
 
-  @override
-  _ChatHeaderState createState() => _ChatHeaderState();
-}
-
-class _ChatHeaderState extends State<ChatHeader> {
-  bool _isExitToggled = false; // 나가기 버튼 토글 상태
+  const ChatHeader({
+    super.key,
+    required this.isExitMode,
+    required this.onToggleExitMode,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,24 +27,19 @@ class _ChatHeaderState extends State<ChatHeader> {
               height: 1.60,
             ),
           ),
-
           const Spacer(),
 
-          // 나가기 버튼 (배경색만 토글)
+          // 나가기 버튼
           SizedBox(
             width: 52,
             height: 28,
             child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _isExitToggled = !_isExitToggled; // 토글 상태 변경
-                });
-              },
+              onTap: onToggleExitMode, // 부모 콜백 호출
               child: Container(
                 decoration: ShapeDecoration(
-                  color: Colors.white, // 큰 컨테이너의 배경색
+                  color: Colors.white,
                   shape: RoundedRectangleBorder(
-                    side: const BorderSide(width: 1, color: Color(0xFFE72410)), // 테두리 고정
+                    side: const BorderSide(width: 1, color: Color(0xFFE72410)),
                     borderRadius: BorderRadius.circular(13),
                   ),
                   shadows: const [
@@ -57,12 +52,12 @@ class _ChatHeaderState extends State<ChatHeader> {
                   ],
                 ),
                 child: Center(
-                  child: _isExitToggled
+                  child: isExitMode
                       ? Container(
                     width: 47,
                     height: 23,
                     decoration: ShapeDecoration(
-                      color: const Color(0xFFE72410), // 작은 컨테이너 배경 빨간색
+                      color: const Color(0xFFE72410),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -92,10 +87,9 @@ class _ChatHeaderState extends State<ChatHeader> {
               ),
             ),
           ),
-
           const SizedBox(width: 8),
 
-          // 아이콘을 둥근 영역 안에 배치, 터치 시 연한 회색 효과
+          // 더보기 아이콘
           Material(
             color: Colors.transparent,
             child: InkWell(

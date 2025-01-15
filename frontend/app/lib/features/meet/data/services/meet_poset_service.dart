@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart'; // debugPrint를 사용하기 위해 추가
 import 'package:hoseomeet/commons/network/auth_http_client.dart';
 import 'package:hoseomeet/features/meet/data/models/meet_post.dart';
 import 'package:hoseomeet/features/meet/data/models/meet_post_detail.dart';
@@ -83,7 +84,7 @@ class MeePostService {
       final response = await _client.postRequest(url.toString(), body);
 
       if (response.statusCode == 201) {
-        print('Meet post created successfully');
+        debugPrint('Meet post created successfully');
       } else {
         throw Exception('Failed to create meet post: ${response.statusCode}');
       }
@@ -92,5 +93,20 @@ class MeePostService {
     }
   }
 
+  Future<void> subscribeMeetPost(int postId) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/meet_post/subscribe/$postId');
 
+    try {
+      final response = await _client.postRequest(url.toString(), {});
+
+      if (response.statusCode == 200) {
+        debugPrint('Subscribed to meet post successfully');
+      } else {
+        throw Exception(
+            'Failed to subscribe to meet post: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error subscribing to meet post: $e');
+    }
+  }
 }

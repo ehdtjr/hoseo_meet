@@ -68,14 +68,15 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       socketService: SocketMessageService(token),
     );
 
+
+    // (C) 메시지 읽음 처리
+    await _markMessagesAsRead();
+
     // (A) 메시지 불러오기
     await _loadMessagesAtFirstUnread();
 
     // (B) "해당 방의 참여자(IDs) → 실제 User 정보" 불러오기
     await _loadParticipants();
-
-    // (C) 메시지 읽음 처리
-    await _markMessagesAsRead();
 
     // (D) WebSocket 연결
     await _initWebSocket();
@@ -280,7 +281,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       // 채팅방 목록 갱신 등
       ref
           .read(chatRoomNotifierProvider.notifier)
-          .handleIncomingMessageOnOpen(newMessage: newMessage);
+          .handleIncomingMessage(newMessage: newMessage, markAsRead: true);
 
       try {
         await _chatRepository.markNewestMessageAsRead(streamId: chatRoom.streamId);
