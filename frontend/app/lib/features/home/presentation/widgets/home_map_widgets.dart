@@ -4,8 +4,8 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 class HomeMap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return        NaverMap(
-      options: const NaverMapViewOptions(
+    return (const NaverMap(
+      options: NaverMapViewOptions(
         initialCameraPosition: NCameraPosition(
           target: NLatLng(37.5666102, 126.9783881),
           zoom: 15,
@@ -14,6 +14,7 @@ class HomeMap extends StatelessWidget {
         zoomGesturesEnable: true,
         rotationGesturesEnable: true,
       ),
+      )
     );
   }
 }

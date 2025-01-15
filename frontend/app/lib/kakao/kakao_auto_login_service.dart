@@ -2,7 +2,7 @@ import 'package:kakao_flutter_sdk/kakao_flutter_sdk.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class KakaoAutoLoginService {
-  final FlutterSecureStorage _storage = FlutterSecureStorage();
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   // 자동 로그인을 시도하는 메서드
   Future<bool> tryAutoLogin() async {
@@ -24,9 +24,9 @@ class KakaoAutoLoginService {
         await TokenManagerProvider.instance.manager.setToken(
           OAuthToken(
             accessToken,
-            DateTime.now().add(Duration(hours: 12)),
+            DateTime.now().add(const Duration(hours: 12)),
             refreshToken,
-            DateTime.now().add(Duration(days: 30)),
+            DateTime.now().add(const Duration(days: 30)),
             null,
           ),
         );
@@ -41,9 +41,9 @@ class KakaoAutoLoginService {
         OAuthToken token = await AuthApi.instance.refreshAccessToken(
           oldToken: OAuthToken(
             accessToken,
-            DateTime.now().add(Duration(hours: 1)),
+            DateTime.now().add(const Duration(hours: 1)),
             refreshToken,
-            DateTime.now().add(Duration(days: 30)),
+            DateTime.now().add(const Duration(days: 30)),
             null,
           ),
         );

@@ -15,7 +15,7 @@ import 'package:hoseomeet/features/auth/providers/auth_notifier_provider.dart';
 import 'package:hoseomeet/features/auth/presentation/pages/login_page.dart';
 
 class MainTabPage extends ConsumerWidget {
-  const MainTabPage({Key? key}) : super(key: key);
+  const MainTabPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -46,7 +46,7 @@ class MainTabPage extends ConsumerWidget {
     // ⑤ 탭별 화면들
     final pages = [
       const HomePage(),
-      MeetPage(),
+      const MeetPage(),
       const ChatPage(),
       const Center(child: Text('ME 페이지')),
     ];

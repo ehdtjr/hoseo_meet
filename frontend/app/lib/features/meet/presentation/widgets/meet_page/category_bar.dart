@@ -7,10 +7,10 @@ class CategoryBar extends StatelessWidget {
   final ValueChanged<MeetPostCategory> onCategorySelected;
 
   const CategoryBar({
-    Key? key,
+    super.key,
     required this.selectedCategory,
     required this.onCategorySelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

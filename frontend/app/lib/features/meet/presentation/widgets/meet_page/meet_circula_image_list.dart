@@ -21,7 +21,7 @@ class MeetCircularImageList extends StatelessWidget {
           return Padding(
             padding: const EdgeInsets.only(right: 15.0),
             child: index == 0
-                ? AddNewCircularImageWidget()
+                ? const AddNewCircularImageWidget()
                 : _ImageItemWidget(imageUrl: imageUrls[index]),
           );
         },

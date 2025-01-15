@@ -4,7 +4,7 @@ import 'package:hoseomeet/widgets/search_bar.dart';
 
 
 class HomePage extends StatefulWidget { // Stateful로 변경 (탭 이동 시 setState)
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -28,7 +28,7 @@ class _HomePageState extends State<HomePage> {
           ),
 
           // (2) 상단 검색바 - (Positioned) / (만약 따로 Positioned로 두셨다면)
-          Positioned(
+          const Positioned(
             top: 60,
             left: 24,
             right: 24,
@@ -120,7 +120,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         ),
-        child: Stack(
+        child: const Stack(
           children: [
             Positioned(
               left: 25,

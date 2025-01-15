@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 class AddNewCircularImageWidget extends StatelessWidget {
+  const AddNewCircularImageWidget({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 74,
       height: 74,
       child: CustomPaint(
@@ -14,9 +16,9 @@ class AddNewCircularImageWidget extends StatelessWidget {
             height: 67.57,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0xFFE72410).withOpacity(0.05),
+              color: const Color(0xFFE72410).withOpacity(0.05),
             ),
-            child: Center(
+            child: const Center(
               child: Icon(
                 Icons.add,
                 color: Color(0xFFE72410),
@@ -34,14 +36,14 @@ class DashedCirclePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Color(0xFFE72410)
+      ..color = const Color(0xFFE72410)
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 
     final radius = size.width / 2;
-    final dashCount = 12;
-    final dashWidth = 10;
-    final angleStep = (2 * 3.14159265359) / dashCount;
+    const dashCount = 12;
+    const dashWidth = 10;
+    const angleStep = (2 * 3.14159265359) / dashCount;
 
     for (int i = 0; i < dashCount; i++) {
       final startAngle = i * angleStep;

@@ -22,13 +22,13 @@ class AppBottomNavBar extends StatelessWidget {
   final ValueChanged<int>? onTap;
 
   const AppBottomNavBar({
-    Key? key,
+    super.key,
     this.barHeight = 74.0,
     this.backgroundColor = Colors.white,
     required this.items,
     this.currentIndex = 0,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +90,10 @@ class AppBottomNavBar extends StatelessWidget {
                               item.svgAsset!,
                               width: 24,
                               height: 24,
-                              color: iconColor,
+                              colorFilter: ColorFilter.mode(
+                                iconColor,
+                                BlendMode.srcIn
+                              ),
                             )
                           else if (item.icon != null)
                             Icon(

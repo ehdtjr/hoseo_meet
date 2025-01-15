@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/meet/data/models/meet_post.dart';
 import 'package:hoseomeet/features/meet/data/models/meet_post_detail.dart';
@@ -70,7 +71,7 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
         _skip += _limit;
       }
     } catch (e) {
-      print('Failed to load posts: $e');
+      debugPrint('Failed to load posts: $e');
     } finally {
       _isLoading = false;
     }
@@ -82,7 +83,7 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
       final meetDetail = await _service.loadDetailMeetPost(postId);
       return meetDetail;
     } catch (e) {
-      print('Failed to load post detail: $e');
+      debugPrint('Failed to load post detail: $e');
       return null;
     }
   }

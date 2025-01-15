@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hoseomeet/features/meet/presentation/pages/create_meet_page.dart';
+import '../widgets/meet_page/meet_circula_image_list.dart';
+import '../widgets/meet_page/category_bar.dart';
+import '../widgets/meet_page/meet_page_list.dart';
+import '../widgets/meet_page/meet_page_serchbar.dart';
 
 // 실제 파일명과 경로에 맞추어 import 변경
 import '../../providers/meet_post_category_provider.dart';
 import '../../providers/meet_post_provider.dart';
 import '../../providers/meet_post_search.dart';
-import '../widgets/meet_page/meet_page_item.dart';
-import '../widgets/meet_page/meet_circula_image_list.dart';
-import '../widgets/meet_page/category_bar.dart';
-import '../widgets/meet_page/meet_page_serchbar.dart';
 
 class MeetPage extends ConsumerStatefulWidget {
-  const MeetPage({Key? key}) : super(key: key);
+  const MeetPage({super.key});
 
   @override
   ConsumerState<MeetPage> createState() => _MeetPageState();
@@ -115,23 +116,42 @@ class _MeetPageState extends ConsumerState<MeetPage> {
 
             // 리스트 영역
             Expanded(
-              child: meetPosts.isEmpty && notifier.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                itemCount: meetPosts.length + (notifier.hasMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == meetPosts.length) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      notifier.loadMeetPosts(loadMore: true);
-                    });
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final post = meetPosts[index];
-                  return MeetPageItem(post: post);
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  notifier.resetAndLoad(); // 새 데이터 로드
                 },
+                child: MeetPostList(
+                  meetPosts: meetPosts,
+                  isLoading: notifier.isLoading,
+                  hasMore: notifier.hasMore,
+                  loadMore: () => notifier.loadMeetPosts(loadMore: true),
+                ),
               ),
             ),
           ],
+        ),
+      ),
+      floatingActionButton: RawMaterialButton(
+        onPressed: () {
+          // 버튼 클릭 시 동작
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CreateMeetPage(),
+            ),
+          );
+        },
+        fillColor: Colors.red, // 버튼 배경색
+        shape: const CircleBorder(), // 원형 버튼
+        constraints: const BoxConstraints.tightFor(
+          width: 56,
+          height: 56,
+        ), // 버튼 크기 설정
+        child: Image.asset(
+          'assets/img/add-meet-post.png', // PNG 파일 경로
+          width: 56,
+          height: 56,
+          fit: BoxFit.contain,
         ),
       ),
     );

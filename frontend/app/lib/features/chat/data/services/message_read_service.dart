@@ -23,8 +23,6 @@ class MessageReadService {
       "num_after": numAfter,
     };
 
-    print('[MessageReadService] markMessagesAsRead -> body=$body');
-
     // (2) AuthHttpClient 사용
     final http.Response response = await _client.postRequest(
       readMessageEndpoint,

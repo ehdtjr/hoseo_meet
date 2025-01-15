@@ -79,7 +79,6 @@ class ChatRoomNotifier extends StateNotifier<List<ChatRoom>> {
   void handleIncomingMessage({
     required ChatMessage newMessage,
   }) {
-    print('★ handleIncomingMessage 호출됨: $newMessage');
     final updatedRooms = state.map((room) {
       if (room.streamId == newMessage.streamId) {
         return room.copyWith(

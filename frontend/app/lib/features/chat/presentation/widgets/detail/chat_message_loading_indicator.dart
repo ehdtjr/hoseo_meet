@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ChatMessageLoadingIndicator extends StatelessWidget {
-  const ChatMessageLoadingIndicator({Key? key}) : super(key: key);
+  const ChatMessageLoadingIndicator({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -2,7 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kakao_flutter_sdk/kakao_flutter_sdk.dart';
 
 class KakaoLoginService {
-  final _storage = FlutterSecureStorage();
+  final _storage = const FlutterSecureStorage();
 
   // 로그인 메서드: 로그인 성공 시 토큰 저장
   Future<bool> login() async {

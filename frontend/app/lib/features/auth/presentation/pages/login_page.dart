@@ -55,8 +55,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         // (1) FCM 토큰 가져오기
         final token = await FirebaseMessaging.instance.getToken();
-        print('로그인 후 FCM 토큰: $token');
-
         // (2) 토큰 서버 전송
         if (token != null && token.isNotEmpty) {
           final authClient = ref.read(authHttpClientProvider);
@@ -64,9 +62,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           final response = await sendTokenService.sendToken(token);
 
           if (response.statusCode == 200) {
-            print('[FCM 토큰 등록] 서버 전송 성공');
+            debugPrint('[FCM 토큰 등록] 서버 전송 성공');
           } else {
-            print('[FCM 토큰 등록] 실패: code=${response.statusCode}, body=${response.body}');
+            debugPrint('[FCM 토큰 등록] 실패: code=${response.statusCode}, body=${response.body}');
           }
         }
 

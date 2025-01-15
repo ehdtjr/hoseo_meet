@@ -8,11 +8,11 @@ class MeetSearchBarWidget extends StatefulWidget {
   final VoidCallback onClear;
 
   const MeetSearchBarWidget({
-    Key? key,
+    super.key,
     required this.controller,
     required this.onSearch,
     required this.onClear,
-  }) : super(key: key);
+  });
 
   @override
   _MeetSearchBarWidgetState createState() => _MeetSearchBarWidgetState();
@@ -95,7 +95,7 @@ class _MeetSearchBarWidgetState extends State<MeetSearchBarWidget> {
             if (widget.controller.text.isNotEmpty)
               GestureDetector(
                 onTap: widget.onClear,
-                child: Icon(
+                child: const Icon(
                   Icons.clear,
                   size: 20,
                   color: Colors.grey,

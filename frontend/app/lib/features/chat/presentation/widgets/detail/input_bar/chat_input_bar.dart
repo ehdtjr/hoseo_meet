@@ -8,12 +8,12 @@ class ChatInputBar extends StatefulWidget {
   final double height;
 
   const ChatInputBar({
-    Key? key,
+    super.key,
     required this.controller,
     required this.focusNode,
     required this.onSend,
     this.height = 72,
-  }) : super(key: key);
+  });
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();

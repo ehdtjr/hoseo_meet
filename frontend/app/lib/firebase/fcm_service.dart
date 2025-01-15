@@ -2,6 +2,7 @@
 
 import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/chat/data/models/chat_message.dart';
@@ -25,7 +26,8 @@ class FcmService {
       badge: true,
       sound: true,
     );
-    print('iOS 알림 권한: ${settings.authorizationStatus}');
+
+    debugPrint('iOS 알림 권한: ${settings.authorizationStatus}');
 
     await FirebaseMessaging.instance
         .setForegroundNotificationPresentationOptions(

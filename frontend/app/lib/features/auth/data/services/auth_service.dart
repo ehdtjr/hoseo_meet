@@ -14,7 +14,6 @@ class AuthService {
     required String username,
     required String password,
   }) async {
-    print('[AuthService] loginUser() - username=$username');
 
     final requestData = {
       'grant_type': 'password',
@@ -31,16 +30,10 @@ class AuthService {
       body: requestData,
     );
 
-    print('[AuthService] loginUser() -> code=${response.statusCode}');
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);
       final accessToken = body['access_token'] as String?;
       final refreshToken = body['refresh_token'] as String?;
-
-      print('[AuthService] parsed tokens: access=$accessToken, refresh=$refreshToken');
-
-      // 사용자 정보 조회 로직(AuthMeService)은 제거했습니다.
-      // 필요 시, 로그인 성공 후 별도 로직(Notifier 등)에서 user info를 가져오도록 분리
 
       return {
         'statusCode': 200,
@@ -48,7 +41,6 @@ class AuthService {
         'refreshToken': refreshToken,
       };
     } else {
-      print('[AuthService] loginUser failed: ${response.body}');
       return {
         'statusCode': response.statusCode,
         'error': response.body,

@@ -55,10 +55,42 @@ class MeePostService {
         json.decode(utf8.decode(response.bodyBytes));
         return MeetDetail.fromJson(jsonData);
       } else {
-        throw Exception('Failed to load meet post detail: ${response.statusCode}');
+        throw Exception(
+            'Failed to load meet post detail: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error loading meet post detail: $e');
     }
   }
+
+  Future<void> createMeetPost({
+    required String title,
+    required String type,
+    required String content,
+    required int maxPeople,
+  }) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/meet_post/create');
+
+    final body = {
+      'title': title,
+      'type': type,
+      'content': content,
+      'max_people': maxPeople,
+    };
+
+    try {
+      // postRequest 호출: headers 제거, body만 전달
+      final response = await _client.postRequest(url.toString(), body);
+
+      if (response.statusCode == 201) {
+        print('Meet post created successfully');
+      } else {
+        throw Exception('Failed to create meet post: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error creating meet post: $e');
+    }
+  }
+
+
 }

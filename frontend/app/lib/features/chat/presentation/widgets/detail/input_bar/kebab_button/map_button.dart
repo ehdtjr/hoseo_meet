@@ -10,9 +10,9 @@ class MapButton extends ConsumerWidget {
   final VoidCallback onCloseOverlay;
 
   const MapButton({
-    Key? key,
+    super.key,
     required this.onCloseOverlay,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -55,7 +55,7 @@ class MapButton extends ConsumerWidget {
 
 /// 지도 모달(Dialog 내부 컨텐츠)
 class MapModalContent extends ConsumerStatefulWidget {
-  const MapModalContent({Key? key}) : super(key: key);
+  const MapModalContent({super.key});
 
   @override
   ConsumerState<MapModalContent> createState() => _MapModalContentState();

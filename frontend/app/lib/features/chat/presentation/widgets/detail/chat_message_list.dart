@@ -10,11 +10,11 @@ class ChatMessageListView extends StatelessWidget {
   final List<User> participants;
 
   const ChatMessageListView({
-    Key? key,
+    super.key,
     required this.scrollController,
     required this.messages,
     required this.participants,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

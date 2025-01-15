@@ -4,9 +4,9 @@ class ChatRoomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String chatRoomName;
 
   const ChatRoomAppBar({
-    Key? key,
+    super.key,
     required this.chatRoomName,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

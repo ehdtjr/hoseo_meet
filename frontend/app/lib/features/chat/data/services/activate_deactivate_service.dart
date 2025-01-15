@@ -23,7 +23,7 @@ class ActivateDeactivateService {
   }
 
   Future<void> deactivateRoom() async {
-    final url = '${AppConfig.baseUrl}/stream/deactive';
+    const url = '${AppConfig.baseUrl}/stream/deactive';
 
     final response = await _client.postRequest(url, {});
 

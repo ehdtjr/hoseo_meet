@@ -24,7 +24,6 @@ class SocketMessageService {
     const maxRetries = 3;
 
     while (retryCount < maxRetries) {
-      print("현재 토큰값은 $_token입니다. 웹소켓 시작");
       try {
         _socket = await WebSocket.connect(
           socketUrl,

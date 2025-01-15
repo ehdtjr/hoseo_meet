@@ -31,7 +31,6 @@ class ChatRoom {
       case 'taxi':
         return '택시';
       default:
-      // type이 정수("2"), 혹은 다른 문자열인 경우, 필요하다면 별도 분기 처리
         return '일반';
     }
   }

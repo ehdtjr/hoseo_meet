@@ -12,7 +12,7 @@ class UserService {
 
   /// /auth/me 로부터 현재 사용자 프로필(UserProfile)을 가져온다
   Future<UserProfile> getUserProfile() async {
-    final uri = '${AppConfig.baseUrl}/auth/me';
+    const uri = '${AppConfig.baseUrl}/auth/me';
     final http.Response response = await _client.getRequest(uri);
 
     if (response.statusCode == 200) {

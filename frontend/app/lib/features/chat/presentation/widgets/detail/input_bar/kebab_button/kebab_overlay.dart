@@ -16,13 +16,13 @@ class KebabOverlay extends StatelessWidget {
   final VoidCallback onTapPhotoButton;
 
   const KebabOverlay({
-    Key? key,
+    super.key,
     required this.left,
     required this.top,
     required this.onTapOutside,
     required this.onTapEmoticonButton,
     required this.onTapPhotoButton,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +55,7 @@ class KebabOverlay extends StatelessWidget {
                     onTap: () {
                       onTapOutside();        // 먼저 오버레이 닫고
                       onTapEmoticonButton(); // 이모티콘 로직
-                      print('이모티콘 버튼 탭');
+                      debugPrint('이모티콘 버튼 탭');
                     },
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 8),

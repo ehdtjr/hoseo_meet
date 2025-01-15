@@ -101,7 +101,7 @@ Future<bool> _checkAndRequestLocationPermission() async {
 
 /// ConsumerStatefulWidget에서 FcmService를 초기화
 class MyApp extends ConsumerStatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   ConsumerState<MyApp> createState() => _MyAppState();

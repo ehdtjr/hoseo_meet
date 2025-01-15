@@ -15,7 +15,7 @@ import '../widgets/chat_room_list.dart';
 
 
 class ChatPage extends ConsumerStatefulWidget {
-  const ChatPage({Key? key}) : super(key: key);
+  const ChatPage({super.key});
 
   @override
   ConsumerState<ChatPage> createState() => _ChatPageState();
@@ -103,8 +103,7 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       case ChatCategory.delivery:
         return rooms.where((r) => r.type == 'delivery').toList();
       case ChatCategory.taxi:
-      // 서버에서 "taxiCarpool" 혹은 "taxi_carpool" 로 저장 가능. 확인 후 수정
-        return rooms.where((r) => r.type == 'taxiCarpool').toList();
+        return rooms.where((r) => r.type == 'taxi').toList();
     }
   }
 }
