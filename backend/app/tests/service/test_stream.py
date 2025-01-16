@@ -300,6 +300,49 @@ class TestSubscriberService(BaseTest):
             await subscription_service.unsubscribe(self.db, mock_user_id, mock_stream_id)
         self.assertEqual(str(context.exception), f"Subscription is already inactive")
 
+    async def test_subscribe_existing_active_subscription(self):
+        # given: 이미 활성화된 구독이 존재하는 경우
+        mock_user_id = 1
+        mock_stream_id = 1
+        mock_recipient_id = 1
+
+        subscription_crud: SubscriptionCRUDProtocol = AsyncMock(
+            spec=SubscriptionCRUDProtocol
+        )
+        recipient_crud: RecipientCRUDProtocol = AsyncMock(
+            spec=RecipientCRUDProtocol
+        )
+
+        # 활성화된 구독이 이미 존재
+        subscription_crud.get_subscription.return_value = SubscriptionBase(
+            id=1,
+            user_id=mock_user_id,
+            recipient_id=mock_recipient_id,
+            active=True,  # 활성화 상태
+            is_user_active=True,
+            is_muted=False,
+        )
+
+        recipient_crud.get_by_type_id.return_value = RecipientBase(
+            id=mock_recipient_id, type=RecipientType.STREAM.value, type_id=mock_stream_id
+        )
+
+        subscription_service = SubscriberService(
+            subscription_crud=subscription_crud,
+            stream_crud=AsyncMock(),
+            recipient_crud=recipient_crud,
+            user_message_crud=AsyncMock(),
+            message_crud=AsyncMock(),
+        )
+
+        # when / then: 이미 활성화된 구독이 있는 경우 예외 발생
+        with self.assertRaises(ValueError) as context:
+            await subscription_service.subscribe(self.db, mock_user_id, mock_stream_id)
+        self.assertEqual(
+            str(context.exception), f"User {mock_user_id} is already subscribed"
+        )
+
+
 
 class TestRedisActiveStreamService(BaseTest):
     async def asyncSetUp(self):

@@ -147,11 +147,22 @@ class SubscriberService(SubscriberServiceProtocol):
                         stream_id: int) \
             -> Optional[SubscriptionRead]:
         recipient = await self.recipient_crud.get_by_type_id(db, stream_id)
-        subscribers: List[int] = await self.subscription_crud.get_subscribers(
-            db, stream_id)
 
-        if user_id in subscribers:
-            raise ValueError(f"User {user_id} is already subscribed")
+        if not recipient:
+            raise ValueError(f"Recipient not found for stream {stream_id}")
+
+        subscribe = await self.subscription_crud.get_subscription(
+            db, user_id=user_id, recipient_id=recipient.id
+        )
+
+        if subscribe:
+            if subscribe.active:
+                raise ValueError(f"User {user_id} is already subscribed")
+            else:
+                subscribe.active = True
+                updated_subscription = await self.subscription_crud.update(
+                    db, subscribe)
+                return SubscriptionRead.model_validate(updated_subscription)
 
         subscriber_data = SubscriptionCreate(
             user_id=user_id,
