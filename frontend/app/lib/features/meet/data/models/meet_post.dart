@@ -64,4 +64,35 @@ class MeetPost {
       'is_subscribed': isSubscribed, // is_subscribed 값 포함
     };
   }
+
+  // copyWith 메서드: 변경할 필드만 지정하여 새로운 MeetPost 객체 반환
+  MeetPost copyWith({
+    int? id,
+    String? title,
+    String? type,
+    User? author,
+    int? streamId,
+    String? content,
+    int? pageViews,
+    DateTime? createdAt,
+    int? maxPeople,
+    int? currentPeople,
+    String? shortContent,
+    bool? isSubscribed,
+  }) {
+    return MeetPost(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      type: type ?? this.type,
+      author: author ?? this.author,
+      streamId: streamId ?? this.streamId,
+      content: content ?? this.content,
+      pageViews: pageViews ?? this.pageViews,
+      createdAt: createdAt ?? this.createdAt,
+      maxPeople: maxPeople ?? this.maxPeople,
+      currentPeople: currentPeople ?? this.currentPeople,
+      shortContent: shortContent ?? this.shortContent,
+      isSubscribed: isSubscribed ?? this.isSubscribed,
+    );
+  }
 }

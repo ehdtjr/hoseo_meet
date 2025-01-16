@@ -15,11 +15,12 @@ class MeetPageItem extends ConsumerWidget {
     return GestureDetector(
       onTap: () => _showDetailModal(context, ref), // 아이템 클릭 시 모달 호출
       child: Container(
-        padding: const EdgeInsets.only(
-          top: 18.0,
-          left: 20.0,
-          right: 20.0,
+        width: double.infinity, // 클릭 영역 확장을 위해 전체 너비 사용
+        padding: const EdgeInsets.symmetric(
+          vertical: 15.0,
+          horizontal: 20.0,
         ),
+        color: Colors.transparent, // 클릭 영역 감지를 위한 투명 배경
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -32,7 +33,7 @@ class MeetPageItem extends ConsumerWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(

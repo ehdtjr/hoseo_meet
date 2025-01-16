@@ -64,7 +64,7 @@ class MeePostService {
     }
   }
 
-  Future<void> createMeetPost({
+  Future<MeetPost?> createMeetPost({
     required String title,
     required String type,
     required String content,
@@ -80,18 +80,22 @@ class MeePostService {
     };
 
     try {
-      // postRequest 호출: headers 제거, body만 전달
       final response = await _client.postRequest(url.toString(), body);
-
       if (response.statusCode == 201) {
-        debugPrint('Meet post created successfully');
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return MeetPost.fromJson(data);
       } else {
-        throw Exception('Failed to create meet post: ${response.statusCode}');
+        debugPrint(
+            'Failed to create meet post. Status code: ${response.statusCode}, Body: ${response.body}');
+        return null;
       }
     } catch (e) {
-      throw Exception('Error creating meet post: $e');
+      debugPrint('Error creating meet post: $e');
+      return null;
     }
   }
+
+
 
   Future<void> subscribeMeetPost(int postId) async {
     final url = Uri.parse('${AppConfig.baseUrl}/meet_post/subscribe/$postId');
@@ -109,4 +113,5 @@ class MeePostService {
       throw Exception('Error subscribing to meet post: $e');
     }
   }
+
 }

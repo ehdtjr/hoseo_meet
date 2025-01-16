@@ -39,7 +39,7 @@ class _HomePageState extends State<HomePage> {
           _buildCategoryRow(),
 
           // (4) PostList 영역
-          _buildPostList(),
+          // _buildPostList(),
         ]
       )
     );

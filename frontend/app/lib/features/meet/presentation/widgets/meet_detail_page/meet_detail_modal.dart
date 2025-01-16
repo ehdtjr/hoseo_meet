@@ -58,11 +58,7 @@ class MeetDetailModal extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: MeetDetailFooter(
-              createdAt: post.createdAt,
-              pageViews: post.pageViews,
-              currentPeople: post.currentPeople,
-              maxPeople: post.maxPeople,
-              isSubscribed: post.isSubscribed,
+              postId: post.id,
             ),
           )
 

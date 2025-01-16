@@ -10,6 +10,7 @@ import '../widgets/meet_page/meet_page_serchbar.dart';
 import '../../providers/meet_post_category_provider.dart';
 import '../../providers/meet_post_provider.dart';
 import '../../providers/meet_post_search.dart';
+import '../../../navigation/providers/bottom_nav_index_provider.dart'; // 탭 상태를 감시하기 위해 필요
 
 class MeetPage extends ConsumerStatefulWidget {
   const MeetPage({super.key});
@@ -20,6 +21,7 @@ class MeetPage extends ConsumerStatefulWidget {
 
 class _MeetPageState extends ConsumerState<MeetPage> {
   late TextEditingController _searchController;
+  bool _isInitialized = false; // 활성화 상태를 추적하기 위한 변수
 
   @override
   void initState() {
@@ -28,21 +30,26 @@ class _MeetPageState extends ConsumerState<MeetPage> {
 
     // 초기 검색어 상태 설정
     _searchController.text = ref.read(searchQueryProvider);
-
-    // 위젯 트리가 완전히 빌드된 뒤 초기 데이터 로드
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(meetPostProvider.notifier).resetAndLoad();
-    });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // 현재 탭 상태 감시
+    final currentIndex = ref.watch(bottomNavIndexProvider);
+
+    // MeetPage가 활성화될 때 데이터를 초기화
+    if (currentIndex == 1 && !_isInitialized) {
+      _isInitialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(meetPostProvider.notifier).resetAndLoad();
+      });
+    }
+
+    // 다른 탭으로 이동하면 초기화 상태를 리셋
+    if (currentIndex != 1) {
+      _isInitialized = false;
+    }
+
     // 현재 검색어 상태
     ref.watch(searchQueryProvider);
 
@@ -132,14 +139,20 @@ class _MeetPageState extends ConsumerState<MeetPage> {
         ),
       ),
       floatingActionButton: RawMaterialButton(
-        onPressed: () {
-          // 버튼 클릭 시 동작
-          Navigator.push(
+        onPressed: () async {
+          // 페이지 이동 후 생성 작업 결과를 기다림
+          final result = await Navigator.push(
             context,
             MaterialPageRoute(
               builder: (context) => const CreateMeetPage(),
             ),
           );
+
+          // CreateMeetPage에서 Navigator.pop(context, true);로 성공 여부를 반환받을 수 있음
+          if (result == true) {
+            // 생성 성공 시 리스트 갱신
+            ref.read(meetPostProvider.notifier).resetAndLoad();
+          }
         },
         fillColor: Colors.red, // 버튼 배경색
         shape: const CircleBorder(), // 원형 버튼
@@ -155,6 +168,11 @@ class _MeetPageState extends ConsumerState<MeetPage> {
         ),
       ),
     );
+  }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 }

@@ -20,7 +20,7 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
   bool get isLoading => _isLoading;
   bool get hasMore => _hasMore;
 
-  /// MeetPost 리스트 로드 (title과 content 각각 검색)
+  /// MeetPost 리스트 로드
   Future<void> loadMeetPosts({bool loadMore = false}) async {
     if (_isLoading) return;
 
@@ -30,7 +30,7 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
     final type = category == 'all' ? '' : category;
 
     try {
-      // 1. title로 검색
+      // title 및 content 검색 결과 병합
       final titlePosts = await _service.loadListMeetPost(
         type: type,
         title: query,
@@ -39,7 +39,6 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
         limit: _limit,
       );
 
-      // 2. content로 검색
       final contentPosts = await _service.loadListMeetPost(
         type: type,
         title: '',
@@ -48,7 +47,6 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
         limit: _limit,
       );
 
-      // 3. 두 검색 결과 병합 및 중복 제거 (id 기준으로 중복 제거)
       final combinedPosts = [
         ...titlePosts,
         ...contentPosts,
@@ -59,12 +57,13 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
       }.values.toList(); // id 기준으로 중복 제거
 
       if (loadMore) {
-        state = [...state, ...uniquePosts];
+        final existingIds = state.map((post) => post.id).toSet();
+        final newPosts = uniquePosts.where((post) => !existingIds.contains(post.id)).toList();
+        state = [...state, ...newPosts];
       } else {
         state = uniquePosts;
       }
 
-      // 더 불러올 데이터가 없을 경우 hasMore를 false로 설정
       if (uniquePosts.length < _limit) {
         _hasMore = false;
       } else {
@@ -77,22 +76,65 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
     }
   }
 
-  /// 특정 게시글의 상세 정보를 로드하는 함수
+  /// 특정 게시글의 상세 정보 로드
   Future<MeetDetail?> loadDetailMeetPost(int postId) async {
     try {
-      final meetDetail = await _service.loadDetailMeetPost(postId);
-      return meetDetail;
+      return await _service.loadDetailMeetPost(postId);
     } catch (e) {
       debugPrint('Failed to load post detail: $e');
       return null;
     }
   }
 
+  /// 게시글 구독
+  Future<void> subscribeToPost(int postId) async {
+    try {
+      await _service.subscribeMeetPost(postId);
+
+      state = state.map((post) {
+        if (post.id == postId) {
+          return post.copyWith(
+            isSubscribed: true,
+            currentPeople: post.currentPeople + 1,
+          );
+        }
+        return post;
+      }).toList();
+    } catch (e) {
+      debugPrint('Failed to subscribe to post: $e');
+    }
+  }
+
+  /// 게시글 생성
+  Future<void> createMeetPost({
+    required String title,
+    required String type,
+    required String content,
+    required int maxPeople,
+  }) async {
+    try {
+      final createdPost = await _service.createMeetPost(
+        title: title,
+        type: type,
+        content: content,
+        maxPeople: maxPeople,
+      );
+
+      if (createdPost != null) {
+        debugPrint('Created post: $createdPost');
+        state = [createdPost, ...state];
+      }
+    } catch (e) {
+      debugPrint('Failed to create meet post: $e');
+    }
+  }
+
+
   /// 데이터 초기화 및 다시 로드
   void resetAndLoad() {
     _skip = 0;
     _hasMore = true;
-    state = []; // 기존 리스트 초기화
-    loadMeetPosts(); // 새 데이터 로드
+    state = [];
+    loadMeetPosts();
   }
 }
