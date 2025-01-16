@@ -14,6 +14,7 @@ class _HomeMapState extends State<HomeMap> {
   NaverMapController? _mapController; // NaverMap 컨트롤러를 저장
   late Stream<Position> _positionStream; // 위치 스트림
   double _currentBearing = 0.0; // Compass로부터 디바이스 방향
+  bool _mapReady = false; // 지도 초기화 상태
 
   @override
   void initState() {
@@ -26,6 +27,12 @@ class _HomeMapState extends State<HomeMap> {
         setState(() {
           _currentBearing = event.heading!; // Compass로부터 방향 (0-360도)
         });
+
+        // 나침반 방향이 변경될 때 오버레이의 방향 업데이트
+        if (_mapController != null && _mapReady) {
+          final locationOverlay = _mapController!.getLocationOverlay();
+          locationOverlay.setBearing(_currentBearing); // 방향 업데이트
+        }
       }
     });
   }
@@ -46,6 +53,12 @@ class _HomeMapState extends State<HomeMap> {
           final position = snapshot.data!;
           final latLng = NLatLng(position.latitude, position.longitude);
 
+          // 지도와 위치 아이콘 업데이트
+          if (_mapController != null && _mapReady) {
+            final locationOverlay = _mapController!.getLocationOverlay();
+            locationOverlay.setPosition(latLng); // 위치 업데이트
+          }
+
           return NaverMap(
             options: NaverMapViewOptions(
               initialCameraPosition: NCameraPosition(
@@ -57,26 +70,21 @@ class _HomeMapState extends State<HomeMap> {
               zoomGesturesEnable: true,
               rotationGesturesEnable: true,
             ),
-
             onMapReady: (controller) async {
               _mapController = controller;
-
-              // 초기 위치로 카메라 이동
-              _moveToCurrentLocation(latLng);
+              _mapReady = true;
 
               final locationOverlay = controller.getLocationOverlay();
               locationOverlay.setIsVisible(true);
-              locationOverlay.setBearing(_currentBearing);
-              locationOverlay.setPosition(latLng);
+              locationOverlay.setBearing(_currentBearing); // 초기 방향
+              locationOverlay.setPosition(latLng); // 초기 위치 설정
 
-              locationOverlay.setCircleRadius(20);
+              locationOverlay.setCircleRadius(20); // 원 반경
               locationOverlay.setSubIcon(
                 const NOverlayImage.fromAssetImage(
-                    'packages/flutter_naver_map/assets/icon/location_overlay_sub_icon.png'
-                ));
-              locationOverlay.setSubIconSize(const Size(8, 4));
-              locationOverlay.setSubAnchor(const NPoint(0.5, 1.0));
-
+                    'packages/flutter_naver_map/assets/icon/location_overlay_sub_icon.png'),
+              );
+              locationOverlay.setSubAnchor(const NPoint(0.5, 1.0)); // 하단 중앙 기준
             },
           );
         } else {
@@ -94,12 +102,5 @@ class _HomeMapState extends State<HomeMap> {
     );
 
     return Geolocator.getPositionStream(locationSettings: locationSettings);
-  }
-
-  // 현재 위치로 카메라 이동 함수
-  void _moveToCurrentLocation(NLatLng latLng) {
-    if (_mapController != null) {
-
-    }
   }
 }
