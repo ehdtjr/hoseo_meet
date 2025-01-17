@@ -53,28 +53,32 @@ class MeetDetailFooter extends ConsumerWidget {
           Row(
             children: [
               const SizedBox(width: 100),
-              Row(
-                children: [
-                  SvgPicture.asset(
-                    'assets/icons/fi-rr-user.svg',
-                    width: 14,
-                    height: 14,
-                    colorFilter: const ColorFilter.mode(
-                      Color(0xFF707070),
-                      BlendMode.srcIn,
+              Padding(
+                padding: const EdgeInsets.only(right: 3), // 우측 패딩 3px 추가
+                child: Row(
+                  children: [
+                    SvgPicture.asset(
+                      'assets/icons/fi-rr-user.svg',
+                      width: 14,
+                      height: 14,
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFF707070),
+                        BlendMode.srcIn,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${post.currentPeople}/${post.maxPeople}',
-                    style: const TextStyle(
-                      color: Color(0xFF707070),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
+                    const SizedBox(width: 4),
+                    Text(
+                      '${post.currentPeople}/${post.maxPeople}',
+                      style: const TextStyle(
+                        color: Color(0xFF707070),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+              )
+
             ],
           ),
           const Spacer(),
