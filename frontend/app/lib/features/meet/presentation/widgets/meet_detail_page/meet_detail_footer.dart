@@ -52,7 +52,7 @@ class MeetDetailFooter extends ConsumerWidget {
           // 참여 인원
           Row(
             children: [
-              const SizedBox(width: 100),
+              const SizedBox(width: 80),
               Padding(
                 padding: const EdgeInsets.only(right: 3), // 우측 패딩 3px 추가
                 child: Row(
