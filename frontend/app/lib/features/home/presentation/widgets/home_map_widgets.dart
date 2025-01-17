@@ -123,8 +123,8 @@ class _HomeMapState extends State<HomeMap> {
   /// 통합 모드 및 아이콘 상태 토글 버튼 생성
   Widget _buildFloatingButton() {
     return Positioned(
-      bottom: 80,
-      right: 20,
+      bottom: 200,
+      left: 20,
       child: FloatingActionButton(
         onPressed: _toggleFollowAndHeadingMode,
         backgroundColor: _followAndHeadingMode ? Colors.orange : Colors.grey,

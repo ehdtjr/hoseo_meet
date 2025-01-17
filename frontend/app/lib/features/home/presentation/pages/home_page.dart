@@ -1,170 +1,86 @@
 import 'package:flutter/material.dart';
-import 'package:hoseomeet/features/home/presentation/widgets/home_map_widgets.dart'; // 가정
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hoseomeet/features/home/presentation/widgets/home_map_widgets.dart';
 import 'package:hoseomeet/widgets/search_bar.dart';
+import '../../../auth/providers/user_profile_provider.dart';
+import '../../providers/category_provider.dart';
+import '../widgets/bottom_sheet/bottom_sheet_container.dart';
+import '../widgets/home_category_row.dart';
 
-
-class HomePage extends StatefulWidget { // Stateful로 변경 (탭 이동 시 setState)
+class HomePage extends ConsumerWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userProfileState = ref.watch(userProfileNotifierProvider);
+    final userProfileNotifier = ref.read(userProfileNotifierProvider.notifier);
+    final selectedCategory = ref.watch(categoryProvider);
 
-class _HomePageState extends State<HomePage> {
-
-  @override
-  Widget build(BuildContext context) {
-    return
-      Scaffold(
-      // 지도와 기타 오버레이
+    return Scaffold(
       body: Stack(
         children: [
-          // (1) 지도
+          // 지도
           Positioned.fill(
             child: Container(
               color: Colors.grey[300],
-              child: HomeMap(), // 실제론 NaverMap 등
+              child: const HomeMap(),
             ),
           ),
-
-          // (2) 상단 검색바 - (Positioned) / (만약 따로 Positioned로 두셨다면)
+          // 검색바
           const Positioned(
             top: 60,
             left: 24,
             right: 24,
-            child: SearchBarWidget(), // 가정: 사용자 정의 검색바
+            child: SearchBarWidget(),
           ),
+          // 카테고리 Row
+          const Positioned(
+            top: 122,
+            left: 24,
+            right: 0,
+            child: CategoryRow(), // 분리된 위젯 사용
+          ),
+          // 하단 오버레이
+          DraggableScrollableSheet(
+            initialChildSize: 0.2,
+            minChildSize: 0.1,
+            maxChildSize: 0.75,
+            builder: (BuildContext context, ScrollController scrollController) {
+              if (userProfileState.isLoading) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          // (3) 카테고리 Row
-          _buildCategoryRow(),
+              if (userProfileState.errorMessage != null) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(userProfileState.errorMessage!),
+                      ElevatedButton(
+                        onPressed: () => userProfileNotifier.fetchUserProfile(),
+                        child: const Text('다시 시도'),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-          // (4) PostList 영역
-          // _buildPostList(),
-        ]
-      )
-    );
-  }
-  Widget _buildCategoryRow() {
-    return Positioned(
-      top: 122,
-      left: 24,
-      right: 0,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildCategoryChip('자취방'),
-            const SizedBox(width: 8),
-            _buildCategoryChip('음식점'),
-            const SizedBox(width: 8),
-            _buildCategoryChip('카페'),
-            const SizedBox(width: 8),
-            _buildCategoryChip('술집'),
-            const SizedBox(width: 8),
-            _buildCategoryChip('편의점'),
-            const SizedBox(width: 8),
-            _buildCategoryChip('놀거리'),
-          ],
-        ),
-      ),
-    );
-  }
+              if (userProfileState.userProfile != null) {
+                // 사용자 이름을 userProfile에서 가져오기
+                final userName = userProfileState.userProfile!.name;
 
-  Widget _buildCategoryChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-      decoration: ShapeDecoration(
-        color: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(43),
-        ),
-        shadows: const [
-          BoxShadow(
-            color: Color(0x1C000000),
-            blurRadius: 6.90,
+                return BottomSheetContainer(
+                  scrollController: scrollController,
+                  userProfile: userProfileState.userProfile!,
+                  selectedCategory: selectedCategory,
+                  userName: userName,
+                );
+              }
+
+              return const Center(child: Text('프로필 정보가 없습니다.'));
+            },
           ),
         ],
-      ),
-      child: Row(
-        children: [
-          const FlutterLogo(size: 13),
-          const SizedBox(width: 7),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 15,
-              fontFamily: 'Pretendard',
-              fontWeight: FontWeight.w600,
-              height: 1.60,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPostList() {
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 74, // leave space for bottom bar
-      child: Container(
-        height: 205,
-        decoration: const ShapeDecoration(
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(36),
-              topRight: Radius.circular(36),
-            ),
-          ),
-        ),
-        child: const Stack(
-          children: [
-            Positioned(
-              left: 25,
-              top: 47,
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '지금 ',
-                      style: TextStyle(
-                        color: Color(0xFF2E2E2E),
-                        fontSize: 21,
-                        fontFamily: 'Pretendard',
-                        fontWeight: FontWeight.w600,
-                        height: 1.60,
-                      ),
-                    ),
-                    TextSpan(
-                      text: '소소',
-                      style: TextStyle(
-                        color: Color(0xFFE72410),
-                        fontSize: 21,
-                        fontFamily: 'Pretendard',
-                        fontWeight: FontWeight.w600,
-                        height: 1.60,
-                      ),
-                    ),
-                    TextSpan(
-                      text: '님을 기다리고 있어요!',
-                      style: TextStyle(
-                        color: Color(0xFF2E2E2E),
-                        fontSize: 21,
-                        fontFamily: 'Pretendard',
-                        fontWeight: FontWeight.w600,
-                        height: 1.60,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // ... 추가 게시글 목록
-          ],
-        ),
       ),
     );
   }
