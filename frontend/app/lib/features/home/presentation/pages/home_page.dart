@@ -7,11 +7,24 @@ import '../../providers/category_provider.dart';
 import '../widgets/bottom_sheet/bottom_sheet_container.dart';
 import '../widgets/home_category_row.dart';
 
-class HomePage extends ConsumerWidget {
+class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends ConsumerState<HomePage> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final userProfileState = ref.watch(userProfileNotifierProvider);
     final userProfileNotifier = ref.read(userProfileNotifierProvider.notifier);
     final selectedCategory = ref.watch(categoryProvider);
@@ -27,11 +40,21 @@ class HomePage extends ConsumerWidget {
             ),
           ),
           // 검색바
-          const Positioned(
+          Positioned(
             top: 60,
             left: 24,
             right: 24,
-            child: SearchBarWidget(),
+            child: SearchBarWidget(
+              controller: _searchController,
+              onSearch: (query) {
+                print('검색어: $query');
+                // 검색 로직 추가 가능
+              },
+              onClear: () {
+                _searchController.clear();
+                print('검색어 초기화');
+              },
+            ),
           ),
           // 카테고리 Row
           const Positioned(
