@@ -38,13 +38,13 @@ class HomePage extends ConsumerWidget {
             top: 122,
             left: 24,
             right: 0,
-            child: CategoryRow(), // 분리된 위젯 사용
+            child: CategoryRow(),
           ),
           // 하단 오버레이
           DraggableScrollableSheet(
             initialChildSize: 0.2,
-            minChildSize: 0.1,
-            maxChildSize: 0.75,
+            minChildSize: 0.2,
+            maxChildSize: 0.8,
             builder: (BuildContext context, ScrollController scrollController) {
               if (userProfileState.isLoading) {
                 return const Center(child: CircularProgressIndicator());
@@ -66,12 +66,10 @@ class HomePage extends ConsumerWidget {
               }
 
               if (userProfileState.userProfile != null) {
-                // 사용자 이름을 userProfile에서 가져오기
                 final userName = userProfileState.userProfile!.name;
 
                 return BottomSheetContainer(
-                  scrollController: scrollController,
-                  userProfile: userProfileState.userProfile!,
+                  scrollController: scrollController, // ScrollController 전달
                   selectedCategory: selectedCategory,
                   userName: userName,
                 );

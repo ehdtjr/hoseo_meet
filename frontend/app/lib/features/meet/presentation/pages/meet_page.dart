@@ -120,7 +120,7 @@ class _MeetPageState extends ConsumerState<MeetPage> {
               thickness: 2,
               color: Colors.red,
             ),
-
+            const SizedBox(height: 20),
             // 리스트 영역
             Expanded(
               child: RefreshIndicator(

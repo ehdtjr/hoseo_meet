@@ -20,6 +20,7 @@ class MeetPostList extends StatelessWidget {
     return meetPosts.isEmpty && isLoading
         ? const Center(child: CircularProgressIndicator())
         : ListView.builder(
+      padding: EdgeInsets.zero,
       itemCount: meetPosts.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == meetPosts.length) {
