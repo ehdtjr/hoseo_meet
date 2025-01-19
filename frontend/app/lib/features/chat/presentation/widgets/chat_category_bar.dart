@@ -1,5 +1,3 @@
-// file: lib/features/chat/presentation/widgets/chat_category_bar.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/chat/providers/chat_category_provider.dart';
@@ -48,12 +46,18 @@ class ChatCategoryBar extends ConsumerWidget {
         width: width,
         height: 32,
         child: Container(
-          decoration: ShapeDecoration(
+          decoration: BoxDecoration(
             color: backgroundColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(43),
-              side: BorderSide(color: borderColor, width: 0.2),
-            ),
+            borderRadius: BorderRadius.circular(53),
+            border: Border.all(color: borderColor, width: 0.5),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.3), // 그림자 색상 및 투명도
+                offset: const Offset(2, 2), // 그림자의 위치 (x, y)
+                blurRadius: 6, // 그림자의 흐림 정도
+                spreadRadius: 1, // 그림자 퍼짐 정도
+              ),
+            ],
           ),
           child: Center(
             child: Text(

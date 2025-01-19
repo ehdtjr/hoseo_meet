@@ -1,5 +1,5 @@
-// kebab_overlay.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'map_button.dart';
 
 class KebabOverlay extends StatelessWidget {
@@ -29,7 +29,7 @@ class KebabOverlay extends StatelessWidget {
     return Material(
       color: Colors.transparent, // 오버레이 배경 투명
       child: GestureDetector(
-        onTap: onTapOutside,      // 바깥을 탭하면 오버레이 닫기
+        onTap: onTapOutside, // 바깥을 탭하면 오버레이 닫기
         behavior: HitTestBehavior.translucent,
         child: Stack(
           children: [
@@ -41,7 +41,7 @@ class KebabOverlay extends StatelessWidget {
             // 3개 버튼 배치
             Positioned(
               left: left,
-              top: top,
+              bottom: 90, // 최하단 기준으로 100px 위
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -50,39 +50,35 @@ class KebabOverlay extends StatelessWidget {
                     onCloseOverlay: onTapOutside,
                   ),
 
+                  const SizedBox(height: 15), // 버튼 간격 추가
+
                   // (2) 이모티콘 버튼
                   InkWell(
                     onTap: () {
-                      onTapOutside();        // 먼저 오버레이 닫고
+                      onTapOutside(); // 먼저 오버레이 닫고
                       onTapEmoticonButton(); // 이모티콘 로직
                       debugPrint('이모티콘 버튼 탭');
                     },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.emoji_emotions, color: Colors.white),
+                    child: SvgPicture.asset(
+                      'assets/icons/camera.svg', // SVG 파일 경로
+                      width: 54, // 아이콘 너비
+                      height: 54, // 아이콘 높이
                     ),
                   ),
+
+                  const SizedBox(height: 15), // 버튼 간격 추가
 
                   // (3) 사진 버튼
                   InkWell(
                     onTap: () {
-                      onTapOutside();       // 먼저 오버레이 닫고
-                      onTapPhotoButton();   // 사진 선택 로직
-                      print('사진 버튼 탭');
+                      onTapOutside(); // 먼저 오버레이 닫고
+                      onTapPhotoButton(); // 사진 선택 로직
+                      debugPrint('사진 버튼 탭');
                     },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 8),
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.photo, color: Colors.white),
+                    child: SvgPicture.asset(
+                      'assets/icons/image.svg', // SVG 파일 경로
+                      width: 54, // 아이콘 너비
+                      height: 54, // 아이콘 높이
                     ),
                   ),
                 ],

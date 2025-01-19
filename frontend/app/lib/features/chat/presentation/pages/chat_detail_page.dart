@@ -191,6 +191,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
                   participants: detailState.participants,
                 ),
 
+                const Divider(height: 1, color: Colors.red),
                 // 입력창
                 ChatInputBar(
                   controller: _messageController,
