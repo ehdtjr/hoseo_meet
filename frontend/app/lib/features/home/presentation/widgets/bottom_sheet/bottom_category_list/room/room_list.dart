@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'room_item.dart'; // RoomItem 위젯의 경로를 설정하세요.
+import 'package:hoseomeet/features/home/presentation/widgets/bottom_sheet/bottom_category_list/room/room_item.dart';
 
 class RoomPostList extends StatelessWidget {
   final List<dynamic> roomPosts; // 방 데이터 리스트
@@ -39,6 +39,7 @@ class RoomPostList extends StatelessWidget {
           distance: roomPost['distance'], // 거리
           description: roomPost['description'], // 설명
           isFavorite: roomPost['isFavorite'], // 즐겨찾기 여부
+          postId: '1', // RoomPage에 전달할 post_id
           onFavoriteToggle: () {
             // 즐겨찾기 토글 처리 (사용자 정의 로직 추가)
             print('${roomPost['title']} 즐겨찾기 토글');

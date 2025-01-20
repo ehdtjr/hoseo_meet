@@ -24,48 +24,71 @@ class MePage extends StatelessWidget {
         ),
       ),
       body: ListView(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         children: [
           // 프로필 섹션
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: Colors.grey[300],
-                child: Icon(Icons.person, size: 40, color: Colors.white),
-              ),
-              SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Row(
                 children: [
-                  Text(
-                    "박소정",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  CircleAvatar(
+                    radius: 38.5, // 크기 조정 (77x77 크기 반영)
+                    backgroundColor: Colors.grey[300],
+                    child: const Icon(Icons.person, size: 40, color: Colors.white),
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    "zeong231",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    "호서대학교",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                  const SizedBox(width: 16),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            "박소정",
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 6), // 구분자 앞 간격
+                          Text(
+                            "·",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFE72410),
+                            ),
+                          ),
+                          SizedBox(width: 6), // 구분자 뒤 간격
+                          Text(
+                            "zeong231",
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        "호서대학교",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
+              const Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Color(0xFFE72410), // 화살표 색상
+              ),
             ],
           ),
-          Divider(height: 32, thickness: 1, color: Colors.grey[300]),
+          Divider(height: 32, thickness: 1, color: const Color(0xFFF0B4AD)), // Divider 색상 변경
           // 메뉴 섹션
           ..._buildMenuSection(
             "계정",
@@ -94,7 +117,7 @@ class MePage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Text(
           title,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
@@ -104,14 +127,14 @@ class MePage extends StatelessWidget {
       ...items.map((item) => ListTile(
         title: Text(
           item,
-          style: TextStyle(fontSize: 16, color: Colors.black87),
+          style: const TextStyle(fontSize: 16, color: Colors.black87),
         ),
-        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
         onTap: () {
           // 여기에 각 항목별 동작 추가
         },
       )),
-      Divider(height: 24, thickness: 1, color: Colors.grey[300]),
+      Divider(height: 24, thickness: 1, color: const Color(0xFFF0B4AD)), // Divider 색상 변경
     ];
   }
 }

@@ -16,7 +16,7 @@ class MeetHeaderWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 사용자 이름이 4글자 초과 시 생략 처리
     final displayUserName = userName.length > 4
-        ? '${userName.substring(0, 4)}...' // 4글자만 남기고 "..." 추가
+        ? '${userName.substring(0, 4)}..' // 4글자만 남기고 "..." 추가
         : userName;
 
     // 현재 선택된 카테고리 구독
