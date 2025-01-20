@@ -7,6 +7,7 @@ import 'package:hoseomeet/features/chat/presentation/pages/chat_page.dart';
 import 'package:hoseomeet/features/meet/presentation/pages/meet_page.dart';
 
 // 바텀 내비게이션 인덱스 Provider
+import '../../../me/presentation/pages/me_page.dart';
 import '../../providers/bottom_nav_index_provider.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 
@@ -48,7 +49,7 @@ class MainTabPage extends ConsumerWidget {
       const HomePage(),
       const MeetPage(),
       const ChatPage(),
-      const Center(child: Text('ME 페이지')),
+      MePage(),
     ];
 
     return Scaffold(
