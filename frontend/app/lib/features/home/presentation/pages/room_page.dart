@@ -213,7 +213,7 @@ class _RoomPageState extends State<RoomPage> with SingleTickerProviderStateMixin
 
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(top: 20.0, left: 25.0, right: 25.0, bottom: 25.0), // 각 방향별 패딩 설정
+                  padding: const EdgeInsets.only(top: 10.0, left: 25.0, right: 25.0, bottom: 25.0), // 각 방향별 패딩 설정
                   child: Column(
                     children: [
                       ConstrainedBox(
