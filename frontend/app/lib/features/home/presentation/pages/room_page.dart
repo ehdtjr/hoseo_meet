@@ -7,7 +7,6 @@ import '../widgets/room_page/tab_bar_delegate.dart';
 
 class RoomPage extends StatefulWidget {
   final String postId;
-
   const RoomPage({super.key, required this.postId});
 
   @override
@@ -21,6 +20,11 @@ class _RoomPageState extends State<RoomPage> with SingleTickerProviderStateMixin
   static const double _sliverAppBarExpandedHeight = 280.0;
   static const double _sliverAppBarCollapsedHeight = kToolbarHeight;
 
+  final GlobalKey roomInfoKey = GlobalKey();
+  final GlobalKey reviewKey = GlobalKey();
+  final GlobalKey photoKey = GlobalKey();
+
+  final Map<int, double> _sectionOffsets = {};
   int _currentTabIndex = 0;
   bool _isAnimating = false;
 
@@ -29,7 +33,12 @@ class _RoomPageState extends State<RoomPage> with SingleTickerProviderStateMixin
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _scrollController = ScrollController();
-    _scrollController.addListener(_onScroll);
+
+    // 최초 레이아웃 완료 후 오프셋 계산
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _calculateSectionOffsets();
+      _scrollController.addListener(_onScroll);
+    });
 
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
@@ -45,19 +54,47 @@ class _RoomPageState extends State<RoomPage> with SingleTickerProviderStateMixin
     super.dispose();
   }
 
+  // 섹션별 오프셋 계산 함수
+  void _calculateSectionOffsets() {
+    for (int i = 0; i < 3; i++) {
+      _sectionOffsets[i] = _getSectionOffset(i);
+    }
+  }
+
+  double _getSectionOffset(int index) {
+    final RenderBox? renderBox;
+    switch(index) {
+      case 0:
+        renderBox = roomInfoKey.currentContext?.findRenderObject() as RenderBox?;
+        break;
+      case 1:
+        renderBox = reviewKey.currentContext?.findRenderObject() as RenderBox?;
+        break;
+      case 2:
+        renderBox = photoKey.currentContext?.findRenderObject() as RenderBox?;
+        break;
+      default:
+        return 0;
+    }
+
+    if (renderBox == null) return 0;
+
+    final offset = renderBox.localToGlobal(Offset.zero).dy;
+    // AppBar 높이와 TabBar 높이를 고려한 오프셋 계산
+    return offset - _sliverAppBarCollapsedHeight - kTextTabBarHeight;
+  }
+
   void _onScroll() {
     if (_isAnimating) return;
 
-    final double offset = _scrollController.offset;
-    final double sectionHeight = MediaQuery.of(context).size.height * 0.6;
+    final double scrollOffset = _scrollController.offset;
+    int newIndex = 0;
 
-    int newIndex;
-    if (offset >= sectionHeight * 2 - _sliverAppBarCollapsedHeight) {
-      newIndex = 2;
-    } else if (offset >= sectionHeight - _sliverAppBarCollapsedHeight) {
-      newIndex = 1;
-    } else {
-      newIndex = 0;
+    // 현재 스크롤 위치에 따른 활성 섹션 결정
+    for (int i = 0; i < _sectionOffsets.length; i++) {
+      if (scrollOffset >= _sectionOffsets[i]! - 50) { // 약간의 여유값 추가
+        newIndex = i;
+      }
     }
 
     if (_currentTabIndex != newIndex) {
@@ -69,10 +106,16 @@ class _RoomPageState extends State<RoomPage> with SingleTickerProviderStateMixin
   }
 
   void _scrollToSection(int index) {
-    _isAnimating = true;
+    if (!mounted) return;
 
-    final double sectionHeight = MediaQuery.of(context).size.height * 0.6;
-    double targetOffset = index * sectionHeight;
+    _isAnimating = true;
+    double targetOffset = _sectionOffsets[index] ?? 0;
+
+    // 최소/최대 스크롤 범위 제한
+    targetOffset = targetOffset.clamp(
+        0,
+        _scrollController.position.maxScrollExtent
+    );
 
     _scrollController.animateTo(
       targetOffset,
@@ -86,161 +129,72 @@ class _RoomPageState extends State<RoomPage> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // SliverAppBar: 이미지 영역
-              SliverAppBar(
-                expandedHeight: _sliverAppBarExpandedHeight,
-                pinned: true,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Image.network(
-                    'https://cdn.mhnse.com/news/photo/202409/319248_360163_4259.jpg',
-                    fit: BoxFit.cover,
-                  ),
-                ),
+      body: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          SliverAppBar(
+            expandedHeight: _sliverAppBarExpandedHeight,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Image.network(
+                'https://cdn.mhnse.com/news/photo/202409/319248_360163_4259.jpg',
+                fit: BoxFit.cover,
               ),
-              // 텍스트 정보 영역
-              SliverToBoxAdapter(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  width: double.infinity,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const Text(
-                        '퍼스트빌',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 26,
-                          fontFamily: 'Pretendard',
-                          fontWeight: FontWeight.w600,
-                          height: 1.6,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '자취방',
-                        style: TextStyle(
-                          color: Color(0xFF5F5F5F),
-                          fontSize: 13,
-                          fontFamily: 'Pretendard',
-                          fontWeight: FontWeight.w500,
-                          height: 1.6,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ...List.generate(4, (index) {
-                            return const Icon(Icons.star, color: Color(0xFFE72410), size: 24);
-                          }),
-                          const Icon(Icons.star, color: Color(0xFFD9D9D9), size: 24),
-                          const SizedBox(width: 8),
-                          const Text(
-                            '(17)',
-                            style: TextStyle(
-                              color: Color(0xFF5F5F5F),
-                              fontSize: 13,
-                              fontFamily: 'Pretendard',
-                              fontWeight: FontWeight.w500,
-                              height: 1.6,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        '"잠이 잘오고 해가 잘 들어오는 자취방"',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Color(0xFF5F5F5F),
-                          fontSize: 15,
-                          fontFamily: 'Pretendard',
-                          fontWeight: FontWeight.w500,
-                          height: 1.6,
-                        ),
-                      ),
-                    ],
-                  ),
+            ),
+          ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: TabBarDelegate(
+              TabBar(
+                controller: _tabController,
+                labelColor: Colors.red,
+                unselectedLabelColor: Colors.grey,
+                indicator: const UnderlineTabIndicator(
+                  borderSide: BorderSide(width: 3.0, color: Colors.red),
+                  insets: EdgeInsets.symmetric(horizontal: 50.0),
                 ),
+                tabs: const [
+                  Tab(text: "정보"),
+                  Tab(text: "리뷰"),
+                  Tab(text: "사진"),
+                ],
               ),
-              // TabBar 영역
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: TabBarDelegate(
-                  TabBar(
-                    controller: _tabController,
-                    labelColor: Colors.red,
-                    unselectedLabelColor: Colors.grey,
-                    indicator: const UnderlineTabIndicator(
-                      borderSide: BorderSide(width: 3.0, color: Colors.red),
-                      insets: EdgeInsets.symmetric(horizontal: 50.0),
-                    ),
-                    tabs: const [
-                      Tab(text: "정보"),
-                      Tab(text: "리뷰"),
-                      Tab(text: "사진"),
-                    ],
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(25.0),
+              child: Column(
+                children: [
+                  Container(
+                    key: roomInfoKey,
+                    child: RoomInfoSection(postId: widget.postId),
                   ),
-                ),
+                  const SizedBox(height: 20),
+                  const Divider(color: Color(0xFFF0B4AD), thickness: 1.0),
+                ],
               ),
-
-              // 각 섹션들
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(25.0),
-                  child: Column(
-                    children: [
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(),
-                        child: RoomInfoSection(postId: widget.postId),
-                      ),
-                      const SizedBox(height: 20), // Divider 위에 여백 추가
-                      const Divider(
-                        color: Color(0xFFF0B4AD), // F0B4AD 색상 적용
-                        thickness: 1.0, // Divider 두께
-                        height: 1.0, // Divider 높이
-                      ),
-                    ],
-                  ),
-                ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25.0),
+              child: Container(
+                key: reviewKey,
+                child: ReviewSection(postId: widget.postId),
               ),
-
-
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 10.0, left: 25.0, right: 25.0, bottom: 25.0), // 각 방향별 패딩 설정
-                  child: Column(
-                    children: [
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(),
-                        child: ReviewSection(postId: widget.postId),
-                      ),
-                    ],
-                  ),
-                ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25.0),
+              child: Container(
+                key: photoKey,
+                child: const PhotoSection(),
               ),
-
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 25.0, right: 25.0, bottom: 25.0), // 마지막 섹션에도 동일한 패딩 적용
-                  child: Column(
-                    children: [
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(),
-                        child: const PhotoSection(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
+            ),
+          ),
+        ],
       ),
     );
   }
