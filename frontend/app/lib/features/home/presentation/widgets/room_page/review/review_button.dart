@@ -8,11 +8,13 @@ class ReviewButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width; // 화면 전체 너비
+
     return Center(
       child: GestureDetector(
         onTap: onPressed,
         child: SizedBox(
-          width: 381,
+          width: screenWidth * 0.8, // 화면 너비의 80%
           height: 31,
           child: Stack(
             children: [
@@ -21,7 +23,7 @@ class ReviewButton extends StatelessWidget {
                 left: 0,
                 top: 0,
                 child: Container(
-                  width: 381,
+                  width: screenWidth * 0.8, // 동일하게 80% 너비
                   height: 31,
                   decoration: ShapeDecoration(
                     color: Colors.white,
@@ -34,7 +36,7 @@ class ReviewButton extends StatelessWidget {
               ),
               // 버튼 안의 SVG 아이콘
               Positioned(
-                left: 180,
+                left: (screenWidth * 0.8) / 2 - 11, // 아이콘을 버튼 중앙에 배치
                 top: 4,
                 child: SizedBox(
                   width: 22,
