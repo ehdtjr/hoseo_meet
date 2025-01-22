@@ -113,4 +113,3 @@ async def get_user_manager(
     email_service: EmailServiceProtocol = Depends(get_email_service),
 ) -> AsyncGenerator[UserManager, None]:
     yield UserManager(user_db, email_service)
-

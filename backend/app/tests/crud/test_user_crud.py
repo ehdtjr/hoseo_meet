@@ -1,4 +1,4 @@
-from app.crud.user_crud import UserCRUD, UserFCMTokenCRUD
+from app.crud.user import UserCRUD, UserFCMTokenCRUD
 from app.models import User
 from app.schemas.user import UserFCMTokenCreate, UserUpdate
 from app.tests.conftest import BaseTest

@@ -1,18 +1,23 @@
-from fastapi import APIRouter
-from fastapi.params import Depends
+import uuid
+from io import BytesIO
+
+from PIL import Image
+from fastapi import APIRouter, UploadFile
+from fastapi import HTTPException
+from fastapi.params import Depends, File
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.db import get_async_session
+from app.core.s3 import S3Manager
 from app.core.security import current_active_user
-from app.crud.user_crud import UserFCMTokenCRUDProtocol, \
+from app.crud.user import UserFCMTokenCRUDProtocol, \
     get_user_fcm_token_crud, UserCRUDProtocol, get_user_crud
 from app.models import User
 from app.schemas.stream import SubscriptionRequest
 from app.schemas.user import (UserFCMTokenCreate, UserFCMTokenRequest,
-                              UserRead, UserPublicRead)
+                              UserRead, UserPublicRead, UserUpdate)
 from app.service.stream import SubscriberServiceProtocol, \
     get_subscription_service
-from fastapi import HTTPException
 
 router = APIRouter()
 
@@ -123,6 +128,38 @@ async def delete_subscriptions(
                              detail=f"Failed to unsubscribe: {str(e)}"))
 
 
+@router.post("/me/profile")
+async def update_user_profile(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+    user_crud: UserCRUDProtocol = Depends(get_user_crud),
+):
+    # 지원하지 않는 파일 형식 처리
+    if file.content_type not in ["image/jpeg", "image/png"]:
+        raise HTTPException(status_code=400, detail="File type not supported")
+
+    try:
+        # WebP 변환 및 S3 업로드
+        profile_url = await save_image_as_webp_to_s3(file, user.id)
+
+        # DB 업데이트
+        user_update = UserUpdate(
+            id=user.id,
+            name=user.name,
+            profile=profile_url,
+        )
+        await user_crud.update(db, user_update)
+
+        return {"msg": "Profile updated successfully", "profile_url": profile_url}
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+
 @router.get("/{user_id}/profile", response_model=UserPublicRead)
 async def get_user_profile(
         user_id: int,
@@ -142,3 +179,33 @@ async def get_user_profile(
         raise (HTTPException(status_code=500,
                              detail=f"Failed to fetch user profile: {str(e)}"))
 
+
+async def save_image_as_webp_to_s3(file: UploadFile, user_id: int) -> str:
+    """
+    이미지를 WebP로 변환하여 S3에 저장하고 URL을 반환하는 함수.
+    """
+    try:
+        # 이미지 열기 및 검증
+        image = Image.open(file.file)
+        image.verify()  # 악성 이미지 검증
+
+        # WebP 변환
+        image = Image.open(file.file)  # 다시 열기
+        output = BytesIO()
+        image.save(output, format="WEBP", quality=85)
+        output.seek(0)
+
+        # S3 경로 생성
+        unique_filename = f"profile_images/user_{user_id}_{uuid.uuid4().hex}.webp"
+
+        # S3 업로드
+        s3_manager = S3Manager()
+        file_url = s3_manager.upload_byte_file(
+            byte_file=output,  # WebP 변환된 BytesIO 객체
+            destination_path=unique_filename,
+            content_type="image/webp",  # WebP MIME 타입 설정
+        )
+
+        return file_url
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing and uploading image: {str(e)}")

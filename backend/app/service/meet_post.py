@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from app.core.redis import redis_client
 from app.crud.meet_post_crud import MeetPostCRUDProtocol, get_meet_post_crud
-from app.crud.user_crud import UserCRUDProtocol, get_user_crud
+from app.crud.user import UserCRUDProtocol, get_user_crud
 from app.models import User
 from app.schemas.meet_post import (MeetPostBase, MeetPostCreate,
                                    MeetPostRequest, MeetPostListResponse,

@@ -2,7 +2,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock
 
 from app.crud.meet_post_crud import MeetPostCRUDProtocol
-from app.crud.user_crud import UserCRUDProtocol
+from app.crud.user import UserCRUDProtocol
 from app.models import User
 from app.schemas.meet_post import MeetPostBase, MeetPostResponse
 from app.schemas.user import UserRead

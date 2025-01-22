@@ -32,7 +32,6 @@ class UserUpdate(schemas.BaseUserUpdate):
     id: int
     name: Optional[str] = None
     profile: Optional[str] = None
-    is_online: Optional[bool] = None
 
 
 class UserFCMTokenRequest(BaseModel):

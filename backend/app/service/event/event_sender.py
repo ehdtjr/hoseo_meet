@@ -5,7 +5,7 @@ from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.redis import redis_client
-from app.crud.user_crud import UserFCMTokenCRUDProtocol, \
+from app.crud.user import UserFCMTokenCRUDProtocol, \
     get_user_fcm_token_crud
 from app.schemas.event import EventBase
 from app.service.event.fcm.event_fcm_factory import FCMEventStrategyFactory

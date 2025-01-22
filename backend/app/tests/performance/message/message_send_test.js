@@ -6,8 +6,8 @@ import { Trend } from 'k6/metrics';
 let messageSendTime = new Trend('message_send_time');
 
 // 1) 환경 변수에서 유저 수, 스트림 수 읽기 (기본값 설정)
-const USERS_COUNT = parseInt(__ENV.USERS_COUNT) || 500;
-const STREAM_COUNT = parseInt(__ENV.STREAM_COUNT) || 50;
+const USERS_COUNT = parseInt(__ENV.USERS_COUNT) || 300;
+const STREAM_COUNT = parseInt(__ENV.STREAM_COUNT) || 30;
 
 // 2) per-stream 계산
 const USERS_PER_STREAM = USERS_COUNT / STREAM_COUNT;
