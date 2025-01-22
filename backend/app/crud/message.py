@@ -125,7 +125,6 @@ class MessageCRUD(CRUDBase[Message, MessageBase], MessageCRUDProtocol):
         obj_in_data = message.model_dump()
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
-        await db.flush()
         await db.commit()
         return MessageBase.model_construct(
             id=db_obj.id,

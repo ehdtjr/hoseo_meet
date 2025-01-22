@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from starlette.websockets import WebSocket
 
 from app.core.db import get_async_session_context
-from app.crud.user_crud import UserCRUDProtocol, get_user_crud
+from app.crud.user import UserCRUDProtocol, get_user_crud
 from app.models import User
 from app.schemas.user import UserUpdate
 from app.service.websocket.websocket_handler import WebSocketEventHandler
