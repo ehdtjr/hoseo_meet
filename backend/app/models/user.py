@@ -1,8 +1,10 @@
 from datetime import datetime
 from typing import List
 
-from fastapi_users_db_sqlalchemy import (SQLAlchemyBaseUserTable,
-                                         SQLAlchemyBaseOAuthAccountTable)
+from fastapi_users_db_sqlalchemy import (
+    SQLAlchemyBaseUserTable,
+    SQLAlchemyBaseOAuthAccountTable,
+)
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.ext.declarative import declared_attr
@@ -43,6 +45,11 @@ class User(SQLAlchemyBaseUserTable, Base):
     oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
         "OAuthAccount", lazy="joined"
     )
+
+    reviews: Mapped[List["RoomReview"]] = relationship(
+        "RoomReview", back_populates="author", lazy="selectin"  # 또는 joined 등
+    )
+
 
 # UserLocation 모델 정의
 class UserFCMToken(Base):
