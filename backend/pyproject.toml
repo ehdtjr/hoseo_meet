@@ -47,11 +47,9 @@ uvicorn = {extras = ["standard"], version = "^0.32.0"}
 gunicorn = "^23.0.0"
 fastapi-users-db-sqlalchemy = "^6.0.1"
 pandas = "^2.2.3"
-boto3 = "^1.35.91"
-firebase-admin = "^6.6.0"
 boto3 = "^1.36.2"
+firebase-admin = "^6.6.0"
 pillow = "^11.1.0"
-
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.1"
