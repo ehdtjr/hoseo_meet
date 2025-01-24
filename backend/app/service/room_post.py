@@ -1,23 +1,18 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
-from math import sqrt
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
-
-from app.models.room_post import RoomPost
-from app.models.room_post import RoomReview  # 리뷰 테이블 (별점 및 리뷰수 계산용)
-from app.schemas.room_post import RoomPostListResponse, RoomPostDetailResponse
-
 from typing import Optional, List
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, delete
-from fastapi import UploadFile
 
+from fastapi import UploadFile
+from sqlalchemy import func
+from sqlalchemy import select, desc, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.s3 import s3_manager
+from app.models.room_post import RoomPost
 from app.models.room_post import RoomReview
 from app.models.room_post import RoomReviewImage
 from app.models.user import User
+from app.schemas.room_post import RoomPostListResponse, RoomPostDetailResponse
 from app.schemas.room_post import RoomReviewResponse, UserPublicRead
-from app.core.s3 import s3_manager
 
 
 class RoomPostServiceProtocol(ABC):

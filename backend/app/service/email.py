@@ -5,8 +5,8 @@ from fastapi_users.authentication import JWTStrategy
 from fastapi_users.models import UserProtocol
 from jinja2 import FileSystemLoader, Environment, select_autoescape
 
+from app.celery.event_email_task import send_email_task
 from app.core.config import settings
-from app.utils.email import send_email
 
 
 class EmailServiceProtocol(Protocol):
@@ -43,9 +43,7 @@ class EmailService(EmailServiceProtocol):
         content = self.template_renderer.render_template(
             "new_register.html", verification_link=verification_link, user=user
         )
-
-        # 이메일 발송
-        await send_email(user.email, "이메일 인증", content)
+        send_email_task.delay(user.email, "이메일 인증", content)
 
 
 # 이메일 인증 서비스 클래스

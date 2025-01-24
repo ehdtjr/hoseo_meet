@@ -40,16 +40,6 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
             )
         return user
 
-    async def create(
-        self,
-        user_create: schemas.UC,  # UC는 FastAPI Users에서 가져온 유저 생성 스키마
-        safe: bool = False,
-        request: Optional[Request] = None,
-    ) -> User:
-        if not self.email_service.validate_email_domain(user_create.email):
-            raise ValueError("Invalid email domain.")
-        return await super().create(user_create, safe, request)
-
     async def on_after_register(
         self, user: UP, request: Optional[Request] = None
     ) -> None:

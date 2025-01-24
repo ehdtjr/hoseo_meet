@@ -13,9 +13,8 @@ fake = Faker()
 # DATABASE_URL을 문자열로 변환
 DATABASE_URL = str(settings.SQLALCHEMY_DATABASE_URI)  # 문자열로 변환
 engine = create_async_engine(DATABASE_URL)
-async_session = sessionmaker(engine,
-     class_=AsyncSession,
-     expire_on_commit=False)
+async_session = sessionmaker(engine, class_=AsyncSession,
+expire_on_commit=False)
 
 
 class TestUserManager(UserManager):
