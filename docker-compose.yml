@@ -7,10 +7,10 @@ services:
     volumes:
       - app-db-data:/var/lib/postgresql/data/pgdata
     env_file:
-      - backend/.env
+      - .env
     environment:
       - PGDATA=/var/lib/postgresql/data/pgdata
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
+      - POSTGRES_PASSWORD=changethis
       - POSTGRES_USER=${POSTGRES_USER?Variable not set}
       - POSTGRES_DB=${POSTGRES_DB?Variable not set}
     ports:
@@ -57,23 +57,21 @@ services:
         INSTALL_DEV: "true"
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port",
               "8000", "--reload"]
+    depends_on:
+      - db
+      - redis
+      - celery-worker
+      - celery-beat
+    env_file:
+      - .env
+    environment:
+        - POSTGRES_SERVER=db
+        - REDIS_HOST=redis
+
     volumes:
       - ./backend:/app
     expose:
       - "8000"
-    environment:
-      - DOMAIN=${DOMAIN}
-      - ENVIRONMENT=${ENVIRONMENT}
-      - BACKEND_CORS_ORIGINS=${BACKEND_CORS_ORIGINS}
-      - SECRET_KEY=${SECRET_KEY?Variable not set}
-      - FIRST_SUPERUSER=${FIRST_SUPERUSER?Variable not set}
-      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD?Variable not set}
-      - POSTGRES_SERVER=db
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
     networks:
       - app_backend_net
 
@@ -87,15 +85,10 @@ services:
       - redis
       - db
     env_file:
-      - backend/.env
+      - .env
     environment:
       - POSTGRES_SERVER=db
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
     networks:
       - app_backend_net
 
@@ -109,15 +102,11 @@ services:
       - redis
       - db
     env_file:
-      - backend/.env
+      - .env
     environment:
       - POSTGRES_SERVER=db
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER?Variable not set}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD?Variable not set}
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
+
     networks:
       - app_backend_net
 
@@ -139,7 +128,7 @@ services:
   postgres_exporter:
     image: prometheuscommunity/postgres-exporter
     env_file:
-      - backend/.env
+      - .env
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
     ports:
