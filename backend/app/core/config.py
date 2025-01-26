@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
     AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")
     S3_BUCKET_NAME: str = Field(..., env="S3_BUCKET_NAME")
+    CLOUD_FRONT_DOMAIN_URL:str = Field(..., env="CLOUD_FRONT_DOMAIN_URL")
 
     # eamil settings
     SMTP_PORT: int
