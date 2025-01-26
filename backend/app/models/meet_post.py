@@ -11,7 +11,6 @@ class MeetPost(Base):
     __tablename__ = "meet_post"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
     author_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
     stream_id: Mapped[int] = mapped_column(ForeignKey("streams.id", ondelete="CASCADE"))  # 수정
     title: Mapped[str] = mapped_column(String(50), nullable=False)
