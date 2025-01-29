@@ -3,8 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../../../config.dart';
 
 class AuthService {
-  final String _loginEndpoint =
-      '${AppConfig.baseUrl}/auth/login?lifetime_seconds=3600';
+  final String _loginEndpoint = '${AppConfig.baseUrl}/auth/login';
   final String _refreshEndpoint = '${AppConfig.baseUrl}/auth/refresh';
 
   /// 로그인 로직

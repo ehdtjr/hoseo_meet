@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/meet/presentation/pages/create_meet_page.dart';
-import '../widgets/meet_page/meet_circula_image_list.dart';
+import '../../../story/presentation/widgets/story_circula_image_list.dart';
 import '../widgets/meet_page/category_bar.dart';
 import '../widgets/meet_page/meet_page_list.dart';
 import '../widgets/meet_page/meet_page_serchbar.dart';
@@ -98,7 +98,7 @@ class _MeetPageState extends ConsumerState<MeetPage> {
                   // 상단 이미지 리스트
                   SizedBox(
                     width: double.infinity,
-                    child: MeetCircularImageList(),
+                    child: StoryCircularImageList(),
                   ),
                   const SizedBox(height: 25),
                   // 카테고리 바

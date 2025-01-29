@@ -1,129 +1,95 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:path/path.dart';
 import '../../features/auth/providers/auth_notifier_provider.dart';
 
 class AuthHttpClient {
   final Ref _ref;
 
-  // 생성자에서 Ref를 받음
   AuthHttpClient(this._ref);
 
+  /// ✅ 공통 요청 처리
+  Future<http.Response> _sendRequest(
+      String url,
+      String method, {
+        Map<String, String>? headers,
+        Map<String, dynamic>? body,
+        Map<String, String>? formFields,
+        bool isFormEncoded = false,
+      }) async {
+    final authState = _ref.read(authNotifierProvider);
+    final token = authState.accessToken;
+
+    if (token == null) {
+      return http.Response('No access token', 401);
+    }
+
+    final defaultHeaders = {
+      'Authorization': 'Bearer $token',
+      'Content-Type': isFormEncoded ? 'application/x-www-form-urlencoded' : 'application/json',
+    };
+
+    if (headers != null) {
+      defaultHeaders.addAll(headers);
+    }
+
+    try {
+      http.Response response;
+      final uri = Uri.parse(url);
+
+      switch (method) {
+        case 'GET':
+          response = await http.get(uri, headers: defaultHeaders);
+          break;
+        case 'POST':
+          response = await http.post(
+            uri,
+            headers: defaultHeaders,
+            body: isFormEncoded ? formFields : jsonEncode(body),
+          );
+          break;
+        case 'DELETE':
+          response = await http.delete(
+            uri,
+            headers: defaultHeaders,
+            body: jsonEncode(body),
+          );
+          break;
+        default:
+          throw UnsupportedError('Method $method is not supported');
+      }
+
+      return await _handleUnauthorized(response, url, method, body: body, formFields: formFields);
+    } catch (e) {
+      return http.Response('Error: $e', 500);
+    }
+  }
+
+  /// ✅ GET 요청
   Future<http.Response> getRequest(String url) async {
-    final authState = _ref.read(authNotifierProvider);
-    final token = authState.accessToken;
-
-    if (token == null) {
-      return http.Response('No access token', 401);
-    }
-
-    final headers = {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    };
-
-    final response = await http.get(Uri.parse(url), headers: headers);
-
-    if (response.statusCode == 401) {
-      // 401 → 토큰 재발급 시도
-      await _ref.read(authNotifierProvider.notifier).refreshAccessToken();
-
-      // 재발급 후 새 토큰 얻기
-      final newToken = _ref.read(authNotifierProvider).accessToken;
-      if (newToken != null) {
-        final retryHeaders = {
-          'Authorization': 'Bearer $newToken',
-          'Content-Type': 'application/json',
-        };
-        return http.get(Uri.parse(url), headers: retryHeaders);
-      }
-    }
-
-    return response;
+    return _sendRequest(url, 'GET');
   }
 
+  /// ✅ POST 요청 (JSON Body)
   Future<http.Response> postRequest(String url, Map<String, dynamic> body) async {
-    final authState = _ref.read(authNotifierProvider);
-    final token = authState.accessToken;
-
-    if (token == null) {
-      return http.Response('No access token', 401);
-    }
-
-    final headers = {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    };
-
-    var response = await http.post(
-      Uri.parse(url),
-      headers: headers,
-      body: jsonEncode(body),
-    );
-
-    if (response.statusCode == 401) {
-      await _ref.read(authNotifierProvider.notifier).refreshAccessToken();
-
-      final newToken = _ref.read(authNotifierProvider).accessToken;
-      if (newToken != null) {
-        final retryHeaders = {
-          'Authorization': 'Bearer $newToken',
-          'Content-Type': 'application/json',
-        };
-        response = await http.post(
-          Uri.parse(url),
-          headers: retryHeaders,
-          body: jsonEncode(body),
-        );
-      }
-    }
-
-    return response;
+    return _sendRequest(url, 'POST', body: body);
   }
 
+  /// ✅ POST 요청 (x-www-form-urlencoded)
   Future<http.Response> postFormUrlEncoded(String url, Map<String, String> formFields) async {
-    final authState = _ref.read(authNotifierProvider);
-    final token = authState.accessToken;
-
-    if (token == null) {
-      return http.Response('No access token', 401);
-    }
-
-    final headers = {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/x-www-form-urlencoded',
-    };
-
-    var response = await http.post(
-      Uri.parse(url),
-      headers: headers,
-      body: formFields,
-    );
-
-    if (response.statusCode == 401) {
-      await _ref.read(authNotifierProvider.notifier).refreshAccessToken();
-
-      final newToken = _ref.read(authNotifierProvider).accessToken;
-      if (newToken != null) {
-        final retryHeaders = {
-          'Authorization': 'Bearer $newToken',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        };
-        response = await http.post(
-          Uri.parse(url),
-          headers: retryHeaders,
-          body: formFields,
-        );
-      }
-    }
-
-    return response;
+    return _sendRequest(url, 'POST', formFields: formFields, isFormEncoded: true);
   }
 
-  /// (NEW) DELETE 요청 메서드
-  /// [body]가 null이 아니면 JSON 인코딩해서 보냄
+  /// ✅ DELETE 요청
   Future<http.Response> deleteRequest(String url, {Map<String, dynamic>? body}) async {
+    return _sendRequest(url, 'DELETE', body: body);
+  }
+
+  /// ✅ Multipart 파일 업로드 요청
+  Future<http.Response> postMultipartRequest(String url, File file) async {
     final authState = _ref.read(authNotifierProvider);
     final token = authState.accessToken;
 
@@ -131,38 +97,41 @@ class AuthHttpClient {
       return http.Response('No access token', 401);
     }
 
-    final headers = {
-      'Authorization': 'Bearer $token',
-      'Content-Type': 'application/json',
-    };
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse(url))
+        ..headers.addAll({
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'multipart/form-data',
+        })
+        ..files.add(await http.MultipartFile.fromPath(
+          'file',
+          file.path,
+          contentType: MediaType('image', extension(file.path).replaceAll('.', '')),
+        ));
 
-    // DELETE 요청 본문 (body 있을 경우 JSON)
-    final encodedBody = body != null ? jsonEncode(body) : null;
+      final streamedResponse = await request.send();
+      return await http.Response.fromStream(streamedResponse);
+    } catch (e) {
+      return http.Response('Error uploading image: $e', 500);
+    }
+  }
 
-    var response = await http.delete(
-      Uri.parse(url),
-      headers: headers,
-      body: encodedBody,
-    );
-
+  /// ✅ 401 처리 후 토큰 재발급 및 재시도
+  Future<http.Response> _handleUnauthorized(
+      http.Response response,
+      String url,
+      String method, {
+        Map<String, dynamic>? body,
+        Map<String, String>? formFields,
+      }) async {
     if (response.statusCode == 401) {
-      // 401이면 토큰 재발급
       await _ref.read(authNotifierProvider.notifier).refreshAccessToken();
-
       final newToken = _ref.read(authNotifierProvider).accessToken;
+
       if (newToken != null) {
-        final retryHeaders = {
-          'Authorization': 'Bearer $newToken',
-          'Content-Type': 'application/json',
-        };
-        response = await http.delete(
-          Uri.parse(url),
-          headers: retryHeaders,
-          body: encodedBody,
-        );
+        return _sendRequest(url, method, body: body, formFields: formFields);
       }
     }
-
     return response;
   }
 }
