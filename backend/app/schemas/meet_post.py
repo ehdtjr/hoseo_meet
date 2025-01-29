@@ -1,18 +1,17 @@
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
+from app.schemas.common import PostType
 from app.schemas.user import UserPublicRead
 
-MeetPostType = Literal["meet", "delivery", "taxi", "carpool"]
 
 class MeetPostBase(BaseModel):
     model_config = ConfigDict(use_enum_values=True, from_attributes=True)
 
     id: int
     title: str
-    type: MeetPostType
+    type: PostType
     author_id: int
     stream_id: int
     content: str
@@ -27,7 +26,7 @@ class MeetPostCreate(BaseModel):
     title: str
     author_id: int
     stream_id: int
-    type: MeetPostType
+    type: PostType
     content: str
     max_people: int = Field(..., ge=1, le=50)
 
@@ -36,7 +35,7 @@ class MeetPostRequest(BaseModel):
     model_config = ConfigDict(use_enum_values=True, from_attributes=True)
 
     title: str
-    type: MeetPostType
+    type: PostType
     content: str
     max_people: int = Field(..., ge=1, le=50)
 

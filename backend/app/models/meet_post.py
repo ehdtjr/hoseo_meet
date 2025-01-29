@@ -12,7 +12,7 @@ class MeetPost(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="CASCADE"))
-    stream_id: Mapped[int] = mapped_column(ForeignKey("streams.id", ondelete="CASCADE"))  # 수정
+    stream_id: Mapped[int] = mapped_column(ForeignKey("streams.id", ondelete="CASCADE"))
     title: Mapped[str] = mapped_column(String(50), nullable=False)
     type: Mapped[str] = mapped_column(String(50), nullable=False)
 

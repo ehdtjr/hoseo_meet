@@ -31,6 +31,9 @@ class Stream(Base):
                                                   back_populates="streams")
     meet_post: Mapped[Optional["MeetPost"]] = relationship(
         "MeetPost", back_populates="stream", uselist=False)
+    story_post: Mapped[Optional["StoryPost"]] = relationship(
+        "StoryPost", back_populates="stream", uselist=False
+    )
 
 
 class Subscription(Base):

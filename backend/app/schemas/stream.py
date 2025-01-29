@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.meet_post import MeetPostType
+from app.schemas.common import PostType
 
 
 class StreamBase(BaseModel):
@@ -20,7 +20,7 @@ class StreamBase(BaseModel):
 class StreamCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     name: str
-    type: MeetPostType
+    type: PostType
     creator_id: int
 
 

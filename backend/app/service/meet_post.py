@@ -1,4 +1,6 @@
 from typing import Protocol, Optional
+
+from fastapi import Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 from datetime import timedelta
 
@@ -41,6 +43,11 @@ class ViewCountService:
             await self.meet_post_crud.update(db, meet_post)
             # Redis에 키 저장 + TTL 설정
             await redis_client.redis.set(key, 1, ex=int(self.ttl.total_seconds()))
+
+async def get_view_count_service(
+    meet_post_crud: MeetPostCRUDProtocol = Depends(get_meet_post_crud),
+) -> ViewCountService:
+    return ViewCountService(meet_post_crud)
 
 
 class MeetPostServiceProtocol(Protocol):
@@ -228,14 +235,17 @@ class MeetPostService(MeetPostServiceProtocol):
         )
 
 
-def get_meet_post_service() -> MeetPostServiceProtocol:
-    # 여기서 모든 의존성 주입
-    view_count_service = ViewCountService(meet_post_crud=get_meet_post_crud())
-
+async def get_meet_post_service(
+    meet_post_crud=Depends(get_meet_post_crud),
+    stream_service=Depends(get_stream_service),
+    subscriber_service=Depends(get_subscription_service),
+    user_crud=Depends(get_user_crud),
+    view_count_service=Depends(get_view_count_service),
+) -> MeetPostService:
     return MeetPostService(
-        meet_post_crud=get_meet_post_crud(),
-        stream_service=get_stream_service(),
-        subscriber_service=get_subscription_service(),
-        user_crud=get_user_crud(),
-        view_count_service=view_count_service
+        meet_post_crud=meet_post_crud,
+        stream_service=stream_service,
+        subscriber_service=subscriber_service,
+        user_crud=user_crud,
+        view_count_service=view_count_service,
     )
