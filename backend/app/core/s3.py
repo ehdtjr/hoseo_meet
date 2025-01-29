@@ -113,3 +113,6 @@ class S3Manager:
         return images
 
 s3_manager = S3Manager()
+
+async def get_s3_manager() -> S3Manager:
+    return S3Manager()

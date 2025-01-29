@@ -50,6 +50,8 @@ pandas = "^2.2.3"
 firebase-admin = "^6.6.0"
 pillow = "^11.1.0"
 aioboto3 = "^13.4.0"
+uvloop = "^0.21.0"
+httptools = "^0.6.4"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.1"

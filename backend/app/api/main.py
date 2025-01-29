@@ -9,6 +9,7 @@ from app.api.routes import (
     oauth,
     websocket,
     room_post,
+    story_post,
 )
 
 
@@ -25,4 +26,7 @@ api_router.include_router(
 )
 api_router.include_router(
     room_post.router, prefix="/room_post", tags=["room_post"]
+)
+api_router.include_router(
+    story_post.router, prefix="/story_post", tags=["story_post"]
 )

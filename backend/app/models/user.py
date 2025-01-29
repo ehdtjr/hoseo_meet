@@ -41,6 +41,7 @@ class User(SQLAlchemyBaseUserTable, Base):
     meet_posts: Mapped[List["MeetPost"]] = relationship(
         "MeetPost", back_populates="author"
     )
+    story_posts: Mapped[List["StoryPost"]] = relationship("StoryPost", back_populates="author")
 
     oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
         "OAuthAccount", lazy="joined"
