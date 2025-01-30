@@ -73,21 +73,52 @@ class StoryPostService:
 
         return StoryPostResponse.model_validate(created_story_post)
 
-    async def get_detail_story_post(self, db: AsyncSession, story_post_id: int) \
-        -> StoryPostResponse:
-        story_post_base: StoryPostBase = (
-            await self.story_post_crud.get(db, story_post_id)
+    async def get_detail_story_post(self, db: AsyncSession, story_post_id: int,
+                                    user_id: int) -> StoryPostResponse:
+        story_post_base: StoryPostBase = await self.story_post_crud.get(db,
+                                                                        story_post_id)
+
+        subscribers = await self.subscriber_service.get_subscribers(db, story_post_base.stream_id)
+        is_subscribed = user_id in subscribers
+
+        return StoryPostResponse(
+            id=story_post_base.id,
+            author_id=story_post_base.author_id,
+            text_overlay=story_post_base.text_overlay,
+            image_url=story_post_base.image_url,
+            is_subscribed=is_subscribed,
+            created_at=story_post_base.created_at
         )
-        return StoryPostResponse.model_validate(story_post_base)
 
     async def list_story_post(
-        self,
-        db: AsyncSession,
-        skip: int = 0,
-        limit: int = 10) -> list[StoryPostResponse]:
-        story_post_bases: list[StoryPostBase] =\
+            self,
+            db: AsyncSession,
+            user_id: int,
+            skip: int = 0,
+            limit: int = 10) -> list[StoryPostResponse]:
+
+        story_post_bases: list[StoryPostBase] = \
             await self.story_post_crud.list(db, skip=skip, limit=limit)
-        return [StoryPostResponse.model_validate(post) for post in story_post_bases]
+
+        responses = []
+        for post in story_post_bases:
+            # 각 스토리의 stream_id에 대한 구독자 목록 확인
+            subscribers = await self.subscriber_service.get_subscribers(db,
+                                                                        post.stream_id)
+            is_subscribed = user_id in subscribers
+
+            responses.append(
+                StoryPostResponse(
+                    id=post.id,
+                    author_id=post.author_id,
+                    text_overlay=post.text_overlay,
+                    image_url=post.image_url,
+                    is_subscribed=is_subscribed,
+                    created_at=post.created_at
+                )
+            )
+
+        return responses
 
 
 async def get_story_post_service(

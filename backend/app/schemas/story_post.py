@@ -4,8 +4,8 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 class TextPosition(BaseModel):
-    x: float = Field(..., ge=0, le=1, description="Normalized X coordinate between 0 and 1")
-    y: float = Field(..., ge=0, le=1, description="Normalized Y coordinate between 0 and 1")
+    x: float = Field(..., description="Normalized X coordinate between 0 and 1")
+    y: float = Field(..., description="Normalized Y coordinate between 0 and 1")
 
 
 class FontStyle(BaseModel):
@@ -52,4 +52,5 @@ class StoryPostResponse(BaseModel):
     author_id: int
     text_overlay: TextOverlay = Field(..., description="Text overlay")
     image_url: str
+    is_subscribed: bool
     created_at: datetime

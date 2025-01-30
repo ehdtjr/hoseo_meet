@@ -36,9 +36,11 @@ class StoryPostCRUD(CRUDBase[StoryPost, StoryPostBase]):
             StoryPostBase.model_construct(
                 id=post.id,
                 author_id=post.author_id,
+                stream_id=post.stream_id,
                 text_overlay=post.text_overlay,
                 image_url=post.image_url,
                 created_at=post.created_at,
+                expires_at=post.expires_at,
             )
             for post in posts
         ]
