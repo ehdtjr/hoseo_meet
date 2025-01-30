@@ -251,7 +251,7 @@ class _StoryEditorPageState extends ConsumerState<StoryEditorPage> {
             });
           },
           child: Container(
-            padding: EdgeInsets.all(20), // 터치 영역을 넓히기 위한 패딩
+            padding: EdgeInsets.all(40), // 터치 영역을 넓히기 위한 패딩
             color: Colors.transparent, // 터치 영역을 보이지 않게 함
             child: Text(
               _textController.text,

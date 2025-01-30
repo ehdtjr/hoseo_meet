@@ -103,6 +103,33 @@ class StoryPostNotifier extends StateNotifier<List<StoryPost>> {
     }
   }
 
+  /// ✅ 스토리 구독하기
+  Future<bool> subscribeToStory(int postId) async {
+    debugPrint("📌 subscribeToStory() called with postId=$postId");
+    try {
+      final success = await _service.subscribeToStoryPost(postId);
+
+      if (success) {
+        // 성공 시 해당 스토리의 isSubscribed 상태를 true로 업데이트
+        state = state.map((post) {
+          if (post.id == postId) {
+            return post.copyWith(isSubscribed: true);
+          }
+          return post;
+        }).toList();
+
+        debugPrint("✅ Successfully subscribed to story: postId=$postId");
+      }
+
+      return success;
+    } catch (e) {
+      debugPrint("❌ Failed to subscribe to story: $e");
+      return false;
+    }
+  }
+
+
+
   /// ✅ 데이터 초기화 및 다시 로드
   void resetAndLoad() {
     debugPrint("🔄 Reset and reload story posts");

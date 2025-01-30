@@ -86,4 +86,27 @@ class StoryPostService {
       throw Exception('Error creating story post: $e');
     }
   }
+
+  /// ✅ 스토리 구독하기
+  Future<bool> subscribeToStoryPost(int postId) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/story_post/subscribe/$postId');
+
+    try {
+      final response = await _client.postRequest(
+        url.toString(),
+        {}, // 빈 body로 POST 요청
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonData =
+        json.decode(utf8.decode(response.bodyBytes));
+        return jsonData['success']; // 서버에서 반환하는 성공 여부
+      } else {
+        throw Exception('Failed to subscribe to story: ${response.statusCode}, Response: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error subscribing to story: $e');
+    }
+  }
+
 }

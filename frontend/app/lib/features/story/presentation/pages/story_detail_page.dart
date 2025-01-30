@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/story_post.dart';
+import '../../providers/story_post_provider.dart';
 
 class StoryDetailPage extends ConsumerStatefulWidget {
   final List<StoryPost> stories;
@@ -16,7 +17,8 @@ class StoryDetailPage extends ConsumerStatefulWidget {
   ConsumerState<StoryDetailPage> createState() => _StoryDetailPageState();
 }
 
-class _StoryDetailPageState extends ConsumerState<StoryDetailPage> with SingleTickerProviderStateMixin {
+class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
+    with SingleTickerProviderStateMixin {
   late PageController _pageController;
   late AnimationController _progressController;
   late int _currentIndex;
@@ -31,18 +33,21 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage> with SingleTi
     _progressController = AnimationController(
       vsync: this,
       duration: _storyDuration,
-    )..addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        _nextStory();
-      }
-    });
+    )..addStatusListener(_handleAnimationStatus);
 
     _startProgress();
+  }
+
+  void _handleAnimationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      _nextStory();
+    }
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _progressController.removeStatusListener(_handleAnimationStatus);
     _progressController.dispose();
     super.dispose();
   }
@@ -75,6 +80,72 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage> with SingleTi
     }
   }
 
+  Widget _buildParticipateButton(StoryPost story) {
+    return GestureDetector(
+      onTap: () async {
+        if (!story.isSubscribed) {
+          _pauseProgress();
+          try {
+            final success = await ref.read(storyPostProvider.notifier).subscribeToStory(story.id);
+            if (success && mounted) {
+              setState(() {
+                final index = widget.stories.indexOf(story);
+                widget.stories[index] = story.copyWith(isSubscribed: true);
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("✅ 참여 완료!")),
+              );
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("❌ 참여 실패")),
+              );
+            }
+          } finally {
+            if (mounted) {
+              _startProgress();
+            }
+          }
+        }
+      },
+      child: Container(
+        width: 134,
+        height: 52,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: ShapeDecoration(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            side: BorderSide(
+              width: 1.5,
+              color: story.isSubscribed ? Colors.grey : const Color(0xFFE72410),
+            ),
+            borderRadius: BorderRadius.circular(26),
+          ),
+          shadows: const [
+            BoxShadow(
+              color: Color(0x0C000000),
+              blurRadius: 7.30,
+              offset: Offset(1, 4),
+              spreadRadius: 0,
+            )
+          ],
+        ),
+        child: Center(
+          child: Text(
+            story.isSubscribed ? '참여중' : '참여하기',
+            style: TextStyle(
+              color: story.isSubscribed ? Colors.grey : const Color(0xFFE72410),
+              fontSize: 21,
+              fontFamily: 'Pretendard',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,7 +153,6 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage> with SingleTi
       body: GestureDetector(
         onTapDown: (details) {
           _pauseProgress();
-          // 화면을 좌/우로 나눠서 이전/다음 스토리 처리
           if (details.globalPosition.dx < MediaQuery.of(context).size.width / 2) {
             _previousStory();
           } else {
@@ -95,7 +165,6 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage> with SingleTi
         child: SafeArea(
           child: Stack(
             children: [
-              // 스토리 페이지뷰
               PageView.builder(
                 controller: _pageController,
                 physics: const NeverScrollableScrollPhysics(),
@@ -111,12 +180,13 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage> with SingleTi
                   return Stack(
                     fit: StackFit.expand,
                     children: [
-                      // 스토리 이미지
                       Image.network(
                         story.imageUrl,
                         fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(child: Text('이미지 로드 실패'));
+                        },
                       ),
-                      // 텍스트 오버레이
                       Positioned(
                         left: story.textOverlay.position.x,
                         top: story.textOverlay.position.y,
@@ -125,15 +195,24 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage> with SingleTi
                           style: TextStyle(
                             color: Color(int.parse(story.textOverlay.fontStyle.color, radix: 16)),
                             fontSize: story.textOverlay.fontStyle.size.toDouble(),
-                            fontWeight: story.textOverlay.fontStyle.bold ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: story.textOverlay.fontStyle.bold
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 50,
+                        left: 0,
+                        right: 0,
+                        child: Center(
+                          child: _buildParticipateButton(story),
                         ),
                       ),
                     ],
                   );
                 },
               ),
-              // 상단 프로그레스 바
               Positioned(
                 top: 10,
                 left: 10,
@@ -154,7 +233,8 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage> with SingleTi
                                   ? 1.0
                                   : 0.0,
                               backgroundColor: Colors.white.withOpacity(0.3),
-                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor:
+                              const AlwaysStoppedAnimation<Color>(Colors.white),
                             );
                           },
                         ),
@@ -163,7 +243,6 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage> with SingleTi
                   ),
                 ),
               ),
-              // 닫기 버튼
               Positioned(
                 top: 20,
                 right: 10,

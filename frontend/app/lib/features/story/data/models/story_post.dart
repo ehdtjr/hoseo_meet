@@ -4,6 +4,7 @@ class StoryPost {
   final TextOverlay textOverlay;
   final String imageUrl;
   final DateTime createdAt;
+  final bool isSubscribed;
 
   StoryPost({
     required this.id,
@@ -11,6 +12,7 @@ class StoryPost {
     required this.textOverlay,
     required this.imageUrl,
     required this.createdAt,
+    required this.isSubscribed,
   });
 
   factory StoryPost.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class StoryPost {
       textOverlay: TextOverlay.fromJson(json['text_overlay']),
       imageUrl: json['image_url'],
       createdAt: DateTime.parse(json['created_at']),
+      isSubscribed: json['is_subscribed'],  // JSON 파싱에 추가
     );
   }
 
@@ -30,6 +33,7 @@ class StoryPost {
       'text_overlay': textOverlay.toJson(),
       'image_url': imageUrl,
       'created_at': createdAt.toIso8601String(),
+      'is_subscribed': isSubscribed,  // JSON 변환에 추가
     };
   }
 
@@ -39,6 +43,7 @@ class StoryPost {
     TextOverlay? textOverlay,
     String? imageUrl,
     DateTime? createdAt,
+    bool? isSubscribed,  // copyWith에 추가
   }) {
     return StoryPost(
       id: id ?? this.id,
@@ -46,9 +51,11 @@ class StoryPost {
       textOverlay: textOverlay ?? this.textOverlay,
       imageUrl: imageUrl ?? this.imageUrl,
       createdAt: createdAt ?? this.createdAt,
+      isSubscribed: isSubscribed ?? this.isSubscribed,  // copyWith에 추가
     );
   }
 }
+
 
 class TextOverlay {
   final String text;
