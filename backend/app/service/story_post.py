@@ -120,6 +120,31 @@ class StoryPostService:
 
         return responses
 
+    async def subscribe_to_story_post(
+            self,
+            db: AsyncSession,
+            user_id: int,
+            story_post_id: int
+    ) -> bool:
+        """
+        story_post에 사용자를 구독시키는 로직:
+        - 게시글 존재 확인
+        - 이미 구독했을 시 에러
+        """
+        story_post: StoryPostBase = await self.story_post_crud.get(db,
+                                                                   story_post_id)
+        if story_post is None:
+            raise ValueError("해당 스토리를 찾을 수 없습니다.")
+
+        current_subscribers = await self.subscriber_service.get_subscribers(db,
+                                                                            story_post.stream_id)
+        if user_id in current_subscribers:
+            raise ValueError("이미 참여한 사용자입니다.")
+
+        await self.subscriber_service.subscribe(db, user_id,
+                                                story_post.stream_id)
+        return True
+
 
 async def get_story_post_service(
     story_post_crud: StoryPostCRUD = Depends(get_story_post_crud),
