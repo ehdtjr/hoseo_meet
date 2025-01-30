@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 
 from app.core.db import get_async_session
 from app.core.security import current_active_user
@@ -56,3 +57,27 @@ async def get_story_post(
         user_id=user.id,
         story_post_id=story_post_id,
     )
+
+
+@router.post("/subscribe/{story_post_id}")
+async def subscribe_to_story_post(
+    story_post_id: int,
+    db: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+    story_post_service: StoryPostService = Depends(get_story_post_service),
+):
+    """
+    특정 story_post에 대해 사용자를 구독시키는 엔드포인트입니다.
+    - 존재하지 않는 스토리인 경우 HTTP 400 예외를 발생시킵니다.
+    - 이미 구독된 경우 HTTP 400 예외를 발생시킵니다.
+    """
+    try:
+        # 구독 처리
+        result = await story_post_service.subscribe_to_story_post(
+            db, user.id, story_post_id
+        )
+        return {"success": result}
+
+    except ValueError as e:
+        # 적절한 예외 메시지와 함께 400 에러 반환
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
