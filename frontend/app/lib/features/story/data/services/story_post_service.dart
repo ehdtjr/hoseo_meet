@@ -49,20 +49,41 @@ class StoryPostService {
 
   /// ✅ (NEW) 이미지 업로드 (multipart/form-data)
   Future<String> uploadStoryImage(File imageFile) async {
-    final url = '${AppConfig.baseUrl}/api/v1/story_post/upload_image';
+    const url = '${AppConfig.baseUrl}/story_post/upload_image';
 
     try {
       final response = await _client.postMultipartRequest(url, imageFile);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonData = json.decode(response.body);
-        return jsonData['image_url']; // ✅ 서버에서 반환하는 업로드된 이미지 URL
+        return jsonData['url']; // ✅ 서버에서 반환하는 업로드된 이미지 URL
       } else {
         throw Exception(
             'Failed to upload image: ${response.statusCode}, Response: ${response.body}');
       }
     } catch (e) {
       throw Exception('Error uploading image: $e');
+    }
+  }
+
+  Future<StoryPost> createStoryPost(CreateStoryPost post) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/story_post/create');
+
+    try {
+      final response = await _client.postRequest(
+        url.toString(),
+        post.toJson(), // ✅ JSON 변환 없이 Map 그대로 전달
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonData =
+        json.decode(utf8.decode(response.bodyBytes));
+        return StoryPost.fromJson(jsonData);
+      } else {
+        throw Exception('Failed to create story post: ${response.statusCode}, Response: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error creating story post: $e');
     }
   }
 }

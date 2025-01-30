@@ -15,3 +15,5 @@ StateNotifierProvider<StoryPostNotifier, List<StoryPost>>((ref) {
   final service = ref.watch(storyPostServiceProvider);
   return StoryPostNotifier(service);
 });
+
+final uploadedImageUrlProvider = StateProvider<String?>((ref) => null);

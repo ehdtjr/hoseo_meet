@@ -133,3 +133,20 @@ class FontStyle {
     };
   }
 }
+
+class CreateStoryPost {
+  final String imageUrl;
+  final TextOverlay textOverlay;
+
+  CreateStoryPost({
+    required this.imageUrl,
+    required this.textOverlay,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'image_url': imageUrl,
+      'text_overlay': textOverlay.toJson(),
+    };
+  }
+}

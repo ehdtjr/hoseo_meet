@@ -20,7 +20,7 @@ class StoryPostNotifier extends StateNotifier<List<StoryPost>> {
   bool get isLoading => _isLoading;
   bool get hasMore => _hasMore;
 
-  /// 스토리 게시물 리스트 로드
+  /// ✅ 스토리 게시물 리스트 로드
   Future<void> loadStoryPosts({bool loadMore = false}) async {
     debugPrint("🟡 loadStoryPosts() called: loadMore=$loadMore, isLoading=$_isLoading, hasMore=$_hasMore");
 
@@ -59,7 +59,7 @@ class StoryPostNotifier extends StateNotifier<List<StoryPost>> {
     }
   }
 
-  /// 특정 스토리 게시글 상세 정보 로드
+  /// ✅ 특정 스토리 게시글 상세 정보 로드
   Future<StoryPost?> loadDetailStoryPost(int postId) async {
     debugPrint("📌 loadDetailStoryPost() called with postId=$postId");
     try {
@@ -85,7 +85,25 @@ class StoryPostNotifier extends StateNotifier<List<StoryPost>> {
     }
   }
 
-  /// 데이터 초기화 및 다시 로드
+  /// ✅ 새로운 스토리 게시글 생성
+  Future<StoryPost?> createStoryPost(CreateStoryPost post) async {
+    debugPrint("📌 createStoryPost() called with imageUrl=${post.imageUrl}");
+
+    try {
+      final newPost = await _service.createStoryPost(post);
+      debugPrint("✅ Story post created successfully: id=${newPost.id}");
+
+      // 새 게시글을 리스트 최상단에 추가
+      state = [newPost, ...state];
+
+      return newPost;
+    } catch (e) {
+      debugPrint("❌ Failed to create story post: $e");
+      return null;
+    }
+  }
+
+  /// ✅ 데이터 초기화 및 다시 로드
   void resetAndLoad() {
     debugPrint("🔄 Reset and reload story posts");
     _skip = 0;

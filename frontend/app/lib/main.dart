@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -55,10 +54,6 @@ Future<void> _initPermissions() async {
       debugPrint('위치 서비스가 비활성화되어 있습니다.');
     }
 
-    // 카메라 권한 먼저 요청
-    final cameraStatus = await Permission.camera.request();
-    debugPrint('카메라 권한 상태: $cameraStatus');
-
     // 위치 및 알림 권한 요청
     Map<Permission, PermissionStatus> statuses = await [
       Permission.locationWhenInUse,
@@ -66,32 +61,21 @@ Future<void> _initPermissions() async {
     ].request();
     debugPrint('위치/알림 권한 상태: $statuses');
 
-    // 갤러리 권한 요청 (PhotoManager)
-    final permissionState = await PhotoManager.requestPermissionExtend(
+    final PermissionState permissionState = await PhotoManager.requestPermissionExtend(
       requestOption: const PermissionRequestOption(
         androidPermission: AndroidPermission(
-          type: RequestType.image,
-          mediaLocation: false,
+          type: RequestType.image,  // 이미지 타입만 접근
+          mediaLocation: false,      // 미디어 위치 정보 접근 허용
         ),
-        iosAccessLevel: IosAccessLevel.readWrite,
       ),
     );
-
-    if (Platform.isAndroid) {
-      if (!permissionState.isAuth) {
-        // Android 13 이상
-        final photosStatus = await Permission.photos.request();
-        debugPrint('사진 권한 상태 (Android 13+): $photosStatus');
-
-        // Android 12 이하
-        if (!photosStatus.isGranted) {
-          final storageStatus = await Permission.storage.request();
-          debugPrint('저장소 권한 상태 (Android 12-): $storageStatus');
-        }
-      }
+    if (permissionState.isAuth) {
+      debugPrint('PhotoManager 권한 허용됨');
+    } else {
+      debugPrint('PhotoManager 권한 거부됨');
+      await PhotoManager.openSetting();
     }
 
-    debugPrint('PhotoManager 권한 상태: ${permissionState.isAuth}');
     debugPrint('✅ 모든 권한 초기화 완료');
   } catch (e) {
     debugPrint('권한 초기화 오류: $e');
