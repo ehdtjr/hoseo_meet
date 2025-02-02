@@ -12,7 +12,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - backend/.env
+      - .env
     environment:
       - DOMAIN=${DOMAIN}
       - ENVIRONMENT=${ENVIRONMENT}
@@ -40,7 +40,7 @@ services:
     volumes:
       - ./backend:/app
     env_file:
-      - backend/.env
+      - .env
     environment:
       - POSTGRES_SERVER=${POSTGRES_SERVER}
       - POSTGRES_PORT=${POSTGRES_PORT}
@@ -59,7 +59,7 @@ services:
     volumes:
       - ./backend:/app
     env_file:
-      - backend/.env
+      - .env
     environment:
       - POSTGRES_SERVER=${POSTGRES_SERVER}
       - POSTGRES_PORT=${POSTGRES_PORT}
