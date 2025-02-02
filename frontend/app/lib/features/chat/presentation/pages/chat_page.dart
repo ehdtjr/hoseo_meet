@@ -1,5 +1,3 @@
-// file: lib/features/chat/presentation/pages/chat_page.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
@@ -7,6 +5,7 @@ import 'package:flutter_svg/svg.dart';
 // 전역 Provider (chatRoomNotifier) + chatCategoryProvider
 import 'package:hoseomeet/features/chat/providers/chat_room_provicer.dart';
 import 'package:hoseomeet/features/chat/providers/chat_category_provider.dart';
+import 'package:hoseomeet/features/navigation/providers/bottom_nav_index_provider.dart'; // ✅ 탭 상태 감시 추가
 
 // UI 위젯
 import '../../data/models/chat_room.dart';
@@ -23,6 +22,7 @@ class ChatPage extends ConsumerStatefulWidget {
 
 class _ChatPageState extends ConsumerState<ChatPage> {
   bool _isInitialLoading = true; // 첫 로딩 시 표시용
+  bool _isInitialized = false; // ✅ 탭 이동 감지
 
   @override
   void initState() {
@@ -44,6 +44,22 @@ class _ChatPageState extends ConsumerState<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 현재 선택된 탭 감시
+    final currentIndex = ref.watch(bottomNavIndexProvider);
+
+    // ✅ 채팅방 페이지가 활성화될 때 초기화
+    if (currentIndex == 2 && !_isInitialized) {
+      _isInitialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(chatRoomNotifierProvider.notifier).fetchRooms(); // 채팅방 목록 다시 불러오기
+      });
+    }
+
+    // ✅ 다른 탭으로 이동하면 초기화 상태를 리셋
+    if (currentIndex != 2) {
+      _isInitialized = false;
+    }
+
     // 1) 전체 채팅방 목록
     final chatRooms = ref.watch(chatRoomNotifierProvider);
 

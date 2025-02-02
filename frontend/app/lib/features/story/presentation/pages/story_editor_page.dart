@@ -11,6 +11,7 @@ class StoryEditorPage extends ConsumerStatefulWidget {
 }
 
 class _StoryEditorPageState extends ConsumerState<StoryEditorPage> {
+  static const int maxTextLength = 20;
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   Offset _textPosition = const Offset(50, 50);
@@ -19,7 +20,6 @@ class _StoryEditorPageState extends ConsumerState<StoryEditorPage> {
   Color _selectedColor = Colors.white;
   double _selectedFontSize = 20;
   double _baseScale = 1.0;
-
 
   @override
   void dispose() {
@@ -223,7 +223,18 @@ class _StoryEditorPageState extends ConsumerState<StoryEditorPage> {
               _focusNode.unfocus();
             });
           },
-          onChanged: (value) => setState(() {}),
+          onChanged: (value) {
+            if (value.length > maxTextLength) {
+              _textController.text = value.substring(0, maxTextLength);
+              _textController.selection = TextSelection.fromPosition(
+                TextPosition(offset: maxTextLength),
+              );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("❌ 최대 20자까지 입력 가능합니다.")),
+              );
+            }
+            setState(() {});
+          },
         ),
       );
     } else if (_textController.text.isNotEmpty) {
@@ -251,8 +262,8 @@ class _StoryEditorPageState extends ConsumerState<StoryEditorPage> {
             });
           },
           child: Container(
-            padding: EdgeInsets.all(40), // 터치 영역을 넓히기 위한 패딩
-            color: Colors.transparent, // 터치 영역을 보이지 않게 함
+            padding: EdgeInsets.all(40),
+            color: Colors.transparent,
             child: Text(
               _textController.text,
               style: TextStyle(
@@ -268,7 +279,6 @@ class _StoryEditorPageState extends ConsumerState<StoryEditorPage> {
     }
     return const SizedBox.shrink();
   }
-
 
   @override
   Widget build(BuildContext context) {
