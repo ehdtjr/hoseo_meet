@@ -14,19 +14,18 @@ class StoryCircularImageList extends ConsumerWidget {
 
     return SizedBox(
       height: 80,
-      child: storyState.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
+      child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: storyState.length + 1,
+        itemCount: storyState.length + 1, // ✅ 스토리 추가 버튼도 함께 슬라이드되도록 포함
         itemBuilder: (context, index) {
           if (index == 0) {
+            // ✅ 첫 번째 아이템은 "스토리 추가 버튼"
             return const Padding(
-              padding: EdgeInsets.only(right: 15.0),
+              padding: EdgeInsets.only(left: 10.0, right: 15.0),
               child: AddNewCircularImageWidget(),
             );
           }
-          final story = storyState[index - 1];
+          final story = storyState[index - 1]; // 스토리 리스트는 기존 인덱스에서 -1
           return Padding(
             padding: const EdgeInsets.only(right: 15.0),
             child: _ImageItemWidget(

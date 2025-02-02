@@ -10,7 +10,8 @@ import '../widgets/meet_page/meet_page_serchbar.dart';
 import '../../providers/meet_post_category_provider.dart';
 import '../../providers/meet_post_provider.dart';
 import '../../providers/meet_post_search.dart';
-import '../../../navigation/providers/bottom_nav_index_provider.dart'; // 탭 상태를 감시하기 위해 필요
+import '../../../story/providers/story_post_provider.dart'; // ✅ 스토리 데이터 Provider 추가
+import '../../../navigation/providers/bottom_nav_index_provider.dart'; // 탭 상태 감시
 
 class MeetPage extends ConsumerStatefulWidget {
   const MeetPage({super.key});
@@ -37,20 +38,21 @@ class _MeetPageState extends ConsumerState<MeetPage> {
     // 현재 탭 상태 감시
     final currentIndex = ref.watch(bottomNavIndexProvider);
 
-    // MeetPage가 활성화될 때 데이터를 초기화
+    // ✅ MeetPage가 활성화될 때 데이터를 초기화 (모임 리스트 + 스토리 리스트)
     if (currentIndex == 1 && !_isInitialized) {
       _isInitialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(meetPostProvider.notifier).resetAndLoad();
+        ref.read(meetPostProvider.notifier).resetAndLoad(); // 모임 리스트 재조회
+        ref.invalidate(storyPostProvider); // ✅ 스토리 리스트 재조회
       });
     }
 
-    // 다른 탭으로 이동하면 초기화 상태를 리셋
+    // ✅ 다른 탭으로 이동하면 초기화 상태를 리셋
     if (currentIndex != 1) {
       _isInitialized = false;
     }
 
-    // 현재 검색어 상태
+    // 현재 검색어 상태 감시
     ref.watch(searchQueryProvider);
 
     // 모임 게시글 목록 상태
@@ -82,9 +84,9 @@ class _MeetPageState extends ConsumerState<MeetPage> {
         ),
       ),
       body: GestureDetector(
-        behavior: HitTestBehavior.translucent, // 터치 이벤트가 감지되도록 설정
+        behavior: HitTestBehavior.translucent, // 터치 이벤트 감지
         onTap: () {
-          FocusScope.of(context).unfocus(); // 현재 포커스 해제하여 키보드 닫기
+          FocusScope.of(context).unfocus(); // 키보드 닫기
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,13 +97,13 @@ class _MeetPageState extends ConsumerState<MeetPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 상단 이미지 리스트
-                  SizedBox(
+                  // ✅ 스토리 리스트 (스토리가 없어도 추가 버튼은 항상 보이도록 설정)
+                  const SizedBox(
                     width: double.infinity,
                     child: StoryCircularImageList(),
                   ),
                   const SizedBox(height: 25),
-                  // 카테고리 바
+                  // ✅ 카테고리 바
                   CategoryBar(
                     selectedCategory: selectedCategory,
                     onCategorySelected: (category) {
@@ -121,11 +123,13 @@ class _MeetPageState extends ConsumerState<MeetPage> {
               color: Colors.red,
             ),
             const SizedBox(height: 20),
-            // 리스트 영역
+
+            // ✅ 리스트 영역 (새로고침 기능 추가)
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () async {
-                  notifier.resetAndLoad(); // 새 데이터 로드
+                  notifier.resetAndLoad(); // 모임 리스트 새 데이터 로드
+                  ref.invalidate(storyPostProvider); // ✅ 스토리 리스트 새 데이터 로드
                 },
                 child: MeetPostList(
                   meetPosts: meetPosts,
@@ -148,10 +152,10 @@ class _MeetPageState extends ConsumerState<MeetPage> {
             ),
           );
 
-          // CreateMeetPage에서 Navigator.pop(context, true);로 성공 여부를 반환받을 수 있음
+          // ✅ CreateMeetPage에서 Navigator.pop(context, true); 로 성공 여부 확인
           if (result == true) {
-            // 생성 성공 시 리스트 갱신
-            ref.read(meetPostProvider.notifier).resetAndLoad();
+            ref.read(meetPostProvider.notifier).resetAndLoad(); // 모임 리스트 갱신
+            ref.invalidate(storyPostProvider); // ✅ 스토리 리스트도 갱신
           }
         },
         fillColor: Colors.red, // 버튼 배경색
