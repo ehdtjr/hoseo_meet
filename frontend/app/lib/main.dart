@@ -69,7 +69,7 @@ Future<void> _initPermissions() async {
         ),
       ),
     );
-    if (permissionState.isAuth) {
+    if (permissionState.isAuth || permissionState == PermissionState.limited) {
       debugPrint('PhotoManager 권한 허용됨');
     } else {
       debugPrint('PhotoManager 권한 거부됨');

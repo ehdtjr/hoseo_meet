@@ -19,12 +19,12 @@ class AppConfig {
 
  // 배포 환경에서 사용할 베이스 URL과 소켓 URL
 
- static const String baseUrl = 'http://10.0.2.2/api/v1';
- static const String socketUrl = 'ws://10.0.2.2/api/v1/events/connect';
+ // static const String baseUrl = 'http://10.0.2.2/api/v1';
+ // static const String socketUrl = 'ws://10.0.2.2/api/v1/events/connect';
+ //
 
-
-// static const String baseUrl = 'http://www.campus-meet.shop/api/v1';
-// static const String socketUrl = 'ws://www.campus-meet.shop/api/v1/events/connect';
+static const String baseUrl = 'http://www.campus-meet.shop/api/v1';
+static const String socketUrl = 'ws://www.campus-meet.shop/api/v1/events/connect';
 
 
 }

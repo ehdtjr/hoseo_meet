@@ -44,20 +44,25 @@ class _AddNewCircularImageWidgetState extends ConsumerState<AddNewCircularImageW
   }
 
   Future<void> _requestPermissionAndOpenGallery() async {
-    final permission = await PhotoManager.requestPermissionExtend(
+    final permissionState = await PhotoManager.requestPermissionExtend(
       requestOption: const PermissionRequestOption(
-        androidPermission: AndroidPermission(type: RequestType.image, mediaLocation: false),
+        androidPermission: AndroidPermission(
+          type: RequestType.image,
+          mediaLocation: false,
+        ),
       ),
     );
 
     if (!mounted) return;
 
-    if (permission.isAuth) {
+    if (permissionState.isAuth || permissionState.hasAccess) {
       await _openGallery();
     } else {
       _showPermissionRequestDialog();
     }
   }
+
+
 
   Future<void> _openGallery() async {
     if (!mounted) return;
