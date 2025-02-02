@@ -71,7 +71,14 @@ class StoryPostService:
             story_post=story_create_post
         )
 
-        return StoryPostResponse.model_validate(created_story_post)
+        return StoryPostResponse(
+            id=created_story_post.id,
+            author_id=created_story_post.author_id,
+            text_overlay=created_story_post.text_overlay,
+            image_url=created_story_post.image_url,
+            is_subscribed=True,
+            created_at=created_story_post.created_at
+        )
 
     async def get_detail_story_post(self, db: AsyncSession, story_post_id: int,
                                     user_id: int) -> StoryPostResponse:

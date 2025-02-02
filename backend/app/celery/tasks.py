@@ -33,3 +33,4 @@ def garbage_collection(redis_client, timeout_secs: int = 60):
                 redis_client.delete(queue_key)
         else:
             redis_client.delete(queue_key)
+
