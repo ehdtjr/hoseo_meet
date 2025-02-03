@@ -50,23 +50,50 @@ class _HomeMapState extends State<HomeMap> with WidgetsBindingObserver {
     }
   }
 
-  /// 위치 권한 확인 및 요청 후, 없는 경우 설정으로 이동
+  /// 위치 권한 확인 및 요청 후, 없으면 사용자에게 묻고 설정으로 이동
   Future<void> _checkAndRequestLocationPermission() async {
     PermissionStatus status = await Permission.location.status;
     print('[Permission] 초기 상태: $status');
 
     if (status.isDenied || status.isPermanentlyDenied) {
-      print('[Permission] 권한이 거부되었거나 영구 거부 상태이므로 권한 요청을 진행합니다.');
+      print('[Permission] 권한이 거부되었거나 영구 거부 상태입니다. 권한 요청을 진행합니다.');
       status = await Permission.location.request();
       print('[Permission] 요청 후 상태: $status');
 
       if (status.isDenied || status.isPermanentlyDenied) {
-        print('[Permission] 여전히 권한이 없으므로 앱 설정 화면으로 이동합니다.');
-        await openAppSettings();
+        // 바로 이동하지 않고 사용자에게 묻습니다.
+        final shouldOpenSettings = await _showPermissionDialog();
+        if (shouldOpenSettings == true) {
+          print('[Permission] 사용자가 설정으로 이동을 선택했습니다.');
+          await openAppSettings();
+        } else {
+          print('[Permission] 사용자가 설정으로 이동하지 않기로 선택했습니다.');
+        }
       }
     } else {
       print('[Permission] 권한이 이미 허용되어 있습니다.');
     }
+  }
+
+  /// 권한 설정 화면으로 이동할지 사용자에게 묻는 다이얼로그
+  Future<bool?> _showPermissionDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('위치 권한 필요'),
+        content: const Text('현재 위치 권한이 거부되어 있습니다. 앱의 기능을 사용하려면 위치 권한이 필요합니다.\n설정에서 권한을 변경하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('설정으로 이동'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 초기 나침반 설정
