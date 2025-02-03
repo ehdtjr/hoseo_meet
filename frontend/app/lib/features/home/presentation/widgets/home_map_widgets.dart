@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_compass/flutter_compass.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class HomeMap extends StatefulWidget {
   const HomeMap({super.key});
@@ -12,7 +13,7 @@ class HomeMap extends StatefulWidget {
   _HomeMapState createState() => _HomeMapState();
 }
 
-class _HomeMapState extends State<HomeMap> {
+class _HomeMapState extends State<HomeMap> with WidgetsBindingObserver {
   NaverMapController? _mapController;
   Position? _currentPosition;
   double _currentBearing = 0.0; // 나침반 각도
@@ -25,8 +26,47 @@ class _HomeMapState extends State<HomeMap> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _checkAndRequestLocationPermission();
     _initializeCompass();
     _subscribeToPositionUpdates();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _compassSubscription?.cancel();
+    _positionSubscription?.cancel();
+    _mapController = null;
+    super.dispose();
+  }
+
+  /// 앱 라이프사이클 변화 감지
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      print('[Lifecycle] resumed 상태로 돌아왔습니다.');
+      _checkAndRequestLocationPermission();
+    }
+  }
+
+  /// 위치 권한 확인 및 요청 후, 없는 경우 설정으로 이동
+  Future<void> _checkAndRequestLocationPermission() async {
+    PermissionStatus status = await Permission.location.status;
+    print('[Permission] 초기 상태: $status');
+
+    if (status.isDenied || status.isPermanentlyDenied) {
+      print('[Permission] 권한이 거부되었거나 영구 거부 상태이므로 권한 요청을 진행합니다.');
+      status = await Permission.location.request();
+      print('[Permission] 요청 후 상태: $status');
+
+      if (status.isDenied || status.isPermanentlyDenied) {
+        print('[Permission] 여전히 권한이 없으므로 앱 설정 화면으로 이동합니다.');
+        await openAppSettings();
+      }
+    } else {
+      print('[Permission] 권한이 이미 허용되어 있습니다.');
+    }
   }
 
   /// 초기 나침반 설정
@@ -37,11 +77,12 @@ class _HomeMapState extends State<HomeMap> {
       }
     });
 
-    _compassSubscription = FlutterCompass.events?.listen((CompassEvent event) {
-      if (event.heading != null && mounted) {
-        _updateBearing(event.heading!);
-      }
-    });
+    _compassSubscription =
+        FlutterCompass.events?.listen((CompassEvent event) {
+          if (event.heading != null && mounted) {
+            _updateBearing(event.heading!);
+          }
+        });
   }
 
   /// 위치 스트림 구독
@@ -65,7 +106,7 @@ class _HomeMapState extends State<HomeMap> {
     if (_followAndHeadingMode) {
       _moveCameraWithHeading();
     } else {
-      _updateOverlay(false); // 통합 모드 비활성화 상태에서 아이콘 기본값
+      _updateOverlay(false);
     }
   }
 
@@ -77,7 +118,7 @@ class _HomeMapState extends State<HomeMap> {
       if (_followAndHeadingMode) {
         _moveCameraWithHeading();
       } else {
-        _updateOverlay(false); // 통합 모드 비활성화 상태에서 아이콘 기본값
+        _updateOverlay(false);
       }
     }
   }
@@ -143,11 +184,9 @@ class _HomeMapState extends State<HomeMap> {
     });
 
     if (_followAndHeadingMode) {
-      // 통합 모드 활성화 → 카메라 이동 + 아이콘 업데이트
       _moveCameraWithHeading();
-      _updateOverlay(true); // 활성화 상태의 아이콘으로 변경
+      _updateOverlay(true);
     } else if (_mapController != null && _currentPosition != null) {
-      // 통합 모드 비활성화 → 카메라 고정 + 아이콘 기본값
       _moveCameraToCurrentPosition();
       _updateOverlay(false);
     }
@@ -169,7 +208,6 @@ class _HomeMapState extends State<HomeMap> {
         ),
       );
 
-      // 서브 아이콘 업데이트
       _updateOverlay(true);
     }
   }
@@ -196,27 +234,28 @@ class _HomeMapState extends State<HomeMap> {
       final locationOverlay = _mapController!.getLocationOverlay();
       locationOverlay.setIsVisible(true);
       locationOverlay.setPosition(
-        NLatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+        NLatLng(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+        ),
       );
-      locationOverlay.setBearing(_currentBearing); // 서브 아이콘 각도 반영
+      locationOverlay.setBearing(_currentBearing);
       locationOverlay.setSubAnchor(const NPoint(0.5, 1.0));
 
       if (isFollowMode) {
-        // 통합 모드 활성화 상태의 아이콘
         locationOverlay.setSubIcon(
           const NOverlayImage.fromAssetImage(
             'packages/flutter_naver_map/assets/icon/location_overlay_sub_icon_face.png',
           ),
         );
-        locationOverlay.setCircleRadius(0); // 반경 제거
+        locationOverlay.setCircleRadius(0);
       } else {
-        // 기본 아이콘
         locationOverlay.setSubIcon(
           const NOverlayImage.fromAssetImage(
             'packages/flutter_naver_map/assets/icon/location_overlay_sub_icon.png',
           ),
         );
-        locationOverlay.setCircleRadius(20); // 반경 추가
+        locationOverlay.setCircleRadius(20);
       }
     }
   }
@@ -228,13 +267,5 @@ class _HomeMapState extends State<HomeMap> {
       distanceFilter: 5,
     );
     return Geolocator.getPositionStream(locationSettings: locationSettings);
-  }
-
-  @override
-  void dispose() {
-    _compassSubscription?.cancel();
-    _positionSubscription?.cancel();
-    _mapController = null;
-    super.dispose();
   }
 }
