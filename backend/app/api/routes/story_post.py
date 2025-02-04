@@ -17,10 +17,9 @@ async def upload_story_image(
     user: User = Depends(current_active_user),
     story_post_service: StoryPostService = Depends(get_story_post_service),
 ) -> dict[str, str]:
-    if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+    if file.content_type not in ["image/jpeg", "image/png", "image/webp", "image/jpg"]:
         raise HTTPException(status_code=400, detail="File type not supported")
     image_url = await story_post_service.upload_image(user.id, file)
-
     return {"url": image_url}
 
 @router.post("/create", response_model=StoryPostResponse)
