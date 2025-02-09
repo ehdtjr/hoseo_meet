@@ -11,7 +11,7 @@ from app.models.room_post import RoomPost
 from app.models.room_post import RoomReview
 from app.models.room_post import RoomReviewImage
 from app.models.user import User
-from app.schemas.room_post import RoomPostListResponse, RoomPostDetailResponse
+from app.schemas.room_post import RoomImagesList, RoomPostListResponse, RoomPostDetailResponse
 from app.schemas.room_post import RoomReviewResponse, UserPublicRead
 
 
@@ -103,9 +103,17 @@ class RoomPostService(RoomPostServiceProtocol):
             avg_rating_val: float = float(row[1]) if row[1] else 0.0
             reviews_count_val: int = row[2]
             distance_val: float = 0.0
-            images: List[str] = s3_manager.list_room_images(room_obj.id)
+            images: List[str] = await s3_manager.list_room_images(room_obj.id)
             if distance_expr is not None:
                 distance_val = float(row[3] or 0.0)
+
+            # 이미지가 있으면 첫 번째 이미지를 대표 이미지로
+            if images:
+                rep_image = images[0]
+
+            # 이미지가 없으면 None
+            else:
+                rep_image = None
 
             # Pydantic 모델로 변환
             item = RoomPostListResponse(
@@ -114,7 +122,7 @@ class RoomPostService(RoomPostServiceProtocol):
                 reviews_count=reviews_count_val,
                 avg_rating=avg_rating_val,
                 distance=distance_val,  # 필요에 따라 sqrt를 씌울 수도 있음
-                images=images,
+                images=[rep_image] if rep_image else [],
             )
             response_list.append(item)
 
@@ -153,7 +161,7 @@ class RoomPostService(RoomPostServiceProtocol):
             # 거리에 sqrt를 취할지, 하버사인 공식을 쓸지 등은 선택
 
         # S3에서 이미지 리스트 조회
-        images = s3_manager.list_room_images(room_id)
+        images = await s3_manager.list_room_images(room_id)
 
         # 4) Pydantic 변환
         detail = RoomPostDetailResponse(
@@ -207,8 +215,8 @@ class RoomReviewService:
 
         # 2) 이미지가 있으면 S3 업로드 후 RoomReviewImage 생성
         for file in images:
-            destination_path = f"reviews/{new_review.id}/{file.filename}"
-            s3_url = s3_manager.upload_file(file, destination_path)
+            destination_path = f"reviews/{room_id}/{new_review.id}/{file.filename}"
+            s3_url = await s3_manager.upload_file(file, destination_path)
 
             review_image = RoomReviewImage(
                 review_id=new_review.id, room_id=room_id, image=s3_url
@@ -329,6 +337,12 @@ class RoomReviewService:
             # 응답에서 "원래 있었던 이미지"를 표현할 수도
             images=image_list,
         )
+    
+    async def get_room_images_by_room(self, room_id: int) -> RoomImagesList:
+
+        # s3_manager에 구현된 list_review_images_by_room 함수를 호출합니다.
+        images: List[str] = await s3_manager.list_review_images_by_room(room_id)
+        return RoomImagesList(room_id=room_id, images=images)
 
 
 room_review_service = RoomReviewService()

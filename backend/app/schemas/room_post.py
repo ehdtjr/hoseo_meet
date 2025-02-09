@@ -75,33 +75,6 @@ class RoomReviewResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# class RoomReviewBase(BaseModel):
-#     model_config = ConfigDict(from_attributes=True)
-
-#     id: int
-#     room_id: int
-#     author_id: int
-#     content: str
-#     rating: float = Field(..., ge=0, le=5)
-#     created_at: datetime
-
-
-# class RoomReviewCreate(BaseModel):
-#     model_config = ConfigDict(from_attributes=True)
-
-#     room_id: int
-#     author_id: int
-#     content: str
-#     rating: float = Field(..., ge=0, le=5)
-
-
-# class RoomReviewRequest(BaseModel):
-#     model_config = ConfigDict(from_attributes=True)
-
-#     content: str
-#     rating: float = Field(..., ge=0, le=5)
-
-
 class RoomReviewListResponse(RoomReviewResponse):
     @computed_field
     @property
@@ -128,6 +101,13 @@ class RoomImageCreate(BaseModel):
     review_id: Optional[int] = None
     room_id: Optional[int] = None
     image: str
+
+
+class RoomImagesList(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    room_id: int
+    images: List[str]
 
 
 class RoomImageResponse(RoomImageBase):

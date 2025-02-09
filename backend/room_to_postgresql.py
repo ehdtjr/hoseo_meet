@@ -50,7 +50,7 @@ async def main():
     # 1. 테이블 초기화(생성) 
     await init_tables()
     # 2. CSV 로드 및 데이터 삽입
-    await load_room_posts_from_csv("./room_data.csv")
+    await load_room_posts_from_csv("./last_rental_data.csv")
 
 if __name__ == "__main__":
     # 비동기 함수 실행

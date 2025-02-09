@@ -40,11 +40,18 @@ class S3Manager:
                 file_url = f"{self.cloud_front_domain_url}/{destination_path}"
                 return file_url
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to upload file to S3: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to upload file to S3: {str(e)}"
+            )
         finally:
             file.file.close()
 
-    async def upload_byte_file(self, byte_file: BytesIO, destination_path: str, content_type: str = "application/octet-stream") -> str:
+    async def upload_byte_file(
+        self,
+        byte_file: BytesIO,
+        destination_path: str,
+        content_type: str = "application/octet-stream",
+    ) -> str:
         """
         BytesIO 객체를 S3에 비동기로 업로드하고 URL 반환
         """
@@ -84,7 +91,9 @@ class S3Manager:
             ) as s3_client:
                 await s3_client.delete_object(Bucket=self.bucket_name, Key=object_key)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to delete file from S3: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to delete file from S3: {str(e)}"
+            )
 
     async def list_room_images(self, room_id: int) -> List[str]:
         """
@@ -102,17 +111,53 @@ class S3Manager:
                 region_name=self.aws_region,
             ) as s3_client:
                 paginator = s3_client.get_paginator("list_objects_v2")
-                async for page in paginator.paginate(Bucket=self.bucket_name, Prefix=prefix):
+                async for page in paginator.paginate(
+                    Bucket=self.bucket_name, Prefix=prefix
+                ):
+
                     for obj in page.get("Contents", []):
                         key = obj["Key"]
                         file_url = f"{self.cloud_front_domain_url}/{key}"
+                        print("file_url", file_url)
                         images.append(file_url)
         except Exception as e:
             raise RuntimeError(f"Failed to list images in room {room_id}: {e}")
-
+        print("images", images)
         return images
 
+    async def list_review_images_by_room(self, room_id: int) -> List[str]:
+        """
+        특정 room_id에 저장된 리뷰 이미지 목록을 비동기로 반환
+        """
+        prefix = f"reviews/{room_id}/"  # 리뷰 이미지가 저장된 경로
+        images = []
+
+        session = aioboto3.Session()
+        try:
+            async with session.client(
+                "s3",
+                aws_access_key_id=self.aws_access_key_id,
+                aws_secret_access_key=self.aws_secret_access_key,
+                region_name=self.aws_region,
+            ) as s3_client:
+                paginator = s3_client.get_paginator("list_objects_v2")
+                async for page in paginator.paginate(
+                    Bucket=self.bucket_name, Prefix=prefix
+                ):
+                    for obj in page.get("Contents", []):
+                        key = obj["Key"]
+                        file_url = f"{self.cloud_front_domain_url}/{key}"
+                        print("file_url", file_url)
+                        images.append(file_url)
+        except Exception as e:
+            raise RuntimeError(f"Failed to list review images in room {room_id}: {e}")
+
+        print("images", images)
+        return images
+
+
 s3_manager = S3Manager()
+
 
 async def get_s3_manager() -> S3Manager:
     return S3Manager()
