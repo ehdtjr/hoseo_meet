@@ -13,6 +13,7 @@ from app.service.room_post import (
     get_room_post_service,
 )
 from app.schemas.room_post import (
+    RoomImagesList,
     RoomPostListResponse,
     RoomPostDetailResponse,
     RoomReviewResponse,
@@ -25,7 +26,7 @@ router = APIRouter()
 @router.get("/rooms", response_model=List[RoomPostListResponse])
 async def get_room_posts(
     place: Optional[str] = None,
-    sort_by: Optional[str] = None,  # "distance", "reviews", "rating"
+    sort_by: Optional[str] = "rating",  # "distance", "reviews", "rating"
     user_lat: Optional[float] = None,
     user_lon: Optional[float] = None,
     skip: int = 0,
@@ -63,9 +64,9 @@ async def get_room_post_detail(
 
 
 # 리뷰 작성
-@router.post("/create_review", response_model=RoomReviewResponse)
+@router.post("/review/{room_id}/create", response_model=RoomReviewResponse)
 async def create_review(
-    room_id: int = Form(...),
+    room_id: int,
     content: str = Form(...),
     rating: float = Form(...),
     images: Optional[List[UploadFile]] = File(None),
@@ -88,7 +89,7 @@ async def create_review(
 
 
 # 리뷰 리스트 조회
-@router.get("/reviews", response_model=List[RoomReviewResponse])
+@router.get("/review/{room_id}/list", response_model=List[RoomReviewResponse])
 async def reviews(
     room_id: int,
     page: int = 1,
@@ -101,7 +102,9 @@ async def reviews(
         db=db, room_id=room_id, page=page, page_size=page_size, sort_by=sort_by
     )
 
-@router.delete("/reviews/{review_id}", response_model=RoomReviewResponse)
+
+# 리뷰 삭제
+@router.delete("/review/{review_id}/delete", response_model=RoomReviewResponse)
 async def delete_review(
     review_id: int,
     db: AsyncSession = Depends(get_async_session),
@@ -119,3 +122,18 @@ async def delete_review(
         )
 
     return deleted_review
+
+
+# 리뷰 이미지 목록 조회
+@router.get("/review/{room_id}/image_list", response_model=RoomImagesList)
+async def get_room_review_images(
+    room_id: int,
+    review_service=Depends(
+        get_room_review_service
+    ),  # RoomReviewService 인스턴스를 DI 방식으로 주입
+):
+    try:
+        response = await review_service.get_room_images_by_room(room_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get room images: {e}")
+    return response
