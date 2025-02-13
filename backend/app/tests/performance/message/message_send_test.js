@@ -44,7 +44,7 @@ export let options = {
   scenarios: {
     message_send_test: {
       executor: 'ramping-vus',
-      startVUs: 10,
+      startVUs: 300,
       stages: [
         // 1분 동안 VU를 USERS_COUNT명까지 증가
         { duration: '1m', target: USERS_COUNT },
