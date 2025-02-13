@@ -19,6 +19,8 @@ services:
       - "postgres"
       - "-c"
       - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "max_connections=300"
     networks:
       - app_backend_net
 
