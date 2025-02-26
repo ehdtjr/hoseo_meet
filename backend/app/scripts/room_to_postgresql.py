@@ -1,16 +1,11 @@
 # file: app/core/init_db.py (예시)
-import csv
 import asyncio
-from typing import List
-from sqlalchemy.ext.asyncio import AsyncEngine
+import csv
 
 from app.core.db import engine, Base
-from app.models.room_post import RoomPost
-import csv
-from typing import List, Optional
-
 from app.core.db import get_async_session_context
 from app.models.room_post import RoomPost
+
 
 async def init_tables() -> None:
     async with engine.begin() as conn:
@@ -50,7 +45,7 @@ async def main():
     # 1. 테이블 초기화(생성) 
     await init_tables()
     # 2. CSV 로드 및 데이터 삽입
-    await load_room_posts_from_csv("./last_rental_data.csv")
+    await load_room_posts_from_csv("../../last_rental_data.csv")
 
 if __name__ == "__main__":
     # 비동기 함수 실행
