@@ -1,9 +1,6 @@
 from datetime import datetime
+from typing import List
 
-# List는 typing에서 import
-from typing import List, Optional
-
-from app.models.user import User
 from sqlalchemy import (
     NUMERIC,
     DateTime,
@@ -17,6 +14,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base
+from app.models.user import User
 
 
 class RoomPost(Base):

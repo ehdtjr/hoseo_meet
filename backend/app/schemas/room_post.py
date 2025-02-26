@@ -1,9 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from app.utils.date import convert_to_local_time
-from fastapi import UploadFile
-from pydantic import BaseModel, Field, computed_field, ConfigDict
+from pydantic import BaseModel, computed_field, ConfigDict
 
 
 class RoomPostBase(BaseModel):
@@ -30,12 +28,10 @@ class RoomPostListResponse(BaseModel):
 
     id: int
     name: str
-
     reviews_count: int = 0
     avg_rating: float = 0.0
     distance: float = 0.0
-
-    images: Optional[List[str]] = []
+    image: str
 
 
 class RoomPostDetailResponse(RoomPostListResponse):

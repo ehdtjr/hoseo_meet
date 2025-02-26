@@ -6,6 +6,7 @@ from sqlalchemy import func
 from sqlalchemy import select, desc, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.s3 import s3_manager
 from app.models.room_post import RoomPost
 from app.models.room_post import RoomReview
@@ -103,17 +104,10 @@ class RoomPostService(RoomPostServiceProtocol):
             avg_rating_val: float = float(row[1]) if row[1] else 0.0
             reviews_count_val: int = row[2]
             distance_val: float = 0.0
-            images: List[str] = await s3_manager.list_room_images(room_obj.id)
             if distance_expr is not None:
                 distance_val = float(row[3] or 0.0)
 
-            # 이미지가 있으면 첫 번째 이미지를 대표 이미지로
-            if images:
-                rep_image = images[0]
-
-            # 이미지가 없으면 None
-            else:
-                rep_image = None
+            image = f"{settings.CLOUD_FRONT_DOMAIN_URL}/rooms/{room_obj.id}/{room_obj.id}_1.png"
 
             # Pydantic 모델로 변환
             item = RoomPostListResponse(
@@ -122,7 +116,7 @@ class RoomPostService(RoomPostServiceProtocol):
                 reviews_count=reviews_count_val,
                 avg_rating=avg_rating_val,
                 distance=distance_val,  # 필요에 따라 sqrt를 씌울 수도 있음
-                images=[rep_image] if rep_image else [],
+                image=image
             )
             response_list.append(item)
 
@@ -333,8 +327,6 @@ class RoomReviewService:
             rating=float(review.rating),
             created_at=review.created_at,
             author=author_data,
-            # 이미지 목록은 이미 S3, DB에서 삭제됐지만,
-            # 응답에서 "원래 있었던 이미지"를 표현할 수도
             images=image_list,
         )
     
