@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import (
     NUMERIC,
@@ -33,18 +33,26 @@ class RoomPost(Base):
     latitude: Mapped[float] = mapped_column(Float(30), nullable=False)
     longitude: Mapped[float] = mapped_column(Float(30), nullable=False)
 
-    # 방(Post)에서 리뷰이미지를 참조할 때
-    images: Mapped[List["RoomReviewImage"]] = relationship(
-        "RoomReviewImage",
+    images: Mapped[Optional[List["RoomPostImage"]]] = relationship(
+        "RoomPostImage",
         back_populates="room",
-        lazy="selectin",  # Eager loading(비동기 환경에서 lazy 문제 방지)
+        lazy="selectin"
     )
-
     reviews: Mapped[List["RoomReview"]] = relationship(
         "RoomReview",
         back_populates="room",
         lazy="selectin",  # Eager loading
     )
+
+
+class RoomPostImage(Base):
+    __tablename__ = "room_post_image"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    room_id: Mapped[int] = mapped_column(Integer, ForeignKey("room_post.id"), nullable=False)
+    image: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    room: Mapped["RoomPost"] = relationship("RoomPost", back_populates="images")
 
 
 class RoomReview(Base):
@@ -89,5 +97,4 @@ class RoomReviewImage(Base):
         DateTime(timezone=True), default=datetime.now, server_default=func.now()
     )
 
-    room: Mapped["RoomPost"] = relationship("RoomPost", back_populates="images")
     review: Mapped["RoomReview"] = relationship("RoomReview", back_populates="images")

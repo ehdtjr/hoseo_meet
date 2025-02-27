@@ -4,24 +4,20 @@ import csv
 
 from app.core.db import engine, Base
 from app.core.db import get_async_session_context
-from app.models.room_post import RoomPost
+from app.models.room_post import RoomPost, RoomPostImage
 
 
 async def init_tables() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-async def load_room_posts_from_csv(csv_path: str) -> None:
 
+async def load_room_posts_from_csv(csv_path: str) -> None:
     async with get_async_session_context() as session:
-        # CSV 파일 열기
         with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
-
-            # Insert할 RoomPost 객체들을 모아둔다
             room_posts = []
             for row in reader:
-                # CSV 컬럼명과 모델 필드를 맞춰서 매핑
                 post = RoomPost(
                     name=row["name"],
                     address=row["address"],
@@ -36,17 +32,34 @@ async def load_room_posts_from_csv(csv_path: str) -> None:
                     longitude=float(row["longitude"]),
                 )
                 room_posts.append(post)
-
             session.add_all(room_posts)
-        # 세션 커밋
         await session.commit()
 
+
+async def load_room_post_images_from_csv(csv_path: str) -> None:
+    async with get_async_session_context() as session:
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            images = []
+            for row in reader:
+                # CSV 파일에는 room_id와 image 컬럼이 있어야 합니다.
+                image_obj = RoomPostImage(
+                    room_id=int(row["room_id"]),
+                    image=row["image_url"]
+                )
+                images.append(image_obj)
+            session.add_all(images)
+        await session.commit()
+
+
 async def main():
-    # 1. 테이블 초기화(생성) 
+    # 1. 테이블 초기화(생성)
     await init_tables()
-    # 2. CSV 로드 및 데이터 삽입
-    await load_room_posts_from_csv("../../last_rental_data.csv")
+    # 2. CSV 파일로부터 RoomPost 데이터 삽입
+    #await load_room_posts_from_csv("../../last_rental_data.csv")
+    # 3. CSV 파일로부터 RoomPostImage 데이터 삽입
+    await load_room_post_images_from_csv("../../room_image.csv")
+
 
 if __name__ == "__main__":
-    # 비동기 함수 실행
     asyncio.run(main())
