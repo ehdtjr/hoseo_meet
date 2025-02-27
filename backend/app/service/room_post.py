@@ -107,7 +107,8 @@ class RoomPostService(RoomPostServiceProtocol):
             if distance_expr is not None:
                 distance_val = float(row[3] or 0.0)
 
-            image = f"{settings.CLOUD_FRONT_DOMAIN_URL}/rooms/{room_obj.id}/{room_obj.id}_1.png"
+            image_urls = [img.image for img in
+                          room_obj.images] if room_obj.images else []
 
             # Pydantic 모델로 변환
             item = RoomPostListResponse(
@@ -116,7 +117,7 @@ class RoomPostService(RoomPostServiceProtocol):
                 reviews_count=reviews_count_val,
                 avg_rating=avg_rating_val,
                 distance=distance_val,  # 필요에 따라 sqrt를 씌울 수도 있음
-                image=image
+                images=image_urls
             )
             response_list.append(item)
 

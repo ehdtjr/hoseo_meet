@@ -31,7 +31,7 @@ class RoomPostListResponse(BaseModel):
     reviews_count: int = 0
     avg_rating: float = 0.0
     distance: float = 0.0
-    image: str
+    images: List[str]
 
 
 class RoomPostDetailResponse(RoomPostListResponse):
