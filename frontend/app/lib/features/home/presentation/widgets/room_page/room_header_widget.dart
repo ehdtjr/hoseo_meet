@@ -101,6 +101,17 @@ class _RoomHeaderWidgetState extends State<RoomHeaderWidget> {
               ),
             ),
           ),
+          // 뒤로가기 버튼 추가 (SafeArea를 사용해 상태바와 겹치지 않도록 함)
+          Positioned(
+            top: 16,
+            left: 16,
+            child: SafeArea(
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ),
           // 페이지 인디케이터 (여러 이미지 있을 때만)
           if (widget.imageUrls.length > 1)
             Positioned(
