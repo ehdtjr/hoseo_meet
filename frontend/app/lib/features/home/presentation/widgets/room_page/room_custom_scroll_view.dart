@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/photo_section.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/review/review_section.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/room_info_section.dart';
@@ -21,17 +22,21 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
   late final TabController _tabController;
   final ScrollController _scrollController = ScrollController();
   bool _isScrolling = false;
+  DateTime _lastUpdateTime = DateTime.now();
+  List<double>? _cachedPositions;
 
-  // 각 섹션의 GlobalKey 추가
-  final GlobalKey roomInfoKey = GlobalKey();
-  final GlobalKey reviewKey = GlobalKey();
-  final GlobalKey photoKey = GlobalKey();
+  // 각 섹션의 GlobalKey를 Container에 부여하여 올바른 위치 계산이 가능하도록 함.
+  final GlobalKey _roomInfoKey = GlobalKey();
+  final GlobalKey _reviewKey = GlobalKey();
+  final GlobalKey _photoKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_handleTabChange);
+    // 첫 프레임 이후 캐시 무효화
+    WidgetsBinding.instance.addPostFrameCallback((_) => _invalidateCache());
   }
 
   @override
@@ -39,6 +44,10 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
     _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _invalidateCache() {
+    _cachedPositions = null;
   }
 
   void _handleTabChange() {
@@ -55,28 +64,37 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
         context,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
-      ).then((_) => _isScrolling = false);
+        alignment: 0.0,
+      ).then((_) {
+        _isScrolling = false;
+      });
+    } else {
+      _isScrolling = false;
     }
   }
 
   BuildContext? _getSectionContext(int index) {
     switch (index) {
       case 0:
-        return roomInfoKey.currentContext;
+        return _roomInfoKey.currentContext;
       case 1:
-        return reviewKey.currentContext;
+        return _reviewKey.currentContext;
       case 2:
-        return photoKey.currentContext;
+        return _photoKey.currentContext;
       default:
         return null;
     }
   }
 
-  void _updateActiveTab(double offset) {
-    final positions = _calculateSectionPositions();
-    final activeIndex = _findClosestIndex(offset, positions);
+  void _updateActiveTab(double scrollOffset) {
+    final now = DateTime.now();
+    if (now.difference(_lastUpdateTime).inMilliseconds < 100) return;
+    _lastUpdateTime = now;
 
-    if (_tabController.index != activeIndex) {
+    final positions = _calculateSectionPositions();
+    final activeIndex = _findClosestIndex(scrollOffset, positions);
+
+    if (_tabController.index != activeIndex && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _tabController.animateTo(activeIndex);
       });
@@ -84,22 +102,28 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
   }
 
   List<double> _calculateSectionPositions() {
-    return [
-      _getSectionOffset(roomInfoKey),
-      _getSectionOffset(reviewKey),
-      _getSectionOffset(photoKey),
+    return _cachedPositions ??= [
+      _getSectionOffset(_roomInfoKey),
+      _getSectionOffset(_reviewKey),
+      _getSectionOffset(_photoKey),
     ];
   }
 
   double _getSectionOffset(GlobalKey key) {
-    final renderBox = key.currentContext?.findRenderObject() as RenderBox?;
-    return renderBox?.localToGlobal(Offset.zero).dy ?? 0;
+    final context = key.currentContext;
+    if (context == null) return 0;
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.attached) return 0;
+    final viewport = RenderAbstractViewport.of(renderBox);
+    if (viewport == null) return 0;
+    // getOffsetToReveal()를 사용하여 스크롤뷰 내에서 해당 위젯이 보이도록 하는 오프셋 계산
+    final offset = viewport.getOffsetToReveal(renderBox, 0.0).offset;
+    return offset;
   }
 
   int _findClosestIndex(double offset, List<double> positions) {
     double minDistance = double.infinity;
     int closestIndex = 0;
-
     for (int i = 0; i < positions.length; i++) {
       final distance = (positions[i] - offset).abs();
       if (distance < minDistance) {
@@ -112,6 +136,9 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
 
   @override
   Widget build(BuildContext context) {
+    // 매 프레임마다 캐시 무효화하여 레이아웃 변경 시 최신 위치를 계산하도록 함.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _invalidateCache());
+
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         if (!_isScrolling && notification is ScrollUpdateNotification) {
@@ -121,12 +148,13 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
       },
       child: CustomScrollView(
         controller: _scrollController,
+        physics: const ClampingScrollPhysics(),
         slivers: [
           SliverPersistentHeader(
             pinned: true,
             delegate: TabBarDelegate(
               TabBar(
-                controller: _tabController, // 컨트롤러 연결
+                controller: _tabController,
                 labelColor: Colors.red,
                 unselectedLabelColor: Colors.grey,
                 indicator: const UnderlineTabIndicator(
@@ -141,38 +169,42 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
               ),
             ),
           ),
+          // Room Info 섹션
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.all(25.0),
-              child: Column(
-                children: [
-                  Container(
-                    key: roomInfoKey, // 키 적용
-                    child: RoomInfoSection(roomDetail: widget.roomDetail),
-                  ),
-                  const SizedBox(height: 20),
-                  const Divider(
-                    color: Color(0xFFF0B4AD),
-                    thickness: 1.0,
-                  ),
-                ],
+              child: Container(
+                key: _roomInfoKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    RoomInfoSection(roomDetail: widget.roomDetail),
+                    const SizedBox(height: 20),
+                    const Divider(
+                      color: Color(0xFFF0B4AD),
+                      thickness: 1.0,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
+          // Review 섹션
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 25.0),
               child: Container(
-                key: reviewKey, // 키 적용
+                key: _reviewKey,
                 child: ReviewSection(postId: widget.roomDetail.id.toString()),
               ),
             ),
           ),
+          // Photo 섹션
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 25.0),
               child: Container(
-                key: photoKey, // 키 적용
+                key: _photoKey,
                 child: const PhotoSection(),
               ),
             ),
