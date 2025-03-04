@@ -1,48 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/bottom_sheet/bottom_category_list/room/room_item.dart';
 
-class RoomPostList extends StatelessWidget {
-  final List<dynamic> roomPosts; // 방 데이터 리스트
-  final bool isLoading; // 로딩 상태
-  final bool hasMore; // 추가 데이터 여부
-  final Function loadMore; // 추가 데이터 로드 함수
+import '../../../../../providers/room/room_post_provider.dart'; // RoomPostNotifier 관련 Provider
 
-  const RoomPostList({
-    super.key,
-    required this.roomPosts,
-    required this.isLoading,
-    required this.hasMore,
-    required this.loadMore,
-  });
+class RoomPostList extends ConsumerWidget {
+  const RoomPostList({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return roomPosts.isEmpty && isLoading
-        ? const Center(child: CircularProgressIndicator()) // 로딩 상태 표시
-        : ListView.builder(
+  Widget build(BuildContext context, WidgetRef ref) {
+    // RoomPostNotifier를 통해 RoomPost 리스트를 구독합니다.
+    final roomPosts = ref.watch(roomPostProvider);
+    // Notifier에서 상태를 직접 가져올 수 있습니다.
+    final notifier = ref.read(roomPostProvider.notifier);
+    final isLoading = notifier.isLoading;
+    final hasMore = notifier.hasMore;
+
+    if (roomPosts.isEmpty && isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return ListView.builder(
       padding: EdgeInsets.zero,
       itemCount: roomPosts.length + (hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == roomPosts.length) {
-          // 더 로드할 데이터가 있는 경우 로딩 표시
+          // 더 로드할 데이터가 있다면, 화면 표시 후 추가 로드를 요청합니다.
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            loadMore();
+            notifier.loadRoomPosts(loadMore: true);
           });
           return const Center(child: CircularProgressIndicator());
         }
         final roomPost = roomPosts[index];
         return RoomItem(
-          imageUrl: roomPost['imageUrl'], // 이미지 URL
-          title: roomPost['title'], // 제목
-          rating: roomPost['rating'], // 별점
-          reviewCount: roomPost['reviewCount'], // 리뷰 수
-          distance: roomPost['distance'], // 거리
-          description: roomPost['description'], // 설명
-          isFavorite: roomPost['isFavorite'], // 즐겨찾기 여부
-          postId: '1', // RoomPage에 전달할 post_id
+          imageUrl: roomPost.images.isNotEmpty ? roomPost.images.first : '',
+          title: roomPost.name,
+          rating: roomPost.avgRating,
+          reviewCount: roomPost.reviewsCount,
+          distance: roomPost.distance,
+          description: roomPost.name, // 실제 설명 필드가 있다면 해당 값을 사용
+          isFavorite: false, // RoomPost 모델에 즐겨찾기 필드가 없으므로, 필요시 추가 구현
+          postId: roomPost.id.toString(),
           onFavoriteToggle: () {
-            // 즐겨찾기 토글 처리 (사용자 정의 로직 추가)
-            print('${roomPost['title']} 즐겨찾기 토글');
+            // 즐겨찾기 토글 시 사용자 정의 로직 처리
+            debugPrint('${roomPost.name} 즐겨찾기 토글');
           },
         );
       },

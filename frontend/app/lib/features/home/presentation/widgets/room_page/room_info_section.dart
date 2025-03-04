@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:hoseomeet/features/home/data/models/room_post_detail.dart';
 
 class RoomInfoSection extends StatelessWidget {
-  final String postId;
+  final RoomDetail roomDetail;
 
-  const RoomInfoSection({super.key, required this.postId});
+  const RoomInfoSection({Key? key, required this.roomDetail}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -13,6 +14,7 @@ class RoomInfoSection extends StatelessWidget {
         mainAxisSize: MainAxisSize.min, // 콘텐츠 높이만큼만 차지하도록 설정
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 주소 표시
           Row(
             crossAxisAlignment: CrossAxisAlignment.center, // 아이콘과 텍스트 높이 정렬
             children: [
@@ -22,10 +24,10 @@ class RoomInfoSection extends StatelessWidget {
                 height: 12,
               ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  '충남 아산시 배방읍 호서로79번길 14',
-                  style: TextStyle(
+                  roomDetail.address,
+                  style: const TextStyle(
                     color: Color(0xFF5F5F5F), // 텍스트 색상
                     fontSize: 13,
                     height: 1.66,
@@ -35,20 +37,21 @@ class RoomInfoSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
+          // 연락처 표시
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center, // 아이콘과 텍스트 높이 정렬
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SvgPicture.asset(
-                'assets/icons/phone.svg', // 에셋 경로
+                'assets/icons/phone.svg',
                 width: 12,
                 height: 12,
               ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  '0507-1469-2369',
-                  style: TextStyle(
-                    color: Color(0xFF5F5F5F), // 텍스트 색상
+                  roomDetail.contact,
+                  style: const TextStyle(
+                    color: Color(0xFF5F5F5F),
                     fontSize: 13,
                     fontFamily: 'Pretendard',
                     fontWeight: FontWeight.w400,
@@ -59,20 +62,21 @@ class RoomInfoSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
+          // 가격, 보증금, 옵션 등의 추가 정보 표시
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center, // 아이콘과 텍스트 높이 정렬
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SvgPicture.asset(
-                'assets/icons/fi-rr-info.svg', // 에셋 경로
+                'assets/icons/fi-rr-info.svg',
                 width: 12,
                 height: 12,
               ),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  '년세: 400 • 반년세: 200 • 보증금: 30',
-                  style: TextStyle(
-                    color: Color(0xFF5F5F5F), // 텍스트 색상
+                  '가격: ${roomDetail.price} • 보증금: ${roomDetail.fee} • 옵션: ${roomDetail.options}',
+                  style: const TextStyle(
+                    color: Color(0xFF5F5F5F),
                     fontSize: 13,
                     fontFamily: 'Pretendard',
                     fontWeight: FontWeight.w400,

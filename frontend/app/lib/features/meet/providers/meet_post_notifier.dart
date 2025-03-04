@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/meet/data/models/meet_post.dart';
 import 'package:hoseomeet/features/meet/data/models/meet_post_detail.dart';
-import '../data/services/meet_poset_service.dart';
+import '../data/services/meet_post_service.dart';
 import '../providers/meet_post_category_provider.dart';
 import 'meet_post_search.dart';
 

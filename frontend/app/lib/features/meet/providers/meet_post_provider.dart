@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../commons/network/auth_http_client_provider.dart';
 import '../data/models/meet_post.dart';
-import '../data/services/meet_poset_service.dart';
+import '../data/services/meet_post_service.dart';
 import 'meet_post_notifier.dart';
 
 /// MeePostService Provider

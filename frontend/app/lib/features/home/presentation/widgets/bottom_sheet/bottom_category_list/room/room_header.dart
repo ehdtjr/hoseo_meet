@@ -1,8 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../../../meet/providers/meet_post_category_provider.dart';
-import '../../../../../../meet/providers/meet_post_provider.dart';
+import 'package:hoseomeet/features/home/providers/room/room_post_category_provider.dart';
 
 /// RoomHeaderWidget은 사용자 이름을 표시하고 카테고리 선택 드롭다운을 제공합니다.
 class RoomHeaderWidget extends ConsumerWidget {
@@ -17,11 +15,11 @@ class RoomHeaderWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // 사용자 이름이 4글자 초과 시 생략 처리
     final displayUserName = userName.length > 4
-        ? '${userName.substring(0, 4)}...' // 4글자만 남기고 "..." 추가
+        ? '${userName.substring(0, 4)}...'
         : userName;
 
     // 현재 선택된 카테고리 구독
-    final selectedCategory = ref.watch(meetPostCategoryProvider);
+    final selectedCategory = ref.watch(roomPostCategoryProvider);
 
     // 원하는 색상 코드
     const Color highlightColor = Color(0xFFE72410); // #E72410
@@ -51,7 +49,7 @@ class RoomHeaderWidget extends ConsumerWidget {
                         style: const TextStyle(
                           fontSize: 21,
                           fontWeight: FontWeight.w600,
-                          color: highlightColor, // userName의 색상
+                          color: highlightColor,
                         ),
                       ),
                       const TextSpan(
@@ -61,12 +59,12 @@ class RoomHeaderWidget extends ConsumerWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      TextSpan(
+                      const TextSpan(
                         text: '자취방',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 21,
                           fontWeight: FontWeight.w600,
-                          color: highlightColor, // "자취방"의 색상을 userName과 동일하게 설정
+                          color: highlightColor,
                         ),
                       ),
                     ],
@@ -91,29 +89,42 @@ class RoomHeaderWidget extends ConsumerWidget {
                 ],
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<MeetPostCategory>(
+                child: DropdownButton<RoomPostCategory>(
                   dropdownColor: Colors.white,
                   value: selectedCategory,
                   isDense: true,
                   menuMaxHeight: 200,
-                  items: MeetPostCategory.values
-                      .map((category) => _buildMenuItem(category))
-                      .toList(),
-                  onChanged: (value) {
+                  items: RoomPostCategory.values.map((category) {
+                    return DropdownMenuItem<RoomPostCategory>(
+                      value: category,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Text(
+                          _categoryToString(category),
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF9F9F9F),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (RoomPostCategory? value) {
                     if (value != null) {
-                      ref.read(meetPostCategoryProvider.notifier).state = value;
-                      ref.read(meetPostProvider.notifier).resetAndLoad();
+                      ref.read(roomPostCategoryProvider.notifier).state = value;
+                      // 카테고리 변경 시 데이터를 리셋하고 다시 로드하는 기능 추가 가능
                     }
                   },
-                  // 선택된 항목의 텍스트 스타일을 #5F5F5F로 설정
                   style: const TextStyle(color: Color(0xFF5F5F5F), fontSize: 14),
-                  icon: const Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF5F5F5F)),
-                  // 선택된 항목의 위젯을 커스터마이징하여 확실하게 #5F5F5F로 표시
+                  icon: const Icon(
+                    Icons.arrow_drop_down,
+                    size: 18,
+                    color: Color(0xFF5F5F5F),
+                  ),
                   selectedItemBuilder: (BuildContext context) {
-                    return MeetPostCategory.values.map((category) {
-                      final categoryText = _categoryToString(category);
+                    return RoomPostCategory.values.map((category) {
                       return Text(
-                        categoryText,
+                        _categoryToString(category),
                         style: const TextStyle(
                           color: Color(0xFF5F5F5F),
                           fontSize: 14,
@@ -131,36 +142,15 @@ class RoomHeaderWidget extends ConsumerWidget {
     );
   }
 
-  /// Dropdown 메뉴의 각 항목을 생성합니다.
-  DropdownMenuItem<MeetPostCategory> _buildMenuItem(MeetPostCategory category) {
-    // 카테고리를 텍스트로 변환
-    final categoryText = _categoryToString(category);
-    return DropdownMenuItem(
-      value: category,
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Text(
-          categoryText,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF9F9F9F),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// MeetPostCategory를 문자열로 변환합니다.
-  String _categoryToString(MeetPostCategory category) {
+  /// RoomPostCategory를 문자열로 변환합니다.
+  String _categoryToString(RoomPostCategory category) {
     switch (category) {
-      case MeetPostCategory.all:
-        return '전체';
-      case MeetPostCategory.meet:
-        return '모임';
-      case MeetPostCategory.delivery:
-        return '배달';
-      case MeetPostCategory.taxi:
-        return '택시';
+      case RoomPostCategory.distance:
+        return '거리순';
+      case RoomPostCategory.rating:
+        return '별점순';
+      case RoomPostCategory.reviews:
+        return '리뷰순';
       default:
         return '알 수 없음';
     }

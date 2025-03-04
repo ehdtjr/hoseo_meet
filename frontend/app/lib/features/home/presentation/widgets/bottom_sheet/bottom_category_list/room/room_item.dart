@@ -7,14 +7,14 @@ class RoomItem extends StatelessWidget {
   final String title;
   final double rating; // 별점 (0~5)
   final int reviewCount; // 리뷰 수
-  final String distance; // 거리
+  final int distance; // 거리
   final String description; // 설명
   final bool isFavorite; // 즐겨찾기 여부
   final VoidCallback onFavoriteToggle; // 즐겨찾기 버튼 클릭 시 호출
   final String postId; // RoomPage에 전달할 post_id
 
   const RoomItem({
-    Key? key,
+    super.key,
     required this.imageUrl,
     required this.title,
     required this.rating,
@@ -24,7 +24,7 @@ class RoomItem extends StatelessWidget {
     required this.isFavorite,
     required this.onFavoriteToggle,
     required this.postId,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -59,6 +59,18 @@ class RoomItem extends StatelessWidget {
                       width: 100,
                       height: 100,
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        // 이미지 로딩 실패 시 대체 위젯 표시 (예: 회색 배경과 깨진 이미지 아이콘)
+                        return Container(
+                          width: 100,
+                          height: 100,
+                          color: Colors.grey[200],
+                          child: const Icon(
+                            Icons.broken_image,
+                            color: Colors.grey,
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(width: 28),
@@ -94,7 +106,7 @@ class RoomItem extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              distance,
+                              distance.toString(),
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF000000),

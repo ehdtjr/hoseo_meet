@@ -34,7 +34,7 @@ class CategoryRow extends ConsumerWidget {
               child: Row(
                 children: [
                   SvgPicture.asset(
-                    '${category.iconPath}', // 아이콘 경로
+                    category.iconPath, // 아이콘 경로
                     width: 13,
                     height: 13,
                     color: isSelected ? Colors.white : const Color(0xFFE72410), // 아이콘 색상

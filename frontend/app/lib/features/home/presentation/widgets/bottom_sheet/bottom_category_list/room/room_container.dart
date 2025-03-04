@@ -54,51 +54,12 @@ class _RoomContainerWidgetState extends State<RoomContainerWidget> {
     });
   }
 
-  Future<void> _loadMoreData() async {
-    if (isLoading || !hasMore || _isDisposed) return; // dispose 상태 확인
-
-    setState(() {
-      isLoading = true;
-    });
-
-    // 추가 데이터 로드 (임시 데이터 사용)
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (_isDisposed) return; // dispose 상태에서 setState 방지
-
-    setState(() {
-      final newPosts = List.generate(5, (index) {
-        return {
-          'imageUrl': 'https://via.placeholder.com/100',
-          'title': '추가 방 ${roomPosts.length + index + 1}',
-          'rating': (3.0 + ((roomPosts.length + index) % 3)).toDouble(),
-          'reviewCount': 20 + roomPosts.length + index,
-          'distance': '${100 + roomPosts.length + index}m',
-          'description': '신선한 재료로 만든 건강한 맛, 최고의 맛집!',
-          'isFavorite': (roomPosts.length + index) % 2 == 0,
-        };
-      });
-
-      roomPosts.addAll(newPosts);
-      isLoading = false;
-
-      // 예제: 데이터 20개 이상이면 더 로드하지 않음
-      if (roomPosts.length >= 20) {
-        hasMore = false;
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: _loadInitialData,
-      child: RoomPostList(
-        roomPosts: roomPosts,
-        isLoading: isLoading,
-        hasMore: hasMore,
-        loadMore: _loadMoreData,
-      ),
+      child: const RoomPostList(),
     );
   }
 }

@@ -95,8 +95,6 @@ class MeePostService {
     }
   }
 
-
-
   Future<void> subscribeMeetPost(int postId) async {
     final url = Uri.parse('${AppConfig.baseUrl}/meet_post/subscribe/$postId');
 
