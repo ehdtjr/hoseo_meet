@@ -182,13 +182,12 @@ async def get_user_profile(
 ):
     try:
         user: UserRead = await user_crud.get(db, user_id)
-        user = UserPublicRead(
+        result_user: UserPublicRead = UserPublicRead(
             id=user.id,
             name=user.name,
-            gender=user.gender,
             profile=user.profile
         )
-        return user
+        return result_user
     except Exception as e:
         raise (HTTPException(status_code=500,
                              detail=f"Failed to fetch user profile: {str(e)}"))

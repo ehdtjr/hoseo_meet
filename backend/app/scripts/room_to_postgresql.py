@@ -2,14 +2,8 @@
 import asyncio
 import csv
 
-from app.core.db import engine, Base
 from app.core.db import get_async_session_context
 from app.models.room_post import RoomPost, RoomPostImage
-
-
-async def init_tables() -> None:
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
 
 
 async def load_room_posts_from_csv(csv_path: str) -> None:
@@ -18,6 +12,11 @@ async def load_room_posts_from_csv(csv_path: str) -> None:
             reader = csv.DictReader(f)
             room_posts = []
             for row in reader:
+                # CSV 파일에서 경도와 위도를 읽어와서 WKT 문자열로 변환합니다.
+                lon = float(row["longitude"])
+                lat = float(row["latitude"])
+                location_wkt = f"POINT({lon} {lat})"
+
                 post = RoomPost(
                     name=row["name"],
                     address=row["address"],
@@ -28,8 +27,7 @@ async def load_room_posts_from_csv(csv_path: str) -> None:
                     gas_type=row.get("gas_type"),
                     comment=row.get("comment"),
                     place=row["place"],
-                    latitude=float(row["latitude"]),
-                    longitude=float(row["longitude"]),
+                    location=location_wkt
                 )
                 room_posts.append(post)
             session.add_all(room_posts)
@@ -53,11 +51,7 @@ async def load_room_post_images_from_csv(csv_path: str) -> None:
 
 
 async def main():
-    # 1. 테이블 초기화(생성)
-    await init_tables()
-    # 2. CSV 파일로부터 RoomPost 데이터 삽입
-    #await load_room_posts_from_csv("../../last_rental_data.csv")
-    # 3. CSV 파일로부터 RoomPostImage 데이터 삽입
+    await load_room_posts_from_csv("../../last_rental_data.csv")
     await load_room_post_images_from_csv("../../room_image.csv")
 
 
