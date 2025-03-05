@@ -68,24 +68,30 @@ async def get_room_post_detail(
 async def create_review(
     room_id: int,
     content: str = Form(...),
-    rating: float = Form(...),
+    rating: float = Form(..., ge=0.0, le=5.0),
     images: Optional[List[UploadFile]] = File(None),
     db: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
     review_service: RoomReviewService = Depends(get_room_review_service),
 ):
-    print(images)
-    images = images or []
+    try:
+        print("hi")
+        print(images)
+        if not images:
+            images = []
 
-    review = await review_service.create_room_review(
-        db=db,
-        user_id=user.id,
-        room_id=room_id,
-        content=content,
-        rating=rating,
-        images=images,
-    )
-    return review
+        review = await review_service.create_room_review(
+            db=db,
+            user_id=user.id,
+            room_id=room_id,
+            content=content,
+            rating=rating,
+            images=images,
+        )
+        return review
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{str(e)}")
 
 
 # 리뷰 리스트 조회

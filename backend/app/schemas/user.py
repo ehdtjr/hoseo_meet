@@ -18,7 +18,6 @@ class UserPublicRead(BaseModel):
 
     id: int
     name: str
-    gender: str
     profile: Optional[str] = None
 
 

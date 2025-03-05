@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
+from geoalchemy2 import Geography, WKBElement
 from sqlalchemy import (
     NUMERIC,
     DateTime,
@@ -8,7 +9,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    Float,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -30,8 +30,11 @@ class RoomPost(Base):
     gas_type: Mapped[str] = mapped_column(String(50), nullable=True)
     comment: Mapped[str] = mapped_column(String(200), nullable=True)
     place: Mapped[str] = mapped_column(String(50), nullable=False)
-    latitude: Mapped[float] = mapped_column(Float(30), nullable=False)
-    longitude: Mapped[float] = mapped_column(Float(30), nullable=False)
+    location: Mapped[WKBElement] = mapped_column(
+        Geography(geometry_type='POINT', srid=4326, spatial_index=True),
+        nullable=False
+    )
+
 
     images: Mapped[Optional[List["RoomPostImage"]]] = relationship(
         "RoomPostImage",
