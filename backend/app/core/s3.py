@@ -75,25 +75,6 @@ class S3Manager:
                 status_code=500, detail=f"Failed to delete file from S3: {str(e)}"
             )
 
-    async def list_review_images_by_room(self, room_id: int) -> List[str]:
-        prefix = f"reviews/{room_id}/"
-        images = []
-        try:
-            async with await self._get_client() as s3_client:
-                paginator = s3_client.get_paginator("list_objects_v2")
-                async for page in paginator.paginate(
-                    Bucket=self.bucket_name, Prefix=prefix
-                ):
-                    for obj in page.get("Contents", []):
-                        key = obj["Key"]
-                        file_url = f"{self.cloud_front_domain_url}/{key}"
-                        print("file_url", file_url)
-                        images.append(file_url)
-        except Exception as e:
-            raise RuntimeError(f"Failed to list review images in room {room_id}: {e}")
-        print("images", images)
-        return images
-
 
 s3_manager = S3Manager()
 

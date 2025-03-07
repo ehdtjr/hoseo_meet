@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -26,6 +26,8 @@ class RoomPostDetailResponse(RoomPostListResponse):
     options: Optional[str] = None
     gas_type: Optional[str] = None
     comment: Optional[str] = None
+    review_rating_counts: Dict[int, int] = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+
     place: str
 
 
@@ -41,10 +43,12 @@ class RoomReviewResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-
-class RoomImagesList(BaseModel):
+class RoomReviewImageBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: int
+    review_id: int
     room_id: int
-    images: List[str]
+    image: str
+    created_at: datetime
 

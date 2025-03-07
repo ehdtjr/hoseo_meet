@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from fastapi import UploadFile
-from sqlalchemy import func
+from sqlalchemy import func, case
 from sqlalchemy import select, desc, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,8 +11,8 @@ from app.models.room_post import RoomPost
 from app.models.room_post import RoomReview
 from app.models.room_post import RoomReviewImage
 from app.models.user import User
-from app.schemas.room_post import RoomImagesList, RoomPostListResponse, \
-    RoomPostDetailResponse
+from app.schemas.room_post import RoomPostListResponse, \
+    RoomPostDetailResponse, RoomReviewImageBase
 from app.schemas.room_post import RoomReviewResponse, UserPublicRead
 from app.utils.image import convert_image_to_webp
 from app.utils.s3 import generate_s3_key
@@ -133,13 +133,28 @@ class RoomPostService(RoomPostServiceProtocol):
         if not room_obj:
             return None
 
-        # 2) 리뷰 통계
+        # 2) 리뷰 통계 (평점 평균 + 개수 + 내림 처리된 평점별 개수)
+        rating_counts_expr = {
+            i: func.count(case((func.floor(RoomReview.rating) == i, 1))).label(f"rating_{i}")
+            for i in range(1, 6)
+        }
+
         stmt_review = select(
-            func.count(RoomReview.id), func.coalesce(func.avg(RoomReview.rating), 0)
+            func.count(RoomReview.id).label("reviews_count"),
+            func.coalesce(func.avg(RoomReview.rating), 0).label("avg_rating"),
+            *rating_counts_expr.values()
         ).where(RoomReview.room_id == room_id)
+
         review_res = await db.execute(stmt_review)
-        reviews_count_val, avg_rating_val = review_res.one()
-        avg_rating_val = float(avg_rating_val or 0.0)
+        review_data = review_res.one()
+
+        reviews_count_val = review_data[0]
+        avg_rating_val = float(review_data[1] or 0.0)
+
+        # 평점별 개수 가져오기
+        review_rating_counts: Dict[int, int] = {
+            i: review_data[2 + i - 1] for i in range(1, 6)
+        }
 
         # 3) 거리 계산(옵션)
         distance_val = 0.0
@@ -168,8 +183,8 @@ class RoomPostService(RoomPostServiceProtocol):
             gas_type=room_obj.gas_type,
             comment=room_obj.comment,
             place=room_obj.place,
-            images=[img.image for img in
-                    room_obj.images] if room_obj.images else []
+            images=[img.image for img in room_obj.images] if room_obj.images else [],
+            review_rating_counts=review_rating_counts  # 추가된 부분
         )
         return detail
 
@@ -338,11 +353,24 @@ class RoomReviewService:
             author=author_data,
             images=image_list,
         )
-    
-    async def get_room_images_by_room(self, room_id: int) -> RoomImagesList:
-        # s3_manager에 구현된 list_review_images_by_room 함수를 호출합니다.
-        images: List[str] = await s3_manager.list_review_images_by_room(room_id)
-        return RoomImagesList(room_id=room_id, images=images)
+
+
+    async def get_room_images_by_room(
+        self,
+        db: AsyncSession,
+        room_id: int,
+        skip: int = 0,
+        limit: int = 10,
+    ) -> Optional[List[RoomReviewImageBase]]:
+        query = (
+            select(RoomReviewImage)
+            .where(RoomReviewImage.room_id == room_id)
+            .order_by(desc(RoomReviewImage.created_at))
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await db.execute(query)
+        return [RoomReviewImageBase.model_validate(image) for image in result.scalars()]
 
 
 async def get_room_review_service():
