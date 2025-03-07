@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/photo_section.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/review/review_section.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/room_info_section.dart';
@@ -25,7 +26,7 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
   DateTime _lastUpdateTime = DateTime.now();
   List<double>? _cachedPositions;
 
-  // 각 섹션의 GlobalKey를 Container에 부여하여 올바른 위치 계산이 가능하도록 함.
+  // 각 섹션의 GlobalKey를 부여하여 올바른 위치 계산이 가능하도록 함.
   final GlobalKey _roomInfoKey = GlobalKey();
   final GlobalKey _reviewKey = GlobalKey();
   final GlobalKey _photoKey = GlobalKey();
@@ -115,7 +116,6 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
     final renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null || !renderBox.attached) return 0;
     final viewport = RenderAbstractViewport.of(renderBox);
-    if (viewport == null) return 0;
     // getOffsetToReveal()를 사용하여 스크롤뷰 내에서 해당 위젯이 보이도록 하는 오프셋 계산
     final offset = viewport.getOffsetToReveal(renderBox, 0.0).offset;
     return offset;
@@ -195,7 +195,7 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
               padding: const EdgeInsets.symmetric(horizontal: 25.0),
               child: Container(
                 key: _reviewKey,
-                child: ReviewSection(postId: widget.roomDetail.id.toString()),
+                child: ReviewSection(roomDetail: widget.roomDetail),
               ),
             ),
           ),
@@ -205,9 +205,13 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
               padding: const EdgeInsets.symmetric(horizontal: 25.0),
               child: Container(
                 key: _photoKey,
-                child: const PhotoSection(),
+                child: PhotoSection(postId: widget.roomDetail.id),
               ),
             ),
+          ),
+          // 마지막 여백
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 20),
           ),
         ],
       ),

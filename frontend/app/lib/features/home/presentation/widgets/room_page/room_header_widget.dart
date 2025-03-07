@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 
 class NoOverscrollBehavior extends ScrollBehavior {
   @override
-  Widget buildViewportChrome(
-      BuildContext context, Widget child, AxisDirection axisDirection) {
+  Widget buildViewportChrome(BuildContext context, Widget child, AxisDirection axisDirection) {
     return child;
   }
 }
@@ -42,24 +41,14 @@ class _RoomHeaderWidgetState extends State<RoomHeaderWidget> {
 
   @override
   Widget build(BuildContext context) {
-    // 이미지가 없는 경우 회색 박스 표시
-    if (widget.imageUrls.isEmpty) {
-      return Container(
-        height: widget.expandedHeight,
-        color: Colors.grey,
-        child: const Center(
-          child: Icon(Icons.image_not_supported, color: Colors.white, size: 50),
-        ),
-      );
-    }
-
     return Container(
       height: widget.expandedHeight,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 여러 이미지가 있을 경우 PageView로 슬라이더 구현
-          widget.imageUrls.length > 1
+          // 이미지 슬라이더 또는 이미지가 없을 경우 회색 배경 및 아이콘 표시
+          widget.imageUrls.isNotEmpty
+              ? widget.imageUrls.length > 1
               ? ScrollConfiguration(
             behavior: NoOverscrollBehavior(),
             child: PageView.builder(
@@ -100,8 +89,14 @@ class _RoomHeaderWidgetState extends State<RoomHeaderWidget> {
                 ),
               ),
             ),
+          )
+              : Container(
+            color: Colors.grey,
+            child: const Center(
+              child: Icon(Icons.image_not_supported, color: Colors.white, size: 50),
+            ),
           ),
-          // 뒤로가기 버튼 추가 (SafeArea를 사용해 상태바와 겹치지 않도록 함)
+          // 뒤로가기 버튼 (SafeArea 사용하여 상태바와 겹치지 않게)
           Positioned(
             top: 16,
             left: 16,
@@ -112,7 +107,7 @@ class _RoomHeaderWidgetState extends State<RoomHeaderWidget> {
               ),
             ),
           ),
-          // 페이지 인디케이터 (여러 이미지 있을 때만)
+          // 페이지 인디케이터 (여러 이미지 있을 때만 표시)
           if (widget.imageUrls.length > 1)
             Positioned(
               bottom: 16,

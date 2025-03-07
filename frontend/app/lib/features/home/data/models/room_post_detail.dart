@@ -13,6 +13,7 @@ class RoomDetail {
   final String gasType;
   final String comment;
   final String place;
+  final Map<int, int> reviewRatingCounts; // 추가된 필드
 
   RoomDetail({
     required this.id,
@@ -29,6 +30,7 @@ class RoomDetail {
     required this.gasType,
     required this.comment,
     required this.place,
+    required this.reviewRatingCounts, // 추가된 필드
   });
 
   factory RoomDetail.fromJson(Map<String, dynamic> json) {
@@ -47,6 +49,11 @@ class RoomDetail {
       gasType: json['gas_type'],
       comment: json['comment'],
       place: json['place'],
+      reviewRatingCounts: Map<int, int>.from(
+        (json['review_rating_counts'] as Map).map(
+              (key, value) => MapEntry(int.parse(key.toString()), value),
+        ),
+      ), // 평점별 개수 변환
     );
   }
 
@@ -66,6 +73,9 @@ class RoomDetail {
       'gas_type': gasType,
       'comment': comment,
       'place': place,
+      'review_rating_counts': reviewRatingCounts.map(
+            (key, value) => MapEntry(key.toString(), value),
+      ), // Map<int, int> → Map<String, int> 변환
     };
   }
 
@@ -84,8 +94,7 @@ class RoomDetail {
     String? gasType,
     String? comment,
     String? place,
-    double? latitude,
-    double? longitude,
+    Map<int, int>? reviewRatingCounts,
   }) {
     return RoomDetail(
       id: id ?? this.id,
@@ -102,6 +111,7 @@ class RoomDetail {
       gasType: gasType ?? this.gasType,
       comment: comment ?? this.comment,
       place: place ?? this.place,
+      reviewRatingCounts: reviewRatingCounts ?? this.reviewRatingCounts,
     );
   }
 }

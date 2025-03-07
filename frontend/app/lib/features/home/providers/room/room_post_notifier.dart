@@ -16,14 +16,25 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
   bool _isLoading = false;
   bool _hasMore = true;
   int _skip = 0;
-  final int _limit = 10;
+  final int _limit = 5; // 한 번에 5건씩 로드
 
   // 현재 위치와 마지막 리로드 위치 저장
   Position? _currentPosition;
   Position? _lastReloadPosition;
   StreamSubscription<Position>? _positionSubscription;
 
+  late final ProviderSubscription<RoomPostCategory> _categorySubscription;
+
   RoomPostNotifier(this._service, this._ref) : super([]) {
+    // roomPostCategoryProvider의 값이 변경되면 데이터를 다시 받아옵니다.
+    _categorySubscription = _ref.listen<RoomPostCategory>(
+      roomPostCategoryProvider,
+          (previous, next) {
+        if (previous != next) {
+          resetAndLoad();
+        }
+      },
+    );
     // 앱 시작 시 초기 위치를 받아온 후 데이터를 불러오고, 이후 위치 업데이트 구독
     _initializeCurrentPosition().then((_) {
       _lastReloadPosition = _currentPosition;
@@ -137,6 +148,7 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
         state = posts;
       }
 
+      // API에서 반환한 리뷰 수가 요청 건수(_limit)보다 적으면 더 이상 불러올 데이터가 없다고 판단
       if (posts.length < _limit) {
         _hasMore = false;
       } else {
@@ -170,6 +182,7 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _categorySubscription.close();
     super.dispose();
   }
 }
