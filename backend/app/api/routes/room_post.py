@@ -1,4 +1,3 @@
-# file: app/api/endpoints/room_post.py
 from typing import Optional, List
 from fastapi import APIRouter, Depends, Form, File, UploadFile, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,10 +12,9 @@ from app.service.room_post import (
     get_room_post_service,
 )
 from app.schemas.room_post import (
-    RoomImagesList,
     RoomPostListResponse,
     RoomPostDetailResponse,
-    RoomReviewResponse,
+    RoomReviewResponse, RoomReviewImageBase,
 )
 
 router = APIRouter()
@@ -131,15 +129,23 @@ async def delete_review(
 
 
 # 리뷰 이미지 목록 조회
-@router.get("/review/{room_id}/image_list", response_model=RoomImagesList)
+@router.get(
+"/review/{room_id}/image_list",
+    response_model=Optional[List[RoomReviewImageBase]]
+)
 async def get_room_review_images(
     room_id: int,
+    skip: int = 0,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_async_session),
     review_service=Depends(
         get_room_review_service
-    ),  # RoomReviewService 인스턴스를 DI 방식으로 주입
+    )
 ):
     try:
-        response = await review_service.get_room_images_by_room(room_id)
+        response = await review_service.get_room_images_by_room(
+            db=db, room_id=room_id, skip=skip, limit=limit
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get room images: {e}")
     return response
