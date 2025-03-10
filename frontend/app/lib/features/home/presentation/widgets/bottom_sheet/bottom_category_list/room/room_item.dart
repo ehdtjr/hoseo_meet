@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../pages/room_page.dart';
+import '../../../../pages/room/room_page.dart';
 
 class RoomItem extends StatelessWidget {
   final String imageUrl;
@@ -106,7 +106,7 @@ class RoomItem extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              distance.toString(),
+                              '$distance m',
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF000000),
