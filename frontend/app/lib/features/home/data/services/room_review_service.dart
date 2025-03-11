@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:hoseomeet/commons/network/auth_http_client.dart';
 import 'package:hoseomeet/config.dart';
 import '../models/room_review.dart'; // RoomReview 모델 추가
@@ -70,4 +71,49 @@ class RoomReviewService {
       throw Exception('Error loading room review images: $e');
     }
   }
+
+
+  Future<RoomReview?> createRoomReview({
+    required int roomId,
+    required String content,
+    required int rating,
+    required List<File> images,
+  }) async {
+    final url = '${AppConfig.baseUrl}/room_post/review/$roomId/create';
+
+    try {
+      final response = await _client.postMultipleMultipartRequest(
+        url,
+        'images',
+        images,
+        additionalFields: {
+          'content': content,
+          'rating': rating.toString(),
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(utf8.decode(response.bodyBytes));
+        return RoomReview.fromJson(jsonData);
+      } else {
+        throw Exception('Failed to create room review: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error creating room review: $e');
+    }
+  }
+
+  Future<void> deleteRoomReview(int reviewId) async {
+    final url = '${AppConfig.baseUrl}/room_post/review/$reviewId/delete';
+
+    try {
+      final response = await _client.deleteRequest(url);
+      if (response.statusCode != 200) {
+        throw Exception('Failed to delete room review: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting room review: $e');
+    }
+  }
+
 }

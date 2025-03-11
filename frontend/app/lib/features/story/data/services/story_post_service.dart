@@ -52,7 +52,7 @@ class StoryPostService {
     const url = '${AppConfig.baseUrl}/story_post/upload_image';
 
     try {
-      final response = await _client.postMultipartRequest(url, imageFile);
+      final response = await _client.postSingleMultipartRequest(url, "file", imageFile);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonData = json.decode(response.body);

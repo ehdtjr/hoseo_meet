@@ -24,9 +24,9 @@ class RoomReview {
       roomId: json['room_id'] as int,
       content: json['content'] as String,
       rating: (json['rating'] as num).toDouble(),
-      createdAt: DateTime.parse(json['created_at']), // 문자열을 DateTime으로 변환
-      author: ReviewAuthor.fromJson(json['author']), // ReviewAuthor 변환
-      images: List<String>.from(json['images']), // 이미지 리스트 변환
+      createdAt: DateTime.parse(json['created_at']),
+      author: ReviewAuthor.fromJson(json['author']),
+      images: List<String>.from(json['images']),
     );
   }
 
@@ -37,8 +37,8 @@ class RoomReview {
       'room_id': roomId,
       'content': content,
       'rating': rating,
-      'created_at': createdAt.toIso8601String(), // DateTime을 문자열로 변환
-      'author': author.toJson(), // ReviewAuthor JSON 변환
+      'created_at': createdAt.toIso8601String(),
+      'author': author.toJson(),
       'images': images,
     };
   }
@@ -65,11 +65,10 @@ class RoomReview {
   }
 }
 
-// 리뷰 작성자 정보 클래스
 class ReviewAuthor {
   final int id;
   final String name;
-  final String profile;
+  final String profile; // null인 경우 빈 문자열로 처리
 
   ReviewAuthor({
     required this.id,
@@ -82,7 +81,8 @@ class ReviewAuthor {
     return ReviewAuthor(
       id: json['id'] as int,
       name: json['name'] as String,
-      profile: json['profile'] as String,
+      // profile이 null이면 빈 문자열('')을 사용
+      profile: json['profile'] as String? ?? '',
     );
   }
 

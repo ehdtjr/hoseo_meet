@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/home/data/models/room_review.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/review/review_button.dart';
+import '../../../../../auth/providers/user_profile_provider.dart';
 import '../../../../providers/room/review/room_review_provider.dart';
 
 class VisitorReviews extends ConsumerWidget {
   final int postId; // roomId 또는 postId로 사용
 
-  const VisitorReviews({Key? key, required this.postId}) : super(key: key);
+  const VisitorReviews({super.key, required this.postId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,6 +18,10 @@ class VisitorReviews extends ConsumerWidget {
     final roomReviewNotifier = ref.watch(roomReviewProvider(postId).notifier);
     final isLoading = roomReviewNotifier.isLoading;
     final hasMore = roomReviewNotifier.hasMore;
+
+    // 현재 로그인한 사용자 정보
+    final userProfileState = ref.watch(userProfileNotifierProvider);
+    final currentUserId = userProfileState.userProfile?.id;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,7 +77,7 @@ class VisitorReviews extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 리뷰 상단: 프로필, 작성자, 별점, 날짜, 신고하기 버튼
+                    // 리뷰 상단: 프로필, 작성자, 별점, 날짜, 신고하기/삭제 버튼
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -86,7 +91,7 @@ class VisitorReviews extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 작성자 이름과 리뷰 수 (리뷰 수는 예시로 고정)
+                              // 작성자 이름과 리뷰 수 (예시: 리뷰 수 53)
                               Row(
                                 children: [
                                   Text(
@@ -98,7 +103,6 @@ class VisitorReviews extends ConsumerWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  // 예시: "리뷰 53" 대신 review 데이터에 리뷰 개수가 있다면 표시
                                   const Text(
                                     "리뷰 53",
                                     style: TextStyle(
@@ -108,30 +112,26 @@ class VisitorReviews extends ConsumerWidget {
                                   ),
                                 ],
                               ),
-                              // 별점, 날짜, 신고하기 버튼
+                              // 별점, 날짜, 신고하기 또는 삭제 버튼
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.start,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  // 별점 표시 (review.rating를 기반으로 별 그리기)
+                                  // 별점 표시 (review.rating 기반)
                                   Row(
                                     children: List.generate(5, (index) {
-                                      // full star: 인덱스가 rating의 정수 부분보다 작으면
                                       if (index < review.rating.floor()) {
                                         return const Icon(Icons.star, color: Color(0xFFE72410), size: 18);
-                                      }
-                                      // half star: 인덱스가 정수 부분과 같고, 소수 부분이 0.5 이상이면
-                                      else if (index == review.rating.floor() && (review.rating - review.rating.floor()) >= 0.5) {
+                                      } else if (index == review.rating.floor() &&
+                                          (review.rating - review.rating.floor()) >= 0.5) {
                                         return const Icon(Icons.star_half, color: Color(0xFFE72410), size: 18);
-                                      }
-                                      // empty star
-                                      else {
+                                      } else {
                                         return const Icon(Icons.star_border, color: Color(0xFFD9D9D9), size: 18);
                                       }
                                     }),
                                   ),
                                   const SizedBox(width: 8),
-                                  // 날짜 (예시 포맷)
+                                  // 날짜
                                   Text(
                                     "${review.createdAt.year}.${review.createdAt.month.toString().padLeft(2, '0')}.${review.createdAt.day.toString().padLeft(2, '0')}",
                                     style: const TextStyle(
@@ -140,18 +140,29 @@ class VisitorReviews extends ConsumerWidget {
                                     ),
                                   ),
                                   const Spacer(),
-                                  TextButton(
-                                    onPressed: () {
-                                      // 신고하기 동작 추가
-                                    },
-                                    child: const Text(
-                                      "신고하기",
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Color(0xFF8A8A8A),
+                                  // 만약 작성자와 현재 사용자의 id가 같다면 삭제 버튼을, 아니라면 신고하기 버튼을 표시
+                                  if (currentUserId != null && review.author.id == currentUserId)
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                      onPressed: () {
+                                        ref
+                                            .read(roomReviewProvider(postId).notifier)
+                                            .deleteRoomReview(review.id);
+                                      },
+                                    )
+                                  else
+                                    TextButton(
+                                      onPressed: () {
+                                        // 신고하기 동작 추가
+                                      },
+                                      child: const Text(
+                                        "신고하기",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF8A8A8A),
+                                        ),
                                       ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ],

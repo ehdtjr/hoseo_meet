@@ -88,8 +88,8 @@ class AuthHttpClient {
     return _sendRequest(url, 'DELETE', body: body);
   }
 
-  /// ✅ Multipart 파일 업로드 요청
-  Future<http.Response> postMultipartRequest(String url, File file) async {
+
+  Future<http.Response> postSingleMultipartRequest(String url, String key, File file) async {
     final authState = _ref.read(authNotifierProvider);
     final token = authState.accessToken;
 
@@ -102,12 +102,15 @@ class AuthHttpClient {
         ..headers.addAll({
           'Authorization': 'Bearer $token',
           'Content-Type': 'multipart/form-data',
-        })
-        ..files.add(await http.MultipartFile.fromPath(
-          'file',
+        });
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          key,
           file.path,
           contentType: MediaType('image', extension(file.path).replaceAll('.', '')),
-        ));
+        ),
+      );
 
       final streamedResponse = await request.send();
       return await http.Response.fromStream(streamedResponse);
@@ -115,6 +118,55 @@ class AuthHttpClient {
       return http.Response('Error uploading image: $e', 500);
     }
   }
+
+
+
+  Future<http.Response> postMultipleMultipartRequest(
+      String url,
+      String key,
+      List<File> files, {
+        Map<String, String>? additionalFields,
+      }) async {
+    final authState = _ref.read(authNotifierProvider);
+    final token = authState.accessToken;
+
+    if (token == null) {
+      return http.Response('No access token', 401);
+    }
+
+    try {
+      var request = http.MultipartRequest('POST', Uri.parse(url))
+        ..headers.addAll({
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'multipart/form-data',
+        });
+
+      // 추가 필드가 있는 경우 요청 필드에 추가
+      if (additionalFields != null) {
+        request.fields.addAll(additionalFields);
+      }
+
+      // 파일 추가 (파일명은 path 패키지의 basename 사용)
+      for (var file in files) {
+        final fileName = basename(file.path);
+        final ext = extension(fileName).replaceAll('.', '');
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            key,
+            file.path,
+            contentType: MediaType('image', ext),
+            filename: fileName,
+          ),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      return await http.Response.fromStream(streamedResponse);
+    } catch (e) {
+      return http.Response('Error uploading images: $e', 500);
+    }
+  }
+
 
   /// ✅ 401 처리 후 토큰 재발급 및 재시도
   Future<http.Response> _handleUnauthorized(

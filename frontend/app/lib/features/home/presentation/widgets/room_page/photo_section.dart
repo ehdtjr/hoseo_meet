@@ -11,7 +11,7 @@ class PhotoSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Provider의 state를 구독하여 이미지 데이터가 변경되면 rebuild 되도록 함
-    final roomReviewState = ref.watch(roomReviewProvider(postId));
+    ref.watch(roomReviewProvider(postId));
     // notifier를 통해 images와 로딩 상태에 접근
     final roomReviewNotifier = ref.watch(roomReviewProvider(postId).notifier);
     final images = roomReviewNotifier.images;

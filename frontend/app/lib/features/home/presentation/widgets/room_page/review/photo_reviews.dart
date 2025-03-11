@@ -9,7 +9,7 @@ class PhotoReviews extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // state를 구독하여 notifier의 변경 사항(예: images 업데이트)이 rebuild에 반영되도록 함
-    final roomReviewState = ref.watch(roomReviewProvider(postId));
+    ref.watch(roomReviewProvider(postId));
     // notifier에 접근하여 images 및 로딩 상태를 읽음
     final roomReviewNotifier = ref.watch(roomReviewProvider(postId).notifier);
     final images = roomReviewNotifier.images;

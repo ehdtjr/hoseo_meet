@@ -6,6 +6,8 @@ import '../../../providers/room/room_post_provider.dart';
 import '../../widgets/room_page/room_header_widget.dart';
 import 'package:hoseomeet/features/home/data/models/room_post_detail.dart';
 
+import 'create_room_review_page.dart';
+
 class RoomPage extends ConsumerStatefulWidget {
   final String postId;
   const RoomPage({Key? key, required this.postId}) : super(key: key);
@@ -15,13 +17,27 @@ class RoomPage extends ConsumerStatefulWidget {
 }
 
 class _RoomPageState extends ConsumerState<RoomPage> {
+  // 초기 future 값을 임시로 null 처리
+  late Future<RoomDetail?> futureRoomDetail = Future.value(null);
+
+  @override
+  void initState() {
+    super.initState();
+    // 위젯 트리 빌드가 완료된 후에 provider 상태 변경 수행
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final roomNotifier = ref.read(roomPostProvider.notifier);
+      roomNotifier.resetAndLoad();
+      setState(() {
+        futureRoomDetail = roomNotifier.loadRoomDetail(int.parse(widget.postId));
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final roomNotifier = ref.read(roomPostProvider.notifier);
-
     return Scaffold(
       body: FutureBuilder<RoomDetail?>(
-        future: roomNotifier.loadRoomDetail(int.parse(widget.postId)),
+        future: futureRoomDetail,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -51,7 +67,9 @@ class _RoomPageState extends ConsumerState<RoomPage> {
         margin: const EdgeInsets.only(bottom: 50), // 하단에서 원하는 만큼 위로 이동
         child: RawMaterialButton(
           onPressed: () {
-            // 버튼 클릭 시 동작
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => CreateRoomReviewPage(roomId: widget.postId)),
+            );
           },
           shape: const CircleBorder(),
           child: SvgPicture.asset(

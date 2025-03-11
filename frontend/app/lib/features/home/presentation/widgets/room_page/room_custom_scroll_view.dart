@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/photo_section.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/review/review_section.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/room_info_section.dart';
@@ -10,9 +9,9 @@ import 'package:hoseomeet/features/home/presentation/widgets/room_page/tab_bar_d
 class RoomCustomScrollView extends StatefulWidget {
   final RoomDetail roomDetail;
   const RoomCustomScrollView({
-    Key? key,
+    super.key,
     required this.roomDetail,
-  }) : super(key: key);
+  });
 
   @override
   _RoomCustomScrollViewState createState() => _RoomCustomScrollViewState();
