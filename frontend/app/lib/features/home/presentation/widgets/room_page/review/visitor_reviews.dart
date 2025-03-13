@@ -143,7 +143,7 @@ class VisitorReviews extends ConsumerWidget {
                                   // 만약 작성자와 현재 사용자의 id가 같다면 삭제 버튼을, 아니라면 신고하기 버튼을 표시
                                   if (currentUserId != null && review.author.id == currentUserId)
                                     IconButton(
-                                      icon: const Icon(Icons.delete, size: 16, color: Colors.red),
+                                      icon: const Icon(Icons.delete, size: 16, color: Colors.grey),
                                       onPressed: () {
                                         ref
                                             .read(roomReviewProvider(postId).notifier)

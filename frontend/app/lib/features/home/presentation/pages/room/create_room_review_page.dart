@@ -2,10 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../providers/room/review/room_review_provider.dart';
-import '../../widgets/room_page/create/image_add_section.dart';
-import '../../widgets/room_page/create/review_content_input.dart';
-import '../../widgets/room_page/create/star_rating.dart';
-import '../../widgets/room_page/create/submit_button.dart';
+import '../../widgets/room_page/review/create/image_add_section.dart';
+import '../../widgets/room_page/review/create/review_content_input.dart';
+import '../../widgets/room_page/review/create/star_rating.dart';
+import '../../widgets/room_page/review/create/submit_button.dart';
+
 
 class CreateRoomReviewPage extends ConsumerStatefulWidget {
   final String roomId; // roomId가 String으로 전달됨
@@ -27,26 +28,12 @@ class _CreateRoomReviewPageState extends ConsumerState<CreateRoomReviewPage> {
     super.dispose();
   }
 
-  void _showMessageDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('알림'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('확인'),
-          )
-        ],
-      ),
-    );
-  }
-
   Future<void> _onSubmit() async {
     final content = _contentController.text.trim();
     if (content.isEmpty) {
-      _showMessageDialog("리뷰 내용을 입력해주세요.");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("리뷰 내용을 입력해주세요.")),
+      );
       return;
     }
     // 선택된 이미지 경로들을 File 객체 리스트로 변환
@@ -62,10 +49,17 @@ class _CreateRoomReviewPageState extends ConsumerState<CreateRoomReviewPage> {
         rating: _selectedRating.toInt(), // 평점은 int로 전환
         images: imagesFiles,
       );
-      _showMessageDialog("리뷰 작성 완료");
-      // 성공 후 추가 동작 (예: 이전 페이지로 이동 등)
+      // 리뷰 작성 완료 후 스낵바를 띄우고 일정 시간 후 자동 pop
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("리뷰 작성 완료")),
+      );
+      Future.delayed(const Duration(seconds: 1), () {
+        Navigator.of(context).pop();
+      });
     } catch (e) {
-      _showMessageDialog("리뷰 작성 중 오류가 발생했습니다.\n$e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("리뷰 작성 중 오류가 발생했습니다.\n$e")),
+      );
     }
   }
 

@@ -88,11 +88,11 @@ class MePage extends StatelessWidget {
               ),
             ],
           ),
-          Divider(height: 32, thickness: 1, color: const Color(0xFFF0B4AD)), // Divider 색상 변경
+          const Divider(height: 32, thickness: 1, color: Color(0xFFF0B4AD)), // Divider 색상 변경
           // 메뉴 섹션
           ..._buildMenuSection(
             "계정",
-            ["아이디", "비밀번호 변경", "이메일 변경"],
+            ["프로필 변경", "비밀번호 변경"],
           ),
           ..._buildMenuSection(
             "게시글",
