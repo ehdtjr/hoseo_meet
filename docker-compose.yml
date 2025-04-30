@@ -24,7 +24,7 @@ services:
       - app_backend_net
 
   test-db:
-    image: postgres:16
+    image: postgis/postgis:16-3.5
     restart: always
     environment:
       - POSTGRES_PASSWORD=test_password

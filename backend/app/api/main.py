@@ -10,6 +10,7 @@ from app.api.routes import (
     websocket,
     room_post,
     story_post,
+    chat_bot
 )
 
 
@@ -29,4 +30,7 @@ api_router.include_router(
 )
 api_router.include_router(
     story_post.router, prefix="/story_post", tags=["story_post"]
+)
+api_router.include_router(
+    chat_bot.router, prefix="/chat_bot", tags=["chat_bot"]
 )

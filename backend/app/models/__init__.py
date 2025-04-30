@@ -5,6 +5,7 @@ from app.models.stream import Stream, Subscription
 from app.models.user import User
 from app.models.room_post import RoomPost, RoomReview, RoomReviewImage
 from app.models.story_post import StoryPost
+from app.models.chat_bot import ChatBotMessage
 
 __all__ = [
     "User",
@@ -17,4 +18,5 @@ __all__ = [
     "RoomReview",
     "RoomReviewImage",
     "StoryPost",
+    "ChatBotMessage",
 ]
