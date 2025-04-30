@@ -9,7 +9,6 @@ from pydantic import (
     BeforeValidator,
     Field,
     HttpUrl,
-    PostgresDsn,
     computed_field,
     model_validator,
 )
@@ -83,6 +82,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int = 6379
 
+    # OPEN API KEY
     @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"

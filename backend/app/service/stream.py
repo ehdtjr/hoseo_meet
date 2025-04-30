@@ -59,7 +59,7 @@ class StreamService(StreamServiceProtocol):
             logger.error(f"Unexpected error while creating stream: {e}")
             return None
 
-def get_stream_service() -> StreamServiceProtocol:
+async def get_stream_service() -> StreamServiceProtocol:
     return StreamService(get_stream_crud(), get_recipient_crud())
 
 
@@ -207,7 +207,7 @@ class SubscriberService(SubscriberServiceProtocol):
 
 
 
-def get_subscription_service() -> SubscriberServiceProtocol:
+async def get_subscription_service() -> SubscriberServiceProtocol:
     return SubscriberService(
         subscription_crud=get_subscription_crud(),
         stream_crud=get_stream_crud(),
@@ -277,5 +277,5 @@ class RedisActiveStreamService(ActiveStreamServiceProtocol):
         return result
 
 
-def get_active_stream_service() -> ActiveStreamServiceProtocol:
+async def get_active_stream_service() -> ActiveStreamServiceProtocol:
     return RedisActiveStreamService()
