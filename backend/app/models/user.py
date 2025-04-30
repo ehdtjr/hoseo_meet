@@ -50,6 +50,12 @@ class User(SQLAlchemyBaseUserTable, Base):
     reviews: Mapped[List["RoomReview"]] = relationship(
         "RoomReview", back_populates="author", lazy="selectin"  # 또는 joined 등
     )
+    chat_bot_messages: Mapped[List["ChatBotMessage"]] = relationship(
+        "ChatBotMessage",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
 
 
 # UserLocation 모델 정의
