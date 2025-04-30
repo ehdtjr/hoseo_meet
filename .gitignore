@@ -12,3 +12,4 @@ hoseo-meet-firebase.json
 /backend/profile.speedscope.json
 /backend/celerybeat-schedule
 *.csv
+/backend/app/ai_model/

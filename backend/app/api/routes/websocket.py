@@ -4,13 +4,10 @@ import logging
 from fastapi import APIRouter, Depends
 from starlette.websockets import WebSocket
 
-from app.core.db import get_async_session_context
-from app.crud.user import UserCRUDProtocol, get_user_crud
 from app.models import User
-from app.schemas.user import UserUpdate
 from app.service.websocket.websocket_handler import WebSocketEventHandler
 from app.service.websocket.websocket_manager import (WebSocketManager,
-get_authenticated_user)
+                                                     get_authenticated_user)
 
 router = APIRouter()
 

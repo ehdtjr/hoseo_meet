@@ -64,7 +64,7 @@ class RoomReview(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     room_id: Mapped[int] = mapped_column(ForeignKey("room_post.id", ondelete="CASCADE"))
     author_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
-    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(String(200), nullable=False)
     rating: Mapped[float] = mapped_column(NUMERIC(3, 1), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.now, server_default=func.now()
