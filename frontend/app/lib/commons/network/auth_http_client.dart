@@ -186,4 +186,15 @@ class AuthHttpClient {
     }
     return response;
   }
+
+  Future<http.StreamedResponse> sendStreamRequest(http.BaseRequest request) async {
+    final authState = _ref.read(authNotifierProvider);
+    final token = authState.accessToken;
+    if (token == null) {
+      throw Exception('No access token');
+    }
+
+    request.headers['Authorization'] = 'Bearer $token';
+    return await request.send();
+  }
 }

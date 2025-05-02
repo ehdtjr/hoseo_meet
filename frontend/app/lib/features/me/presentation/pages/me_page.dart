@@ -1,10 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class MePage extends StatelessWidget {
-  const MePage({super.key});
+import '../../../auth/providers/user_profile_provider.dart';
+
+class MePage extends ConsumerStatefulWidget {
+  const MePage({Key? key}) : super(key: key);
+
+  @override
+  ConsumerState<MePage> createState() => _MePageState();
+}
+
+class _MePageState extends ConsumerState<MePage> {
+  @override
+  void initState() {
+    super.initState();
+    // 페이지 초기 로드시 프로필 정보를 불러옵니다.
+    Future.microtask(() =>
+        ref.read(userProfileNotifierProvider.notifier).fetchUserProfile());
+  }
 
   @override
   Widget build(BuildContext context) {
+    final userProfileState = ref.watch(userProfileNotifierProvider);
+    final userProfile = userProfileState.userProfile;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -23,8 +42,11 @@ class MePage extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      body: userProfileState.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+        padding:
+        const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         children: [
           // 프로필 섹션
           Row(
@@ -33,25 +55,36 @@ class MePage extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    radius: 38.5, // 크기 조정 (77x77 크기 반영)
+                    radius: 38.5, // 77x77 크기
                     backgroundColor: Colors.grey[300],
-                    child: const Icon(Icons.person, size: 40, color: Colors.white),
+                    child: userProfile != null &&
+                        userProfile.profile != null
+                        ? ClipOval(
+                      child: Image.network(
+                        userProfile.profile!,
+                        fit: BoxFit.cover,
+                        width: 77,
+                        height: 77,
+                      ),
+                    )
+                        : const Icon(Icons.person,
+                        size: 40, color: Colors.white),
                   ),
                   const SizedBox(width: 16),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Text(
-                            "박소정",
-                            style: TextStyle(
+                            userProfile?.name ?? '이름 없음',
+                            style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          SizedBox(width: 6), // 구분자 앞 간격
-                          Text(
+                          const SizedBox(width: 6),
+                          const Text(
                             "·",
                             style: TextStyle(
                               fontSize: 18,
@@ -59,20 +92,20 @@ class MePage extends StatelessWidget {
                               color: Color(0xFFE72410),
                             ),
                           ),
-                          SizedBox(width: 6), // 구분자 뒤 간격
+                          const SizedBox(width: 6),
                           Text(
-                            "zeong231",
-                            style: TextStyle(
+                            userProfile?.name?? 'username 없음',
+                            style: const TextStyle(
                               fontSize: 17,
                               fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         "호서대학교",
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14,
                           color: Colors.grey,
                         ),
@@ -84,15 +117,19 @@ class MePage extends StatelessWidget {
               const Icon(
                 Icons.arrow_forward_ios,
                 size: 16,
-                color: Color(0xFFE72410), // 화살표 색상
+                color: Color(0xFFE72410),
               ),
             ],
           ),
-          const Divider(height: 32, thickness: 1, color: Color(0xFFF0B4AD)), // Divider 색상 변경
+          const Divider(
+            height: 32,
+            thickness: 1,
+            color: Color(0xFFF0B4AD),
+          ),
           // 메뉴 섹션
           ..._buildMenuSection(
             "계정",
-            ["프로필 변경", "비밀번호 변경"],
+            ["이메일 변경", "비밀번호 변경"],
           ),
           ..._buildMenuSection(
             "게시글",
@@ -124,17 +161,24 @@ class MePage extends StatelessWidget {
           ),
         ),
       ),
-      ...items.map((item) => ListTile(
-        title: Text(
-          item,
-          style: const TextStyle(fontSize: 16, color: Colors.black87),
+      ...items.map(
+            (item) => ListTile(
+          title: Text(
+            item,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+          ),
+          trailing: const Icon(Icons.arrow_forward_ios,
+              size: 16, color: Colors.grey),
+          onTap: () {
+            // 각 메뉴 항목별 동작을 여기에 구현합니다.
+          },
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
-        onTap: () {
-          // 여기에 각 항목별 동작 추가
-        },
-      )),
-      Divider(height: 24, thickness: 1, color: const Color(0xFFF0B4AD)), // Divider 색상 변경
+      ),
+      const Divider(
+        height: 24,
+        thickness: 1,
+        color: Color(0xFFF0B4AD),
+      ),
     ];
   }
 }
