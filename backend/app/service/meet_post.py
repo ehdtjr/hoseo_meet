@@ -78,6 +78,10 @@ class MeetPostServiceProtocol(Protocol):
                                      user_id: int, meet_post_id: int) -> bool:
         ...
 
+    async def delete_meet_post(self, db: AsyncSession, user_id: int,
+        meet_post_id: int) -> bool:
+            ...
+
 
 class MeetPostService(MeetPostServiceProtocol):
     def __init__(
@@ -233,6 +237,19 @@ class MeetPostService(MeetPostServiceProtocol):
             current_people=len(subscribers),
             is_subscribed=is_subscribed
         )
+
+    async def delete_meet_post(self, db: AsyncSession, user_id: int,
+        meet_post_id: int) -> bool:
+
+        meet_post: Optional[MeetPostBase] = await self.meet_post_crud.get(db,
+                                                                          meet_post_id)
+        if meet_post is None:
+            pass
+        if meet_post.author_id == user_id:
+            return await self.meet_post_crud.delete(db, meet_post_id)
+
+
+        return False
 
 
 async def get_meet_post_service(

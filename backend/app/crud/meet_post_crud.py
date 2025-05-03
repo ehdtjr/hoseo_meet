@@ -62,7 +62,7 @@ class MeetPostCRUDProtocol:
             MeetPostBase):
         pass
 
-    async def delete(self, meet_post_id: int) -> bool:
+    async def delete(self, db: AsyncSession, meet_post_id: int) -> bool:
         pass
 
     async def get_filtered_posts(
@@ -91,6 +91,10 @@ class MeetPostCRUD(CRUDBase[MeetPost, MeetPostBase], MeetPostCRUDProtocol):
     async def update(self, db: AsyncSession, meet_post: MeetPostBase) -> (
             MeetPostBase):
         return await super().update(db, meet_post)
+
+    async def delete(self, db: AsyncSession, meet_post_id: int) -> bool:
+        return await super().delete(db, meet_post_id)
+
 
     async def get_filtered_posts(
                 self,
