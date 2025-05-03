@@ -17,6 +17,21 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   final TextEditingController _searchController = TextEditingController();
 
+
+  bool _showMap = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _showMap = true;
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -33,12 +48,14 @@ class _HomePageState extends ConsumerState<HomePage> {
       body: Stack(
         children: [
           // 지도
-          Positioned.fill(
-            child: Container(
-              color: Colors.grey[300],
-              child: const HomeMap(),
+          if (_showMap)
+            Positioned.fill(
+              child: Container(
+                color: Colors.grey[300],
+                child: const HomeMap(),
+              ),
             ),
-          ),
+
           // 검색바
           Positioned(
             top: 60,

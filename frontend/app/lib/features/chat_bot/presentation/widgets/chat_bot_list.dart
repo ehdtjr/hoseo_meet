@@ -40,10 +40,10 @@ class ChatBotMessageListView extends ConsumerWidget {
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             padding: const EdgeInsets.all(12),
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.75, // ✅ 최대 너비 제한
+              maxWidth: MediaQuery.of(context).size.width * 0.7, // ✅ 최대 너비 제한
             ),
             decoration: BoxDecoration(
-              color: isUser ? Colors.blue : Colors.grey[200],
+              color: isUser ? Colors.pink.shade100: Colors.grey[200],
               borderRadius: BorderRadius.only(
                 topLeft: const Radius.circular(12),
                 topRight: const Radius.circular(12),
@@ -53,8 +53,8 @@ class ChatBotMessageListView extends ConsumerWidget {
             ),
             child: Text(
               m.content,
-              style: TextStyle(
-                color: isUser ? Colors.white : Colors.black87,
+              style: const TextStyle(
+                color: Colors.black,
                 fontSize: 15,
               ),
             ),
