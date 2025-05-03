@@ -99,3 +99,13 @@ async def get_meet_post_detail(
     )
 
     return detail
+
+@router.delete("/delete/{meet_post_id}", response_model=MeetPostResponse)
+async def delete_meet_post(
+    meet_post_id: int,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_async_session),
+    meet_post_service: MeetPostServiceProtocol = Depends(get_meet_post_service),
+):
+    await meet_post_service.delete_meet_post(db,
+         user_id=user.id, meet_post_id=meet_post_id)

@@ -39,8 +39,10 @@ class CRUDBase(Generic[ModelType, SchemaType]):
 
         return self.schema.model_validate(db_obj)
 
-    async def delete(self, db: AsyncSession, id: int) -> None:
+    async def delete(self, db: AsyncSession, id: int) -> bool:
         obj = await db.get(self.model, id)
         if obj:
             await db.delete(obj)
             await db.commit()
+            return True
+        return False
