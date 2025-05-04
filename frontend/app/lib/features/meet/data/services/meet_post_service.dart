@@ -95,6 +95,24 @@ class MeePostService {
     }
   }
 
+  // 게시글 삭제
+  Future<void> deleteMeetPost(int postId) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/meet_post/delete/$postId');
+
+    try {
+      final response = await _client.deleteRequest(url.toString());
+
+      if (response.statusCode == 200) {
+        debugPrint('Deleted meet post successfully');
+      } else {
+        throw Exception(
+            'Failed to delete meet post: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting meet post: $e');
+    }
+  }
+
   Future<void> subscribeMeetPost(int postId) async {
     final url = Uri.parse('${AppConfig.baseUrl}/meet_post/subscribe/$postId');
 

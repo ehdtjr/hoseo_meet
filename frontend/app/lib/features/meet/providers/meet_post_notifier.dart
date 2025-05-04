@@ -129,6 +129,17 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
     }
   }
 
+  /// 게시글 삭제
+  /// 삭제 후 리스트에서 해당 게시글 제거
+  Future<void> deleteMeetPost(int postId) async {
+    try {
+      await _service.deleteMeetPost(postId);
+
+      state = state.where((post) => post.id != postId).toList();
+    } catch (e) {
+      debugPrint('Failed to delete post: $e');
+    }
+  }
 
   /// 데이터 초기화 및 다시 로드
   void resetAndLoad() {

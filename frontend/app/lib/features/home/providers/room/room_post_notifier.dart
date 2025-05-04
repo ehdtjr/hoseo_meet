@@ -5,7 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:hoseomeet/features/home/data/models/room_post.dart';
 import 'package:hoseomeet/features/home/data/models/room_post_detail.dart';
 import '../../data/services/room_post_service.dart';
-import 'room_post_category_provider.dart'; // RoomPostCategory 프로바이더
+import 'room_post_category_provider.dart';
 
 final roomPlaceProvider = Provider<String>((ref) => '');
 
@@ -16,9 +16,8 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
   bool _isLoading = false;
   bool _hasMore = true;
   int _skip = 0;
-  final int _limit = 5; // 한 번에 5건씩 로드
+  final int _limit = 5;
 
-  // 현재 위치와 마지막 리로드 위치 저장
   Position? _currentPosition;
   Position? _lastReloadPosition;
   StreamSubscription<Position>? _positionSubscription;
@@ -26,27 +25,30 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
   late final ProviderSubscription<RoomPostCategory> _categorySubscription;
 
   RoomPostNotifier(this._service, this._ref) : super([]) {
-    // roomPostCategoryProvider의 값이 변경되면 데이터를 다시 받아옵니다.
+    // 카테고리 변경 리스너 (지연 처리)
     _categorySubscription = _ref.listen<RoomPostCategory>(
       roomPostCategoryProvider,
           (previous, next) {
         if (previous != next) {
-          resetAndLoad();
+          Future.microtask(() => resetAndLoad());
         }
       },
     );
-    // 앱 시작 시 초기 위치를 받아온 후 데이터를 불러오고, 이후 위치 업데이트 구독
-    _initializeCurrentPosition().then((_) {
-      _lastReloadPosition = _currentPosition;
-      loadRoomPosts();
-    });
-    _subscribeToPositionUpdates();
+
+    // 위치 초기화 및 초기 로드를 안전하게 비동기로 처리
+    Future.microtask(() => _init());
   }
 
   bool get isLoading => _isLoading;
   bool get hasMore => _hasMore;
 
-  /// 앱 시작 시 초기 위치값을 받아옵니다.
+  Future<void> _init() async {
+    await _initializeCurrentPosition();
+    _lastReloadPosition = _currentPosition;
+    await loadRoomPosts();
+    _subscribeToPositionUpdates();
+  }
+
   Future<void> _initializeCurrentPosition() async {
     try {
       final position = await Geolocator.getCurrentPosition(
@@ -59,12 +61,12 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
     }
   }
 
-  /// 위치 스트림을 구독하여 _currentPosition 업데이트 및 10m 이상 이동 시 데이터 재로드
   void _subscribeToPositionUpdates() {
     const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 5, // 5m 단위로 업데이트
+      distanceFilter: 5,
     );
+
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,
     ).listen(
@@ -93,12 +95,10 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
     );
   }
 
-  /// RoomPost 리스트 로드 (페이지네이션 및 중복 제거 포함)
   Future<void> loadRoomPosts({bool loadMore = false}) async {
     if (_isLoading) return;
     _isLoading = true;
 
-    // API 호출 전에 현재 위치를 최신으로 업데이트합니다.
     try {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
@@ -112,7 +112,6 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
     final place = _ref.read(roomPlaceProvider);
     final category = _ref.read(roomPostCategoryProvider);
 
-    // RoomPostCategory 열거형을 문자열로 변환합니다.
     String sortBy;
     switch (category) {
       case RoomPostCategory.distance:
@@ -148,7 +147,6 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
         state = posts;
       }
 
-      // API에서 반환한 리뷰 수가 요청 건수(_limit)보다 적으면 더 이상 불러올 데이터가 없다고 판단
       if (posts.length < _limit) {
         _hasMore = false;
       } else {
@@ -161,15 +159,13 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
     }
   }
 
-  /// 데이터 초기화 후 다시 로드
-  void resetAndLoad() {
+  Future<void> resetAndLoad() async {
     _skip = 0;
     _hasMore = true;
     state = [];
-    loadRoomPosts();
+    await loadRoomPosts();
   }
 
-  /// 특정 roomId에 대한 상세 정보를 조회합니다.
   Future<RoomDetail?> loadRoomDetail(int roomId) async {
     try {
       return await _service.loadRoomDetail(roomId: roomId);

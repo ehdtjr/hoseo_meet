@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../../../auth/providers/user_profile_provider.dart';
 import '../../../data/models/meet_post.dart';
 import '../../../providers/meet_post_provider.dart';
+import '../common/show_post_option_bottomsheet.dart';
 import '../meet_detail_page/meet_detail_modal.dart';
 
 class MeetPageItem extends ConsumerWidget {
@@ -12,15 +14,15 @@ class MeetPageItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final userProfile = ref.watch(userProfileNotifierProvider).userProfile;
+    final isAuthor = userProfile?.id == post.author.id;
+
     return GestureDetector(
-      onTap: () => _showDetailModal(context, ref), // 아이템 클릭 시 모달 호출
+      onTap: () => _showDetailModal(context, ref),
       child: Container(
-        width: double.infinity, // 클릭 영역 확장을 위해 전체 너비 사용
-        padding: const EdgeInsets.symmetric(
-          vertical: 15.0,
-          horizontal: 20.0,
-        ),
-        color: Colors.transparent, // 클릭 영역 감지를 위한 투명 배경
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
+        color: Colors.transparent,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -32,35 +34,53 @@ class MeetPageItem extends ConsumerWidget {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            width: 1,
-                            color: const Color(0xFFE72410),
-                          ),
+                          border: Border.all(width: 1, color: const Color(0xFFE72410)),
                         ),
-                        child: Text(
-                          _getTypeDisplay(post.type),
-                          style: _TextStyles.redTag,
-                        ),
+                        child: Text(_getTypeDisplay(post.type), style: _TextStyles.redTag),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        post.author.name,
-                        style: _TextStyles.authorName,
-                      ),
+                      Text(post.author.name, style: _TextStyles.authorName),
                       const Spacer(),
-                      SvgPicture.asset(
-                        'assets/icons/fi-rr-menu-dots-vertical.svg',
-                        width: 18,
-                        height: 18,
-                        colorFilter: const ColorFilter.mode(
-                          Color(0xFF707070),
-                          BlendMode.srcIn,
+                      if (isAuthor)
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(999),
+                            onTap: () {
+                              showPostOptionsBottomSheet(
+                                context: context,
+                                onDelete: () async {
+                                  final notifier = ref.read(meetPostProvider.notifier);
+                                  try {
+                                    await notifier.deleteMeetPost(post.id);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('삭제되었습니다')),
+                                    );
+                                  } catch (e) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('삭제 중 오류가 발생했습니다')),
+                                    );
+                                  }
+                                },
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: SvgPicture.asset(
+                                'assets/icons/fi-rr-menu-dots-vertical.svg',
+                                width: 18,
+                                height: 18,
+                                colorFilter: const ColorFilter.mode(
+                                  Color(0xFF707070),
+                                  BlendMode.srcIn,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -139,51 +159,36 @@ class MeetPageItem extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 13),
-            const Divider(
-              height: 1,
-              thickness: 1,
-              color: Color(0xFFF0B4AD),
-            ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFF0B4AD)),
           ],
         ),
       ),
     );
   }
 
-  /// 상세 정보 모달을 보여주는 함수
   void _showDetailModal(BuildContext context, WidgetRef ref) async {
     final notifier = ref.read(meetPostProvider.notifier);
 
-    // 로딩 인디케이터 표시
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
-      final meetDetail = await notifier.loadDetailMeetPost(post.id);
+      final detail = await notifier.loadDetailMeetPost(post.id);
+      Navigator.of(context).pop();
 
-      Navigator.of(context).pop(); // 로딩 인디케이터 닫기
-
-      if (meetDetail != null) {
-        // 상세 정보 모달 표시
+      if (detail != null) {
         showDialog(
           context: context,
           barrierDismissible: true,
-          builder: (context) {
-            return Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-              backgroundColor: Colors.white,
-              child: MeetDetailModal(post: meetDetail),
-            );
-          },
+          builder: (_) => Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+            backgroundColor: Colors.white,
+            child: MeetDetailModal(post: detail),
+          ),
         );
       } else {
         _showErrorDialog(context, '상세 정보를 불러오지 못했습니다.');
@@ -194,64 +199,49 @@ class MeetPageItem extends ConsumerWidget {
     }
   }
 
-  /// 오류 메시지를 다이얼로그로 표시하는 함수
   void _showErrorDialog(BuildContext context, String message) {
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('오류'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('확인'),
-            ),
-          ],
-        );
-      },
+      builder: (_) => AlertDialog(
+        title: const Text('오류'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
     );
   }
 
   String _getTypeDisplay(String type) {
-    const typeMap = {
-      'meet': '모임',
-      'delivery': '배달',
-      'taxi': '카풀',
-    };
-
-    return typeMap[type.toLowerCase()] ?? '전체';
+    const map = {'meet': '모임', 'delivery': '배달', 'taxi': '카풀'};
+    return map[type.toLowerCase()] ?? '전체';
   }
 
   String _formatTimeDifference(DateTime createdAt) {
-    final now = DateTime.now();
-    final difference = now.difference(createdAt);
-
-    if (difference.inMinutes < 60) {
-      return '${difference.inMinutes}분 전';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours}시간 전';
-    } else {
-      return '${difference.inDays}일 전';
-    }
+    final diff = DateTime.now().difference(createdAt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}분 전';
+    if (diff.inHours < 24) return '${diff.inHours}시간 전';
+    return '${diff.inDays}일 전';
   }
 }
 
 class _TextStyles {
-  static const TextStyle redTag = TextStyle(
+  static const redTag = TextStyle(
     color: Color(0xFFE72410),
     fontSize: 10,
     fontWeight: FontWeight.w500,
   );
 
-  static const TextStyle authorName = TextStyle(
+  static const authorName = TextStyle(
     color: Color(0xFF707070),
     fontSize: 12,
     fontWeight: FontWeight.w500,
   );
 
-  static const TextStyle content = TextStyle(
+  static const content = TextStyle(
     color: Color(0xFF707070),
     fontSize: 14,
     fontWeight: FontWeight.w500,
