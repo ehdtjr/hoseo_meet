@@ -1,81 +1,86 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../../../auth/providers/user_profile_provider.dart';
 import '../../../data/models/meet_post_detail.dart';
+import '../common/show_post_option_bottomsheet.dart';
 
-class MeetAuthorSection extends StatelessWidget {
+class MeetAuthorSection extends ConsumerWidget {
   final MeetDetail post;
+  final VoidCallback onDelete;
 
-  const MeetAuthorSection({super.key, required this.post});
+  const MeetAuthorSection({
+    super.key,
+    required this.post,
+    required this.onDelete,
+  });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userProfile = ref.watch(userProfileNotifierProvider).userProfile;
+    final isAuthor = userProfile?.id == post.author.id;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5), // 좌우 5px 패딩
+      padding: const EdgeInsets.symmetric(horizontal: 5),
       child: Row(
         children: [
-// 작성자 프로필 이미지
+          // 프로필 이미지
           Container(
             width: 45,
             height: 45,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0xFFBDBDBD), // 기본 회색 배경
+              color: Color(0xFFBDBDBD),
             ),
             child: ClipOval(
               child: Image.network(
                 post.author.profile,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: const Color(0xFFBDBDBD), // 이미지가 없을 때 회색 원
-                    child: const Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) {
-                    return child; // 로딩이 끝나면 이미지 표시
-                  }
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.grey,
-                    ),
-                  ); // 로딩 중일 때 표시
-                },
+                errorBuilder: (_, __, ___) => Container(
+                  color: const Color(0xFFBDBDBD),
+                  child: const Icon(Icons.person, color: Colors.white, size: 24),
+                ),
+                loadingBuilder: (_, child, loadingProgress) =>
+                loadingProgress == null
+                    ? child
+                    : const Center(
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.grey,
+                  ),
+                ),
               ),
             ),
           ),
-
           const SizedBox(width: 15),
-          // 작성자 이름과 태그
+          // 이름과 태그
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTag(post.type), // 타입 태그
+              _buildTag(post.type),
               const SizedBox(height: 3),
-              Text(
-                post.author.name,
-                style: _TextStyles.authorName,
-              ),
+              Text(post.author.name, style: _TextStyles.authorName),
             ],
           ),
           const Spacer(),
-          // 더보기 버튼
-          Padding(
-            padding: const EdgeInsets.only(right: 15), // 우측 15px 패딩
-            child: SvgPicture.asset(
-              'assets/icons/fi-rr-menu-dots-vertical.svg',
-              width: 14,
-              colorFilter: const ColorFilter.mode(
-                Color(0xFFE72410),
-                BlendMode.srcIn,
+          if (isAuthor)
+            Padding(
+              padding: const EdgeInsets.only(right: 15),
+              child: GestureDetector(
+                onTap: () => showPostOptionsBottomSheet(
+                  context: context,
+                  onDelete: onDelete,
+                ),
+                child: SvgPicture.asset(
+                  'assets/icons/fi-rr-menu-dots-vertical.svg',
+                  width: 18,
+                  colorFilter: const ColorFilter.mode(
+                    Color(0xFFE72410),
+                    BlendMode.srcIn,
+                  ),
+                ),
               ),
             ),
-          )
         ],
       ),
     );
@@ -89,10 +94,7 @@ class MeetAuthorSection extends StatelessWidget {
         border: Border.all(width: 1, color: const Color(0xFFE72410)),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        _getTypeDisplay(type),
-        style: _TextStyles.redTag,
-      ),
+      child: Text(_getTypeDisplay(type), style: _TextStyles.redTag),
     );
   }
 
@@ -102,19 +104,18 @@ class MeetAuthorSection extends StatelessWidget {
       'delivery': '배달',
       'taxi': '카풀',
     };
-
     return typeMap[type.toLowerCase()] ?? '전체';
   }
 }
 
 class _TextStyles {
-  static const TextStyle redTag = TextStyle(
+  static const redTag = TextStyle(
     color: Color(0xFFE72410),
     fontSize: 10,
     fontWeight: FontWeight.w500,
   );
 
-  static const TextStyle authorName = TextStyle(
+  static const authorName = TextStyle(
     color: Colors.black,
     fontSize: 14,
     fontWeight: FontWeight.w500,

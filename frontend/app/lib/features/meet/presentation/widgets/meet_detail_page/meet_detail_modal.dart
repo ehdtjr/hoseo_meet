@@ -1,72 +1,81 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/models/meet_post_detail.dart';
-import 'meet_author_section.dart'; // 새로 만든 파일 import
-import 'meet_detail_footer.dart'; // MeetDetailFooter import
+import '../../../providers/meet_post_provider.dart';
+import 'meet_author_section.dart';
+import 'meet_detail_footer.dart';
 
-class MeetDetailModal extends StatelessWidget {
+class MeetDetailModal extends ConsumerWidget {
   final MeetDetail post;
 
   const MeetDetailModal({super.key, required this.post});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return SizedBox(
       width: 382,
       height: 250,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 상단 작성자 섹션
+          // 작성자 섹션
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 25, 10),
-            child: MeetAuthorSection(post: post),
+            child: MeetAuthorSection(
+              post: post,
+              onDelete: () async {
+                final notifier = ref.read(meetPostProvider.notifier);
+                try {
+                  await notifier.deleteMeetPost(post.id);
+                  Navigator.of(context).pop(); // 삭제 후 모달 닫기
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('삭제되었습니다')),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('삭제 중 오류가 발생했습니다')),
+                  );
+                }
+              },
+            ),
           ),
+
           const Divider(
             color: Color(0xFFF0B4AD),
             thickness: 0.75,
           ),
 
-          // 본문 내용 섹션
+          // 제목 & 내용
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 15, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 제목
-                SizedBox(
-                  width: double.infinity,
-                  child: Text(
-                    post.title,
-                    style: _TextStyles.title,
-                  ),
-                ),
+                Text(post.title, style: _TextStyles.title),
                 Container(
                   width: double.infinity,
-                  height: 78, // 고정 높이 설정
+                  height: 78,
                   padding: const EdgeInsets.symmetric(vertical: 7),
                   child: Text(
                     post.content,
                     style: _TextStyles.content,
-                    maxLines: 3, // 최대 3줄까지 표시
-                    overflow: TextOverflow.ellipsis, // 초과된 내용은 ...으로 표시
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-
               ],
             ),
           ),
+
+          // 참여/정보 푸터
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: MeetDetailFooter(
-              postId: post.id,
-            ),
-          )
-
+            child: MeetDetailFooter(postId: post.id),
+          ),
         ],
       ),
     );
   }
-
 }
 
 class _TextStyles {
@@ -81,5 +90,4 @@ class _TextStyles {
     fontSize: 14,
     fontWeight: FontWeight.w500,
   );
-
 }
