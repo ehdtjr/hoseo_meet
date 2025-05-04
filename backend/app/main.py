@@ -51,11 +51,8 @@ app = FastAPI(
     generate_unique_id_function=custom_generate_unique_id,
 )
 
+register_profile_middleware(app)
 
-register_profile_middleware(app)  # 프로파일링 미들웨어 등록
-
-
-# Prometheus Instrumentator 초기화
 instrumentator.instrument(app)
 
 # Set all CORS enabled origins
