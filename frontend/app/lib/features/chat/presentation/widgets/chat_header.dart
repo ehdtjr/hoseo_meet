@@ -89,26 +89,6 @@ class ChatHeader extends StatelessWidget {
           ),
           const SizedBox(width: 8),
 
-          // 더보기 아이콘
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              splashColor: Colors.grey[300],
-              highlightColor: Colors.grey[200],
-              onTap: () {
-                // TODO: 동작
-              },
-              child: const Padding(
-                padding: EdgeInsets.all(1.0),
-                child: Icon(
-                  Icons.more_vert,
-                  color: Color(0xFFE72410),
-                  size: 24,
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );

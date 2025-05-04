@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../auth/providers/user_profile_provider.dart';
+import 'edit_profile_page.dart';
 
 class MePage extends ConsumerStatefulWidget {
   const MePage({Key? key}) : super(key: key);
@@ -14,7 +15,6 @@ class _MePageState extends ConsumerState<MePage> {
   @override
   void initState() {
     super.initState();
-    // 페이지 초기 로드시 프로필 정보를 불러옵니다.
     Future.microtask(() =>
         ref.read(userProfileNotifierProvider.notifier).fetchUserProfile());
   }
@@ -28,25 +28,16 @@ class _MePageState extends ConsumerState<MePage> {
       appBar: AppBar(
         title: const Text(
           "프로필",
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Colors.black,
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black),
         ),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
       ),
       body: userProfileState.isLoading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
-        padding:
-        const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         children: [
           // 프로필 섹션
           Row(
@@ -55,10 +46,9 @@ class _MePageState extends ConsumerState<MePage> {
               Row(
                 children: [
                   CircleAvatar(
-                    radius: 38.5, // 77x77 크기
+                    radius: 38.5,
                     backgroundColor: Colors.grey[300],
-                    child: userProfile != null &&
-                        userProfile.profile != null
+                    child: userProfile != null && userProfile.profile != null
                         ? ClipOval(
                       child: Image.network(
                         userProfile.profile!,
@@ -67,8 +57,7 @@ class _MePageState extends ConsumerState<MePage> {
                         height: 77,
                       ),
                     )
-                        : const Icon(Icons.person,
-                        size: 40, color: Colors.white),
+                        : const Icon(Icons.person, size: 40, color: Colors.white),
                   ),
                   const SizedBox(width: 16),
                   Column(
@@ -78,71 +67,32 @@ class _MePageState extends ConsumerState<MePage> {
                         children: [
                           Text(
                             userProfile?.name ?? '이름 없음',
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(width: 6),
-                          const Text(
-                            "·",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFFE72410),
-                            ),
-                          ),
+                          const Text("·", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFFE72410))),
                           const SizedBox(width: 6),
                           Text(
-                            userProfile?.name?? 'username 없음',
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w400,
-                            ),
+                            userProfile?.name ?? 'username 없음',
+                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w400),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        "호서대학교",
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
+                      const Text("호서대학교", style: TextStyle(fontSize: 14, color: Colors.grey)),
                     ],
                   ),
                 ],
               ),
-              const Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: Color(0xFFE72410),
-              ),
+              const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFFE72410)),
             ],
           ),
-          const Divider(
-            height: 32,
-            thickness: 1,
-            color: Color(0xFFF0B4AD),
-          ),
+          const Divider(height: 32, thickness: 1, color: Color(0xFFF0B4AD)),
           // 메뉴 섹션
-          ..._buildMenuSection(
-            "계정",
-            ["이메일 변경", "비밀번호 변경"],
-          ),
-          ..._buildMenuSection(
-            "게시글",
-            ["내가 작성한 글", "관심 게시글", "이용규칙"],
-          ),
-          ..._buildMenuSection(
-            "이용 안내",
-            ["앱 버전", "문의하기"],
-          ),
-          ..._buildMenuSection(
-            "기타",
-            ["자주 묻는 질문", "약관 및 정책", "회원 탈퇴", "로그아웃"],
-          ),
+          ..._buildMenuSection("계정", ["프로필 변경", "비밀번호 변경"]),
+          ..._buildMenuSection("게시글", ["내가 작성한 글", "관심 게시글", "이용규칙"]),
+          ..._buildMenuSection("이용 안내", ["앱 버전", "문의하기"]),
+          ..._buildMenuSection("기타", ["자주 묻는 질문", "약관 및 정책", "회원 탈퇴", "로그아웃"]),
         ],
       ),
     );
@@ -154,31 +104,23 @@ class _MePageState extends ConsumerState<MePage> {
         padding: const EdgeInsets.symmetric(vertical: 8.0),
         child: Text(
           title,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: Colors.black87),
         ),
       ),
-      ...items.map(
-            (item) => ListTile(
-          title: Text(
-            item,
-            style: const TextStyle(fontSize: 16, color: Colors.black87),
-          ),
-          trailing: const Icon(Icons.arrow_forward_ios,
-              size: 16, color: Colors.grey),
-          onTap: () {
-            // 각 메뉴 항목별 동작을 여기에 구현합니다.
-          },
-        ),
-      ),
-      const Divider(
-        height: 24,
-        thickness: 1,
-        color: Color(0xFFF0B4AD),
-      ),
+      ...items.map((item) => ListTile(
+        title: Text(item, style: const TextStyle(fontSize: 16, color: Colors.black87)),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        onTap: () {
+          if (item == "프로필 변경") {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EditProfileImagePage()),
+            );
+          }
+          // TODO: 다른 메뉴 처리 추가 가능
+        },
+      )),
+      const Divider(height: 24, thickness: 1, color: Color(0xFFF0B4AD)),
     ];
   }
 }

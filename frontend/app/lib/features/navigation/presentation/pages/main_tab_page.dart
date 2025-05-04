@@ -50,8 +50,8 @@ class MainTabPage extends ConsumerWidget {
       const HomePage(),
       const MeetPage(),
       const ChatPage(),
- //     const MePage(),
-      const ChatBotPage(),
+      const MePage(),
+      //const ChatBotPage(),
     ];
 
     return Scaffold(
