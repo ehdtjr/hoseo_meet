@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, status, HTTPException, Request
+from fastapi.responses import JSONResponse
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Optional
 
@@ -100,12 +102,14 @@ async def get_meet_post_detail(
 
     return detail
 
-@router.delete("/delete/{meet_post_id}", response_model=MeetPostResponse)
+@router.delete("/delete/{meet_post_id}")
 async def delete_meet_post(
     meet_post_id: int,
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_async_session),
     meet_post_service: MeetPostServiceProtocol = Depends(get_meet_post_service),
 ):
-    await meet_post_service.delete_meet_post(db,
-         user_id=user.id, meet_post_id=meet_post_id)
+    await meet_post_service.delete_meet_post(
+        db, user_id=user.id, meet_post_id=meet_post_id
+    )
+    return JSONResponse(content={"message": "삭제되었습니다."})

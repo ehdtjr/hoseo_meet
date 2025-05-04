@@ -4,6 +4,7 @@ from fastapi import Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
 from datetime import timedelta
 
+from app.core.exceptions import NotFoundException, PermissionDeniedException
 from app.core.redis import redis_client
 from app.crud.meet_post_crud import MeetPostCRUDProtocol, get_meet_post_crud
 from app.crud.user import UserCRUDProtocol, get_user_crud
@@ -244,12 +245,12 @@ class MeetPostService(MeetPostServiceProtocol):
         meet_post: Optional[MeetPostBase] = await self.meet_post_crud.get(db,
                                                                           meet_post_id)
         if meet_post is None:
-            pass
-        if meet_post.author_id == user_id:
-            return await self.meet_post_crud.delete(db, meet_post_id)
+            raise NotFoundException("meet post가 존재하지 않습니다")
 
+        if meet_post.author_id != user_id:
+            raise PermissionDeniedException()
 
-        return False
+        return await self.meet_post_crud.delete(db, meet_post_id)
 
 
 async def get_meet_post_service(
