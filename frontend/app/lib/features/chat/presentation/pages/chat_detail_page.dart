@@ -174,7 +174,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
     return ScrollConfiguration(
       behavior: const _NoGlowScrollBehavior(),
       child: Scaffold(
-        appBar: ChatRoomAppBar(chatRoomName: widget.chatRoom.name),
+        appBar: ChatRoomAppBar(chatRoom: widget.chatRoom),
         body: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           child: SafeArea(

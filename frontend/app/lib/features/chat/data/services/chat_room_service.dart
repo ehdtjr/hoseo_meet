@@ -27,11 +27,8 @@ class ChatRoomService {
       final decodedResponse = utf8.decode(response.bodyBytes);
       final Map<String, dynamic> responseData = jsonDecode(decodedResponse);
 
-      // "subscriptions" 배열 안에 각 채팅방 정보가 들어 있음
       final List<dynamic> subs = responseData['subscriptions'] as List<dynamic>;
       final List<ChatRoom> chatRooms = subs.map((sub) {
-        // 여기서 ChatRoom.fromJson(sub) 호출 시,
-        // ChatRoom 모델이 creatorId, isMuted, subscribers 등을 포함하도록 수정되어 있어야 함
         return ChatRoom.fromJson(sub as Map<String, dynamic>);
       }).toList();
 

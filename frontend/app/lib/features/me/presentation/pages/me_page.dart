@@ -48,10 +48,10 @@ class _MePageState extends ConsumerState<MePage> {
                   CircleAvatar(
                     radius: 38.5,
                     backgroundColor: Colors.grey[300],
-                    child: userProfile != null && userProfile.profile != null
+                    child: userProfile != null
                         ? ClipOval(
                       child: Image.network(
-                        userProfile.profile!,
+                        userProfile.profile,
                         fit: BoxFit.cover,
                         width: 77,
                         height: 77,
@@ -79,20 +79,19 @@ class _MePageState extends ConsumerState<MePage> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      const Text("호서대학교", style: TextStyle(fontSize: 14, color: Colors.grey)),
+                      const Text("호서대학", style: TextStyle(fontSize: 14, color: Colors.grey)),
                     ],
                   ),
                 ],
               ),
-              const Icon(Icons.arrow_forward_ios, size: 16, color: Color(0xFFE72410)),
             ],
           ),
           const Divider(height: 32, thickness: 1, color: Color(0xFFF0B4AD)),
           // 메뉴 섹션
-          ..._buildMenuSection("계정", ["프로필 변경", "비밀번호 변경"]),
+          ..._buildMenuSection("계정", ["프로필 변경", "닉네임 변경", "비밀번호 변경"]),
           ..._buildMenuSection("게시글", ["내가 작성한 글", "관심 게시글", "이용규칙"]),
-          ..._buildMenuSection("이용 안내", ["앱 버전", "문의하기"]),
-          ..._buildMenuSection("기타", ["자주 묻는 질문", "약관 및 정책", "회원 탈퇴", "로그아웃"]),
+          ..._buildMenuSection("이용 안내", ["문의하기"]),
+          ..._buildMenuSection("기타", ["자주 묻는 질문", "약관 및 정책", "회원 탈퇴"]),
         ],
       ),
     );

@@ -47,7 +47,6 @@ class _ChatBotPageState extends ConsumerState<ChatBotPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const ChatRoomAppBar(chatRoomName: "Chat Bot"),
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: SafeArea(

@@ -1,7 +1,6 @@
 // file: lib/features/navigation/presentation/pages/main_tab_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/chat_bot/presentation/pages/chat_bot_page.dart';
 
 import 'package:hoseomeet/features/home/presentation/pages/home_page.dart';
 import 'package:hoseomeet/features/chat/presentation/pages/chat_page.dart';
