@@ -24,7 +24,7 @@ class ConflictException(HTTPException):
 async def not_found_exception_handler(exc: NotFoundException):
     return JSONResponse(
         status_code=exc.status_code,
-        content={"message": exc.detail, "code": "NOT_FOUND"},
+        content={"detail": exc.detail, "code": "NOT_FOUND"},
     )
 
 
@@ -32,7 +32,7 @@ async def not_found_exception_handler(exc: NotFoundException):
 async def permission_denied_exception_handler(exc: PermissionDeniedException):
     return JSONResponse(
         status_code=exc.status_code,
-        content={"message": exc.detail, "code": "PERMISSION_DENIED"},
+        content={"detail": exc.detail, "code": "PERMISSION_DENIED"},
     )
 
 
@@ -40,5 +40,5 @@ async def permission_denied_exception_handler(exc: PermissionDeniedException):
 async def conflict_exception_handler(exc: ConflictException):
     return JSONResponse(
         status_code=exc.status_code,
-        content={"message": exc.detail, "code": "CONFLICT"},
+        content={"detail": exc.detail, "code": "CONFLICT"},
     )

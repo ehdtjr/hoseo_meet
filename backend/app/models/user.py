@@ -46,6 +46,14 @@ class User(SQLAlchemyBaseUserTable, Base):
     oauth_accounts: Mapped[List["OAuthAccount"]] = relationship(
         "OAuthAccount", lazy="joined"
     )
+    reports_made: Mapped[List["UserReport"]] = relationship(
+        "UserReport", back_populates="reporter", foreign_keys="[UserReport.reporter_id]"
+    )
+
+    reports_received: Mapped[List["UserReport"]] = relationship(
+        "UserReport", back_populates="reported_user", foreign_keys="[UserReport.reported_user_id]"
+    )
+
 
     reviews: Mapped[List["RoomReview"]] = relationship(
         "RoomReview", back_populates="author", lazy="selectin"  # 또는 joined 등
@@ -56,7 +64,24 @@ class User(SQLAlchemyBaseUserTable, Base):
         cascade="all, delete-orphan",
     )
 
+class UserReport(Base):
+    __tablename__ = "user_report"
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    reporter_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
+    reported_user_id: Mapped[int] = mapped_column(ForeignKey("user.id"), nullable=False)
+    reason: Mapped[str] = mapped_column(String(length=500), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    reporter: Mapped["User"] = relationship(
+        "User", foreign_keys=[reporter_id], back_populates="reports_made"
+    )
+    reported_user: Mapped["User"] = relationship(
+        "User", foreign_keys=[reported_user_id], back_populates="reports_received"
+    )
 
 # UserLocation 모델 정의
 class UserFCMToken(Base):
@@ -83,3 +108,4 @@ class OAuthAccount(SQLAlchemyBaseOAuthAccountTable[int], Base):
         return mapped_column(
             Integer, ForeignKey("user.id", ondelete="cascade"), nullable=False
         )
+

@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.event import EventBase
 from app.service.event.event_registry import STRATEGY_EVENT_REGISTRY
-from app.service.event.event_sender import EventSenderProtocol
 from app.service.event.event_strategy import EventStrategyProtocol, \
     SendersSelectionContext
 from app.service.stream import ActiveStreamServiceProtocol, \

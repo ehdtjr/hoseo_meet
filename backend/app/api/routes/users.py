@@ -7,11 +7,14 @@ from app.core.db import get_async_session
 from app.core.s3 import S3Manager
 from app.core.security import current_active_user
 from app.crud.user import UserFCMTokenCRUDProtocol, \
-    get_user_fcm_token_crud, UserCRUDProtocol, get_user_crud
+    get_user_fcm_token_crud, UserCRUDProtocol, get_user_crud, \
+    UserReportCRUDProtocol, get_user_report_crud
 from app.models import User
 from app.schemas.stream import SubscriptionRequest
 from app.schemas.user import (UserFCMTokenCreate, UserFCMTokenRequest,
-                              UserRead, UserPublicRead, UserUpdate)
+                              UserRead, UserPublicRead, UserUpdate,
+                              UserReportBase, UserReportRequest,
+                              UserReportCreate)
 from app.service.stream import SubscriberServiceProtocol, \
     get_subscription_service
 from app.utils.image import convert_image_to_webp
@@ -167,8 +170,6 @@ async def update_user_profile(
             await s3_manager.delete_file(current_profile_url)
         return {"msg": "Profile updated successfully", "profile_url": profile_url}
 
-    except HTTPException as e:
-        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
@@ -191,3 +192,26 @@ async def get_user_profile(
     except Exception as e:
         raise (HTTPException(status_code=500,
                              detail=f"Failed to fetch user profile: {str(e)}"))
+
+
+@router.post("/report",
+    response_model=UserReportBase
+)
+async def user_report(
+    user_report_request: UserReportRequest,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_async_session),
+    user_report_crud:UserReportCRUDProtocol = Depends(get_user_report_crud)
+):
+    try:
+        report = UserReportCreate(
+            reporter_user_id=user.id,
+            reported_user_id=user_report_request.id,
+            reason=user_report_request.reason
+        )
+        await user_report_crud.create(db, report)
+
+    except Exception as e:
+        raise (HTTPException(status_code=500,
+            detail=f"Failed to create report: {str(e)}"))
+

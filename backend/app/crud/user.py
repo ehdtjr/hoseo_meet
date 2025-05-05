@@ -4,10 +4,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud.base import CRUDBase  # CRUDBase 가져오기
-from app.models.user import User, UserFCMToken  # User 모델 가져오기
+from app.models.user import User, UserFCMToken, UserReport  # User 모델 가져오기
 from app.schemas.user import UserFCMTokenBase, UserFCMTokenCreate, \
     UserRead, \
-    UserUpdate
+    UserUpdate, UserReportCreate, UserReportBase
 
 
 class UserCRUDProtocol:
@@ -115,3 +115,29 @@ def get_user_crud() -> UserCRUDProtocol:
 
 def get_user_fcm_token_crud() -> UserFCMTokenCRUDProtocol:
     return UserFCMTokenCRUD()
+
+
+class UserReportCRUDProtocol:
+    async def create(
+        self,
+        db: AsyncSession,
+        user_report_create: UserReportCreate
+    ) -> UserReportBase:
+        ...
+
+class UserReportCRUD(
+    CRUDBase[UserReport, UserReportBase],
+    UserReportCRUDProtocol):
+
+    def __init__(self):
+        super().__init__(UserReport, UserReportBase)
+
+    async def create(
+        self,
+        db: AsyncSession,
+        user_report_create: UserReportCreate) -> UserReportBase:
+
+        return await super().create(db, user_report_create)
+
+def get_user_report_crud() -> UserReportCRUDProtocol:
+    return UserReportCRUD()
