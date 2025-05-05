@@ -5,7 +5,7 @@ from app.crud.stream import SubscriptionCRUDProtocol, get_subscription_crud
 from app.schemas.event import EventBase
 from app.schemas.message import LocationBase
 from app.service.event.events import EventDispatcher, get_event_dispatcher
-1
+
 import json
 
 
