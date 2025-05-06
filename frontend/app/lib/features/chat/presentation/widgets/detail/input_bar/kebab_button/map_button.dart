@@ -23,7 +23,6 @@ class MapButton extends ConsumerWidget {
     return InkWell(
       onTap: () {
         onCloseOverlay();
-
         showDialog(
           context: context,
           barrierDismissible: true,
@@ -56,7 +55,6 @@ class MapButton extends ConsumerWidget {
 
 class MapModalContent extends ConsumerStatefulWidget {
   final ChatRoom chatRoom;
-
   const MapModalContent({super.key, required this.chatRoom});
 
   @override
@@ -70,6 +68,12 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
 
   @override
   Widget build(BuildContext context) {
+    final positions = ref.watch(mapNotifierProvider);
+
+    if (_isMapReady && _mapController != null) {
+      _updateUserMarkers(context, positions);
+    }
+
     return Stack(
       children: [
         ClipRRect(
@@ -87,7 +91,7 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
             onMapReady: (controller) async {
               _mapController = controller;
               _isMapReady = true;
-              await _addUserMarkers(context);
+              await _updateUserMarkers(context, positions);
             },
           ),
         ),
@@ -98,120 +102,109 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
           child: Container(
             color: Colors.white.withOpacity(0.8),
             padding: const EdgeInsets.all(10),
-            child: _buildUserIcons(),
+            child: _buildUserIcons(positions),
           ),
         ),
       ],
     );
   }
 
-  User? _findUserById(List<User> users, int id) {
-    for (final user in users) {
-      if (user.id == id) return user;
-    }
-    return null;
-  }
+  Future<void> _updateUserMarkers(BuildContext context, Map<int, NLatLng> positions) async {
+    if (_mapController == null) return;
 
-  Future<void> _addUserMarkers(BuildContext context) async {
-    final mapNotifier = ref.read(mapNotifierProvider.notifier);
-    final userIds = mapNotifier.userIds;
+    await _mapController!.clearOverlays();
+    _userMarkers.clear();
+
     final chatDetail = ref.read(chatDetailNotifierProvider(widget.chatRoom));
     final participants = chatDetail.participants;
+    final markers = <NMarker>[];
 
-    for (final id in userIds) {
-      final user = _findUserById(participants, id);
-      if (user == null) continue;
-
-      final profileUrl = user.profile?.trim();
-      final latLng = mapNotifier.getUserLatLng(id);
+    for (final user in participants) {
+      final userId = user.id;
+      final latLng = positions[userId];
       if (latLng == null) continue;
 
-      final hasValidProfile = profileUrl != null &&
-          profileUrl.isNotEmpty &&
-          profileUrl != 'default_profile' &&
-          Uri.tryParse(profileUrl)?.hasAbsolutePath == true;
-
-      final profileWidget = SizedBox(
-        width: 70,
-        height: 90,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              constraints: const BoxConstraints(maxWidth: 70),
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                user.name,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Colors.white,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.grey.shade300,
-                image: hasValidProfile
-                    ? DecorationImage(
-                  image: NetworkImage(profileUrl),
-                  fit: BoxFit.cover,
-                )
-                    : null,
-              ),
-              child: hasValidProfile
-                  ? null
-                  : const Icon(Icons.person, color: Colors.white, size: 20),
-            ),
-          ],
-        ),
-      );
-
       final overlayImage = await NOverlayImage.fromWidget(
-        widget: profileWidget,
+        widget: _buildProfileWidget(user),
         size: const Size(60, 80),
         context: context,
       );
 
-      final marker = NMarker(
-        id: 'user_$id',
+      markers.add(NMarker(
+        id: 'user_$userId',
         position: latLng,
         icon: overlayImage,
-      );
-
-      _userMarkers.add(marker);
+      ));
     }
 
-    _mapController?.addOverlayAll(_userMarkers.toSet());
+    _userMarkers.addAll(markers);
+    await _mapController!.addOverlayAll(_userMarkers.toSet());
   }
 
-  Widget _buildUserIcons() {
-    final mapNotifier = ref.read(mapNotifierProvider.notifier);
-    final userIds = mapNotifier.userIds;
+  Widget _buildProfileWidget(User user) {
+    final profileUrl = user.profile?.trim();
+    final hasValidProfile = profileUrl != null &&
+        profileUrl.isNotEmpty &&
+        profileUrl != 'default_profile' &&
+        Uri.tryParse(profileUrl)?.hasAbsolutePath == true;
+
+    return SizedBox(
+      width: 70,
+      height: 90,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            constraints: const BoxConstraints(maxWidth: 70),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              user.name,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, color: Colors.white),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.grey.shade300,
+              image: hasValidProfile
+                  ? DecorationImage(
+                image: NetworkImage(profileUrl!),
+                fit: BoxFit.cover,
+              )
+                  : null,
+            ),
+            child: hasValidProfile
+                ? null
+                : const Icon(Icons.person, color: Colors.white, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserIcons(Map<int, NLatLng> positions) {
     final chatDetail = ref.watch(chatDetailNotifierProvider(widget.chatRoom));
     final participants = chatDetail.participants;
 
-    if (userIds.isEmpty || participants.isEmpty) {
+    if (participants.isEmpty) {
       return const SizedBox(
         height: 50,
         child: Center(child: Text('표시할 유저 없음')),
       );
     }
 
-    final icons = userIds.map((id) {
-      final user = _findUserById(participants, id);
-      final profileUrl = user?.profile?.trim();
-
+    final icons = participants.map((user) {
+      final profileUrl = user.profile?.trim();
       final hasValidProfile = profileUrl != null &&
           profileUrl.isNotEmpty &&
           profileUrl != 'default_profile' &&
@@ -220,7 +213,7 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
       return Padding(
         padding: const EdgeInsets.only(right: 10),
         child: GestureDetector(
-          onTap: () => _moveCameraToUser(id),
+          onTap: () => _moveCameraToUser(user.id),
           child: CircleAvatar(
             radius: 21,
             backgroundColor: Colors.grey.shade300,
@@ -243,8 +236,8 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
   }
 
   void _moveCameraToUser(int userId) {
-    final mapNotifier = ref.read(mapNotifierProvider.notifier);
-    final userLatLng = mapNotifier.getUserLatLng(userId);
+    final positions = ref.read(mapNotifierProvider);
+    final userLatLng = positions[userId];
 
     if (_isMapReady && _mapController != null && userLatLng != null) {
       _mapController!.updateCamera(

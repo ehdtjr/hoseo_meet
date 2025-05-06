@@ -300,9 +300,10 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     final lng = data['lng'] as double?;
 
     if (userId != null && lat != null && lng != null) {
-      ref.read(mapNotifierProvider.notifier).updateUserCircle(userId, lat, lng);
+      ref.read(mapNotifierProvider.notifier).updateUserPosition(userId, lat, lng);
     }
   }
+
 
   // ─────────────────────────────────────────────────────────
   // 방 활성화 타이머

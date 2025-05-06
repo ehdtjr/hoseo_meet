@@ -1,40 +1,35 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
-import 'package:riverpod/riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// userId -> NCircleOverlay 매핑
-class MapNotifier extends StateNotifier<List<NCircleOverlay>> {
-  MapNotifier() : super([]);
+class MapNotifier extends StateNotifier<Map<int, NLatLng>> {
+  MapNotifier() : super({});
 
-  // 내부 Map: userId -> NCircleOverlay
-  final Map<int, NCircleOverlay> _circlesMap = {};
+  /// 위치 업데이트 (값이 바뀔 때만 상태 변경)
+  void updateUserPosition(int userId, double lat, double lng) {
+    final current = state[userId];
+    final newPosition = NLatLng(lat, lng);
 
-  /// userId별 원(circle) 업데이트
-  void updateUserCircle(int userId, double lat, double lng) {
-      final newCircle = NCircleOverlay(
-        id: 'circle_user_$userId',
-        center: NLatLng(lat, lng),
-        radius: 5,
-        color: const Color.fromARGB(100, 255, 0, 0),
-        outlineColor: Colors.red,
-        outlineWidth: 2,
-      );
-      _circlesMap[userId] = newCircle;
-    // (3) state를 새 리스트로 교체 → Riverpod가 "값 변경" 인식
-    state = _circlesMap.values.toList();
+    if (current == null ||
+        current.latitude != newPosition.latitude ||
+        current.longitude != newPosition.longitude) {
+      state = {
+        ...state,
+        userId: newPosition,
+      };
+    }
   }
 
-  /// userId 원 제거
-  void removeUserCircle(int userId) {
-    if (_circlesMap.containsKey(userId)) {
-      _circlesMap.remove(userId);
-      state = _circlesMap.values.toList();
+  /// 위치 제거
+  void removeUser(int userId) {
+    if (state.containsKey(userId)) {
+      final newState = {...state}..remove(userId);
+      state = newState;
     }
   }
 
   /// 현재 등록된 userId 목록
-  List<int> get userIds => _circlesMap.keys.toList();
+  List<int> get userIds => state.keys.toList();
 
-  /// userId의 위치(NLatLng) 반환 (없으면 null)
-  NLatLng? getUserLatLng(int userId) => _circlesMap[userId]?.center;
+  /// 특정 유저 위치
+  NLatLng? getUserLatLng(int userId) => state[userId];
 }

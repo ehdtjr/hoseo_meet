@@ -11,7 +11,9 @@ class ChatMessageBubble extends ConsumerWidget {
   final User? sender;
 
   const ChatMessageBubble({
-    super.key, required this.msg, required this.sender,
+    super.key,
+    required this.msg,
+    required this.sender,
   });
 
   @override
@@ -21,6 +23,7 @@ class ChatMessageBubble extends ConsumerWidget {
     final sendTime = _formatTime(msg.dateSent);
 
     if (isMe) {
+      // 내가 보낸 메시지
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
@@ -31,7 +34,7 @@ class ChatMessageBubble extends ConsumerWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                if (msg.unreadCount> 0)
+                if (msg.unreadCount > 0)
                   Text(
                     '${msg.unreadCount}',
                     style: const TextStyle(color: Colors.red, fontSize: 14),
@@ -43,11 +46,10 @@ class ChatMessageBubble extends ConsumerWidget {
               ],
             ),
             const SizedBox(width: 6),
-            // 말풍선: Flexible로 감싸서 화면 폭이 부족할 때 자동 줄바꿈
+            // 말풍선
             Flexible(
               child: ConstrainedBox(
                 constraints: BoxConstraints(
-                  // 화면 폭의 70%까지 차지할 수 있도록 제한
                   maxWidth: MediaQuery.of(context).size.width * 0.7,
                 ),
                 child: Container(
@@ -59,8 +61,8 @@ class ChatMessageBubble extends ConsumerWidget {
                   child: Text(
                     msg.content,
                     style: const TextStyle(color: Colors.black),
-                    softWrap: true,         // 줄바꿈 허용
-                    overflow: TextOverflow.clip, // 넘치면 잘라내기 (또는 ellipsis)
+                    softWrap: true,
+                    overflow: TextOverflow.clip,
                   ),
                 ),
               ),
@@ -70,85 +72,83 @@ class ChatMessageBubble extends ConsumerWidget {
       );
     }
 
-    // (2) 상대 메시지
-    else {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            // 프로필
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: Colors.grey.shade300,
-              backgroundImage: NetworkImage(
-                sender?.profile ?? '',
-              ),
-            ),
-            const SizedBox(width: 8),
+    // 상대방 메시지
+    final profileUrl = sender?.profile?.trim();
+    final hasValidProfile = isValidProfileUrl(profileUrl);
 
-            // 닉네임 + 말풍선 + 안읽은수
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    sender?.name ?? "알수 없는 사용자",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // 프로필 이미지 또는 아이콘
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: Colors.grey.shade300,
+            backgroundImage: hasValidProfile ? NetworkImage(profileUrl!) : null,
+            child: hasValidProfile ? null : const Icon(Icons.person, color: Colors.white),
+          ),
+          const SizedBox(width: 8),
 
-                  // 말풍선 + 시간(안읽은수)를 가로로 배치
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // 말풍선
-                      Flexible(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.7,
+          // 닉네임 + 말풍선
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  sender?.name ?? "알 수 없는 사용자",
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // 말풍선
+                    Flexible(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.7,
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade300,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade300,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              msg.content,
-                              style: const TextStyle(color: Colors.black),
-                              softWrap: true,
-                              overflow: TextOverflow.clip,
-                            ),
+                          child: Text(
+                            msg.content,
+                            style: const TextStyle(color: Colors.black),
+                            softWrap: true,
+                            overflow: TextOverflow.clip,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                    ),
+                    const SizedBox(width: 6),
 
-                      // 안 읽은 개수 + 시간
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (msg.unreadCount > 0)
-                            Text(
-                              '${msg.unreadCount}',
-                              style: const TextStyle(color: Colors.red, fontSize: 14),
-                            ),
+                    // 읽지 않은 개수 + 시간
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (msg.unreadCount > 0)
                           Text(
-                            sendTime,
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                            '${msg.unreadCount}',
+                            style: const TextStyle(color: Colors.red, fontSize: 14),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                        Text(
+                          sendTime,
+                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -160,4 +160,10 @@ String _formatTime(DateTime dateTime) {
     debugPrint('[ChatDetailPage] 타임스탬프 변환 오류: $e\n$stack');
     return 'Unknown';
   }
+}
+
+bool isValidProfileUrl(String? url) {
+  if (url == null || url.trim().isEmpty || url == 'default_profile') return false;
+  final uri = Uri.tryParse(url.trim());
+  return uri != null && uri.hasAbsolutePath && uri.hasScheme;
 }
