@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../../../../auth/data/models/user.dart';
+import '../../../../../data/models/chat_room.dart';
+import '../../../../../providers/chat_detail_provider.dart';
 import '../../../../../providers/map_provider.dart';
 
-/// 지도 버튼 (Kebab 메뉴 아이템)
 class MapButton extends ConsumerWidget {
-  /// 이미 열려있던 UI(오버레이 등)를 닫는 콜백
   final VoidCallback onCloseOverlay;
+  final ChatRoom chatRoom;
 
   const MapButton({
     super.key,
     required this.onCloseOverlay,
+    required this.chatRoom,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return InkWell(
       onTap: () {
-        // (1) 기존 오버레이(UI) 닫기
         onCloseOverlay();
 
-        // (2) 지도 모달(Dialog) 열기
         showDialog(
           context: context,
           barrierDismissible: true,
@@ -30,14 +31,14 @@ class MapButton extends ConsumerWidget {
           builder: (ctx) {
             return Dialog(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24), // 각도 24도 곡선
+                borderRadius: BorderRadius.circular(24),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(24), // 내부 콘텐츠도 곡선 적용
-                child: const SizedBox(
+                borderRadius: BorderRadius.circular(24),
+                child: SizedBox(
                   width: 400,
                   height: 530,
-                  child: MapModalContent(),
+                  child: MapModalContent(chatRoom: chatRoom),
                 ),
               ),
             );
@@ -45,17 +46,18 @@ class MapButton extends ConsumerWidget {
         );
       },
       child: SvgPicture.asset(
-        'assets/icons/location.svg', // SVG 파일 경로
-        width: 54,                  // 아이콘 너비
-        height: 54,                 // 아이콘 높이
+        'assets/icons/location.svg',
+        width: 54,
+        height: 54,
       ),
     );
   }
 }
 
-/// 지도 모달(Dialog 내부 콘텐츠)
 class MapModalContent extends ConsumerStatefulWidget {
-  const MapModalContent({super.key});
+  final ChatRoom chatRoom;
+
+  const MapModalContent({super.key, required this.chatRoom});
 
   @override
   ConsumerState<MapModalContent> createState() => _MapModalContentState();
@@ -64,17 +66,14 @@ class MapModalContent extends ConsumerStatefulWidget {
 class _MapModalContentState extends ConsumerState<MapModalContent> {
   NaverMapController? _mapController;
   bool _isMapReady = false;
+  final List<NMarker> _userMarkers = [];
 
   @override
   Widget build(BuildContext context) {
-    // (A) circles 목록을 watch 하여 변경 시 build 재호출
-    final circles = ref.watch(mapNotifierProvider);
-
     return Stack(
       children: [
-        // (1) NaverMap
         ClipRRect(
-          borderRadius: BorderRadius.circular(24), // 지도 모서리 곡선
+          borderRadius: BorderRadius.circular(24),
           child: NaverMap(
             options: const NaverMapViewOptions(
               initialCameraPosition: NCameraPosition(
@@ -85,20 +84,13 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
               zoomGesturesEnable: true,
               rotationGesturesEnable: true,
             ),
-            onMapReady: (controller) {
+            onMapReady: (controller) async {
               _mapController = controller;
               _isMapReady = true;
-              debugPrint('[MapModalContent] NaverMap 준비 완료');
-
-              // 초기 오버레이 설정
-              if (circles.isNotEmpty) {
-                controller.addOverlayAll(circles.toSet());
-              }
+              await _addUserMarkers(context);
             },
           ),
         ),
-
-        // (2) 사용자 아이콘 Row (하단)
         Positioned(
           left: 0,
           right: 0,
@@ -113,69 +105,148 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
     );
   }
 
-  /// (B) didUpdateWidget을 통해 맵 컨트롤러 준비 후 circles 반영
-  @override
-  void didUpdateWidget(MapModalContent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // build 직후 한 프레임 뒤에 오버레이 재설정
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateMapOverlays();
-    });
-  }
-
-  void _updateMapOverlays() {
-    if (_isMapReady && _mapController != null) {
-      final circles = ref.read(mapNotifierProvider);
-      _mapController!.clearOverlays(type: NOverlayType.circleOverlay);
-      _mapController!.addOverlayAll(circles.toSet());
-      debugPrint('[MapModalContent] 오버레이 갱신 완료. circles=${circles.length}');
+  User? _findUserById(List<User> users, int id) {
+    for (final user in users) {
+      if (user.id == id) return user;
     }
+    return null;
   }
 
-  /// 사용자 아이콘 Row (유저별 Circle 클릭 이동, 수평 스크롤 추가)
-  Widget _buildUserIcons() {
-    // (C) mapNotifier
+  Future<void> _addUserMarkers(BuildContext context) async {
     final mapNotifier = ref.read(mapNotifierProvider.notifier);
-    final userIds = mapNotifier.userIds; // 등록된 userId 목록
+    final userIds = mapNotifier.userIds;
+    final chatDetail = ref.read(chatDetailNotifierProvider(widget.chatRoom));
+    final participants = chatDetail.participants;
 
-    if (userIds.isEmpty) {
-      return const Center(child: Text('사용자 없음'));
+    for (final id in userIds) {
+      final user = _findUserById(participants, id);
+      if (user == null) continue;
+
+      final profileUrl = user.profile?.trim();
+      final latLng = mapNotifier.getUserLatLng(id);
+      if (latLng == null) continue;
+
+      final hasValidProfile = profileUrl != null &&
+          profileUrl.isNotEmpty &&
+          profileUrl != 'default_profile' &&
+          Uri.tryParse(profileUrl)?.hasAbsolutePath == true;
+
+      final profileWidget = SizedBox(
+        width: 70,
+        height: 90,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              constraints: const BoxConstraints(maxWidth: 70),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                user.name,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.white,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.grey.shade300,
+                image: hasValidProfile
+                    ? DecorationImage(
+                  image: NetworkImage(profileUrl),
+                  fit: BoxFit.cover,
+                )
+                    : null,
+              ),
+              child: hasValidProfile
+                  ? null
+                  : const Icon(Icons.person, color: Colors.white, size: 20),
+            ),
+          ],
+        ),
+      );
+
+      final overlayImage = await NOverlayImage.fromWidget(
+        widget: profileWidget,
+        size: const Size(60, 80),
+        context: context,
+      );
+
+      final marker = NMarker(
+        id: 'user_$id',
+        position: latLng,
+        icon: overlayImage,
+      );
+
+      _userMarkers.add(marker);
     }
 
-    // userIds만큼 아이콘 생성
+    _mapController?.addOverlayAll(_userMarkers.toSet());
+  }
+
+  Widget _buildUserIcons() {
+    final mapNotifier = ref.read(mapNotifierProvider.notifier);
+    final userIds = mapNotifier.userIds;
+    final chatDetail = ref.watch(chatDetailNotifierProvider(widget.chatRoom));
+    final participants = chatDetail.participants;
+
+    if (userIds.isEmpty || participants.isEmpty) {
+      return const SizedBox(
+        height: 50,
+        child: Center(child: Text('표시할 유저 없음')),
+      );
+    }
+
     final icons = userIds.map((id) {
+      final user = _findUserById(participants, id);
+      final profileUrl = user?.profile?.trim();
+
+      final hasValidProfile = profileUrl != null &&
+          profileUrl.isNotEmpty &&
+          profileUrl != 'default_profile' &&
+          Uri.tryParse(profileUrl)?.hasAbsolutePath == true;
+
       return Padding(
-        padding: const EdgeInsets.only(right: 10), // 사용자 간 간격 10 추가
+        padding: const EdgeInsets.only(right: 10),
         child: GestureDetector(
           onTap: () => _moveCameraToUser(id),
           child: CircleAvatar(
-            backgroundImage: AssetImage('assets/user$id.png'),
-            radius: 21, // 아이콘 크기 42x42
+            radius: 21,
+            backgroundColor: Colors.grey.shade300,
+            backgroundImage: hasValidProfile ? NetworkImage(profileUrl!) : null,
+            child: hasValidProfile
+                ? null
+                : const Icon(Icons.person, color: Colors.white),
           ),
         ),
       );
     }).toList();
 
     return SizedBox(
-      height: 50, // 스크롤 가능한 Row의 높이 (CircleAvatar 크기 + 여백)
+      height: 50,
       child: ListView(
-        scrollDirection: Axis.horizontal, // 가로 스크롤 설정
-        children: icons, // 생성된 아이콘 목록 추가
+        scrollDirection: Axis.horizontal,
+        children: icons,
       ),
     );
   }
 
-  /// 특정 userId로 카메라 이동
   void _moveCameraToUser(int userId) {
     final mapNotifier = ref.read(mapNotifierProvider.notifier);
     final userLatLng = mapNotifier.getUserLatLng(userId);
 
-    if (userLatLng == null) {
-      debugPrint('[MapModalContent] No location for user=$userId');
-      return;
-    }
-    if (_isMapReady && _mapController != null) {
-      debugPrint('[MapModalContent] 카메라 이동 -> user:$userId');
+    if (_isMapReady && _mapController != null && userLatLng != null) {
       _mapController!.updateCamera(
         NCameraUpdate.scrollAndZoomTo(
           target: userLatLng,

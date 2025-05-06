@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../data/models/chat_room.dart';
 import 'kebab_button/kebab_overlay.dart';
 
 class ChatInputBar extends StatefulWidget {
@@ -6,12 +7,14 @@ class ChatInputBar extends StatefulWidget {
   final FocusNode focusNode;
   final VoidCallback onSend;
   final double height;
+  final ChatRoom chatRoom;
 
   const ChatInputBar({
     super.key,
     required this.controller,
     required this.focusNode,
     required this.onSend,
+    required this.chatRoom,
     this.height = 72,
   });
 
@@ -137,6 +140,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
           onTapPhotoButton: () {
             print('사진 버튼 탭 → 여기서 원하는 로직');
           },
+          chatRoom: widget.chatRoom,
         );
       },
     );

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
+import '../../../../../data/models/chat_room.dart';
 import 'map_button.dart';
 
 class KebabOverlay extends StatelessWidget {
@@ -12,6 +12,9 @@ class KebabOverlay extends StatelessWidget {
   /// 이모티콘 버튼 콜백
   final VoidCallback onTapEmoticonButton;
 
+  final ChatRoom chatRoom;
+
+
   /// 사진 버튼 콜백
   final VoidCallback onTapPhotoButton;
 
@@ -22,6 +25,7 @@ class KebabOverlay extends StatelessWidget {
     required this.onTapOutside,
     required this.onTapEmoticonButton,
     required this.onTapPhotoButton,
+    required this.chatRoom,
   });
 
   @override
@@ -47,40 +51,41 @@ class KebabOverlay extends StatelessWidget {
                 children: [
                   // (1) 지도 버튼
                   MapButton(
+                    chatRoom: chatRoom,
                     onCloseOverlay: onTapOutside,
                   ),
 
                   const SizedBox(height: 15), // 버튼 간격 추가
 
-                  // (2) 이모티콘 버튼
-                  InkWell(
-                    onTap: () {
-                      onTapOutside(); // 먼저 오버레이 닫고
-                      onTapEmoticonButton(); // 이모티콘 로직
-                      debugPrint('이모티콘 버튼 탭');
-                    },
-                    child: SvgPicture.asset(
-                      'assets/icons/camera.svg', // SVG 파일 경로
-                      width: 54, // 아이콘 너비
-                      height: 54, // 아이콘 높이
-                    ),
-                  ),
-
-                  const SizedBox(height: 15), // 버튼 간격 추가
-
-                  // (3) 사진 버튼
-                  InkWell(
-                    onTap: () {
-                      onTapOutside(); // 먼저 오버레이 닫고
-                      onTapPhotoButton(); // 사진 선택 로직
-                      debugPrint('사진 버튼 탭');
-                    },
-                    child: SvgPicture.asset(
-                      'assets/icons/image.svg', // SVG 파일 경로
-                      width: 54, // 아이콘 너비
-                      height: 54, // 아이콘 높이
-                    ),
-                  ),
+                  // // (2) 이모티콘 버튼
+                  // InkWell(
+                  //   onTap: () {
+                  //     onTapOutside(); // 먼저 오버레이 닫고
+                  //     onTapEmoticonButton(); // 이모티콘 로직
+                  //     debugPrint('이모티콘 버튼 탭');
+                  //   },
+                  //   child: SvgPicture.asset(
+                  //     'assets/icons/camera.svg', // SVG 파일 경로
+                  //     width: 54, // 아이콘 너비
+                  //     height: 54, // 아이콘 높이
+                  //   ),
+                  // ),
+                  //
+                  // const SizedBox(height: 15), // 버튼 간격 추가
+                  //
+                  // // (3) 사진 버튼
+                  // InkWell(
+                  //   onTap: () {
+                  //     onTapOutside(); // 먼저 오버레이 닫고
+                  //     onTapPhotoButton(); // 사진 선택 로직
+                  //     debugPrint('사진 버튼 탭');
+                  //   },
+                  //   child: SvgPicture.asset(
+                  //     'assets/icons/image.svg', // SVG 파일 경로
+                  //     width: 54, // 아이콘 너비
+                  //     height: 54, // 아이콘 높이
+                  //   ),
+                  // ),
                 ],
               ),
             ),

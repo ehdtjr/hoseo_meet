@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../auth/data/models/user.dart';
 import '../../../data/models/chat_room.dart';
 import '../../../providers/chat_detail_provider.dart';
+import '../../../providers/chat_room_provicer.dart';
 
 class ChatSlideMenu extends ConsumerWidget {
   final ChatRoom chatRoom;
@@ -33,7 +34,7 @@ class ChatSlideMenu extends ConsumerWidget {
           child: SizedBox(
             width: menuWidth,
             height: double.infinity,
-            child: SingleChildScrollView(
+            child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,52 +48,57 @@ class ChatSlideMenu extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  ...participants.map((user) {
-                    final String? profileUrl = user.profile;
-                    final bool hasProfile = profileUrl != null &&
-                        profileUrl.isNotEmpty &&
-                        Uri.tryParse(profileUrl)?.hasAbsolutePath == true;
+                  // ✅ 참여자 목록만 스크롤 가능하게 수정
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: participants.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        final user = participants[index];
+                        final String? profileUrl = user.profile;
+                        final bool hasProfile = profileUrl != null &&
+                            profileUrl.isNotEmpty &&
+                            Uri.tryParse(profileUrl)?.hasAbsolutePath == true;
 
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10), // 유저 간 간격 넉넉히
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          radius: 24,
-                          backgroundImage: hasProfile ? NetworkImage(profileUrl!) : null,
-                          backgroundColor: Colors.grey.shade300,
-                          child: hasProfile
-                              ? null
-                              : const Icon(Icons.person, color: Colors.white),
-                        ),
-                        title: Text(user.name ?? '알 수 없음'),
-                        trailing: PopupMenuButton<String>(
-                          color: Colors.white,
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                        return ListTile(
+                          leading: CircleAvatar(
+                            radius: 24,
+                            backgroundImage: hasProfile ? NetworkImage(profileUrl) : null,
+                            backgroundColor: Colors.grey.shade300,
+                            child: hasProfile
+                                ? null
+                                : const Icon(Icons.person, color: Colors.white),
                           ),
-                          onSelected: (value) {
-                            Navigator.pop(context);
-                            if (value == 'report') {
-                              // TODO: user 신고 처리
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'report',
-                              child: Text(
-                                '신고하기',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.w500,
+                          title: Text(user.name),
+                          trailing: PopupMenuButton<String>(
+                            color: Colors.white,
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            onSelected: (value) {
+                              Navigator.pop(context);
+                              if (value == 'report') {
+                                // TODO: user 신고 처리
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: 'report',
+                                child: Text(
+                                  '신고하기',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
 
                   const SizedBox(height: 30),
                   const Divider(),
@@ -107,26 +113,27 @@ class ChatSlideMenu extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      // TODO: 채팅방 나가기 처리
-                    },
-                  ),
+                      onTap: () async {
+                        final chatRoomNotifier = ref.read(chatRoomNotifierProvider.notifier);
 
+                        try {
+                          await chatRoomNotifier.unsubscribe(chatRoom.streamId); // 방 구독 해제
+                          Navigator.pop(context); // 슬라이드 메뉴 닫기
+
+                          Navigator.pop(context);
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('채팅방에서 나갔습니다.')),
+                          );
+                        } catch (e) {
+                          Navigator.pop(context); // 슬라이드 메뉴 닫기
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('채팅방 나가기 실패 😢')),
+                          );
+                        }
+                      }
+                  ),
                   const SizedBox(height: 20),
-
-                  Center(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        "닫기",
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),

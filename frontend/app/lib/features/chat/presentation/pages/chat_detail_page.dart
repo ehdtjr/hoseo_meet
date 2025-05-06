@@ -193,6 +193,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
 
                 // 입력창
                 ChatInputBar(
+                  chatRoom: widget.chatRoom,
                   controller: _messageController,
                   focusNode: _messageFocusNode,
                   onSend: _sendMessage,

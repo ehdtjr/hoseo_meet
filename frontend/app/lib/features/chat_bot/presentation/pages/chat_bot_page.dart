@@ -57,11 +57,6 @@ class _ChatBotPageState extends ConsumerState<ChatBotPage> {
                   scrollController: _scrollController,
                 ),
               ),
-              ChatInputBar(
-                controller: _messageController,
-                focusNode: _messageFocusNode,
-                onSend: _sendMessage,
-              ),
             ],
           ),
         ),

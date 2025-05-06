@@ -8,9 +8,7 @@ import '../../../navigation/presentation/pages/main_tab_page.dart';
 import '../../data/models/auth_state.dart';
 import '../../providers/auth_notifier.dart';
 
-// (★) 추가: SendTokenService import
 import 'package:hoseomeet/firebase/api/send_token_service.dart';
-
 import '../../providers/user_profile_provider.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -23,6 +21,8 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage> {
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _pwController = TextEditingController();
+
+  bool _navigated = false; // ✅ 추가: 중복 이동 방지
 
   @override
   void dispose() {
@@ -46,16 +46,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authNotifierProvider); // AuthState
+    final authState = ref.watch(authNotifierProvider);
     final authNotifier = ref.read(authNotifierProvider.notifier);
     final userProfileNotifier = ref.read(userProfileNotifierProvider.notifier);
 
-    // 로그인 성공 시 화면 이동 + FCM 토큰 서버 전송
-    if (authState.isLoggedIn) {
+    if (authState.isLoggedIn && !_navigated) {
+      _navigated = true;
+
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        // (1) FCM 토큰 가져오기
         final token = await FirebaseMessaging.instance.getToken();
-        // (2) 토큰 서버 전송
         if (token != null && token.isNotEmpty) {
           final authClient = ref.read(authHttpClientProvider);
           final sendTokenService = SendTokenService(authClient);
@@ -68,14 +67,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           }
         }
 
-        // user profile 등록
         await userProfileNotifier.fetchUserProfile();
 
-        // (3) 화면 전환
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => MainTabPage()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => MainTabPage()),
+          );
+        }
       });
     }
 
@@ -195,10 +194,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     return;
                   }
 
-                  // 로그인 시도
                   await authNotifier.loginUser(id, pw);
 
-                  // 에러가 있다면 표시
                   final err = ref.read(authNotifierProvider).errorMessage;
                   if (err != null) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
@@ -276,7 +273,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                       ),
                     ),
-                    // 가운데 점
                     Positioned(
                       left: w(context, 52),
                       top: h(context, 7),
