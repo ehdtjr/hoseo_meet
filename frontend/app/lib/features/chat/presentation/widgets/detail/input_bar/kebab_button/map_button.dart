@@ -196,14 +196,17 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
     final chatDetail = ref.watch(chatDetailNotifierProvider(widget.chatRoom));
     final participants = chatDetail.participants;
 
-    if (participants.isEmpty) {
+    // 위치 정보가 있는 유저만 필터링 (접속 중인 유저)
+    final onlineUsers = participants.where((user) => positions.containsKey(user.id)).toList();
+
+    if (onlineUsers.isEmpty) {
       return const SizedBox(
         height: 50,
-        child: Center(child: Text('표시할 유저 없음')),
+        child: Center(child: Text('접속 중인 유저 없음')),
       );
     }
 
-    final icons = participants.map((user) {
+    final icons = onlineUsers.map((user) {
       final profileUrl = user.profile?.trim();
       final hasValidProfile = profileUrl != null &&
           profileUrl.isNotEmpty &&
@@ -234,6 +237,7 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
       ),
     );
   }
+
 
   void _moveCameraToUser(int userId) {
     final positions = ref.read(mapNotifierProvider);
