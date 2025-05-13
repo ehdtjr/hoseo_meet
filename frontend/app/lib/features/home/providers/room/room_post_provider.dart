@@ -13,3 +13,5 @@ final roomPostProvider = StateNotifierProvider<RoomPostNotifier, List<RoomPost>>
   final service = ref.watch(roomServiceProvider);
   return RoomPostNotifier(service, ref);
 });
+
+final roomPostSearchQueryProvider = StateProvider<String>((ref) => '');

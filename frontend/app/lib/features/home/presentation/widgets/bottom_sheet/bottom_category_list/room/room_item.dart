@@ -9,7 +9,7 @@ class RoomItem extends StatelessWidget {
   final int reviewCount; // 리뷰 수
   final int distance; // 거리
   final String description; // 설명
-  final bool isFavorite; // 즐겨찾기 여부
+  final bool isHeart; // 즐겨찾기 여부
   final VoidCallback onFavoriteToggle; // 즐겨찾기 버튼 클릭 시 호출
   final String postId; // RoomPage에 전달할 post_id
 
@@ -21,7 +21,7 @@ class RoomItem extends StatelessWidget {
     required this.reviewCount,
     required this.distance,
     required this.description,
-    required this.isFavorite,
+    required this.isHeart,
     required this.onFavoriteToggle,
     required this.postId,
   });
@@ -138,8 +138,8 @@ class RoomItem extends StatelessWidget {
                   IconButton(
                     onPressed: onFavoriteToggle,
                     icon: Icon(
-                      isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: isFavorite ? const Color(0xFFE72410) : const Color(0xFF9F9F9F),
+                      isHeart ? Icons.favorite : Icons.favorite_border,
+                      color: isHeart ? const Color(0xFFE72410) : const Color(0xFF9F9F9F),
                     ),
                   ),
                 ],

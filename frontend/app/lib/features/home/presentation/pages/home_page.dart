@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/home_map_widgets.dart';
 import 'package:hoseomeet/widgets/search_bar.dart';
 import '../../../auth/providers/user_profile_provider.dart';
+import '../../../meet/providers/meet_post_provider.dart';
+import '../../../meet/providers/meet_post_search.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/room/room_post_provider.dart';
 import '../widgets/bottom_sheet/bottom_sheet_container.dart';
 import '../widgets/home_category_row.dart';
 
@@ -57,19 +60,34 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
 
           // 검색바
+
           Positioned(
             top: 60,
             left: 24,
             right: 24,
-            child: SearchBarWidget(
-              controller: _searchController,
-              onSearch: (query) {
-                print('검색어: $query');
-                // 검색 로직 추가 가능
-              },
-              onClear: () {
-                _searchController.clear();
-                print('검색어 초기화');
+            child: Consumer(
+              builder: (context, ref, _) {
+                final selectedCategory = ref.watch(categoryProvider);
+
+                void _handleSearch(String query) {
+                  final categoryName = selectedCategory?.name;
+
+                  if (categoryName == '자취방') {
+                    ref.read(roomPostSearchQueryProvider.notifier).state = query;
+                    ref.read(roomPostProvider.notifier).resetAndLoad();
+                  } else {
+                    ref.read(meetPostSearchQueryProvider.notifier).state = query;
+                    ref.read(meetPostProvider.notifier).resetAndLoad();
+                  }
+                }
+                return SearchBarWidget(
+                  controller: _searchController,
+                  onSearch: _handleSearch,
+                  onClear: () {
+                    _searchController.clear();
+                    _handleSearch('');
+                  },
+                );
               },
             ),
           ),

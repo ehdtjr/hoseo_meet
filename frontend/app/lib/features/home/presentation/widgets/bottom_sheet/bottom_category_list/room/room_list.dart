@@ -39,12 +39,16 @@ class RoomPostList extends ConsumerWidget {
           reviewCount: roomPost.reviewsCount,
           distance: roomPost.distance,
           description: roomPost.name, // 실제 설명 필드가 있다면 해당 값을 사용
-          isFavorite: false, // RoomPost 모델에 즐겨찾기 필드가 없으므로, 필요시 추가 구현
+          isHeart: roomPost.isHeart, // RoomPost 모델에 즐겨찾기 필드가 없으므로, 필요시 추가 구현
           postId: roomPost.id.toString(),
           onFavoriteToggle: () {
-            // 즐겨찾기 토글 시 사용자 정의 로직 처리
-            debugPrint('${roomPost.name} 즐겨찾기 토글');
+            if (roomPost.isHeart) {
+              notifier.unheartRoom(roomPost.id); // 하트 취소
+            } else {
+              notifier.heartRoom(roomPost.id);   // 하트 등록
+            }
           },
+
         );
       },
     );

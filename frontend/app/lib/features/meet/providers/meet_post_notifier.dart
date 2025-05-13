@@ -26,7 +26,7 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
 
     _isLoading = true;
     final category = _ref.read(meetPostCategoryProvider).name;
-    final query = _ref.read(searchQueryProvider); // 검색어 가져오기
+    final query = _ref.read(meetPostSearchQueryProvider); // 검색어 가져오기
     final type = category == 'all' ? '' : category;
 
     try {

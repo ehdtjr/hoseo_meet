@@ -5,6 +5,7 @@ class RoomPost {
   final double avgRating;
   final int distance;
   final List<String> images;
+  final bool isHeart; // ✅ camelCase로 변경 권장
 
   RoomPost({
     required this.id,
@@ -13,21 +14,23 @@ class RoomPost {
     required this.avgRating,
     required this.distance,
     required this.images,
+    required this.isHeart,
   });
 
-  // JSON 데이터를 모델로 변환하는 factory 생성자
+  // ✅ JSON 데이터를 모델로 변환하는 factory 생성자
   factory RoomPost.fromJson(Map<String, dynamic> json) {
     return RoomPost(
       id: json['id'] as int,
       name: json['name'] as String,
       reviewsCount: json['reviews_count'] as int,
       avgRating: (json['avg_rating'] as num).toDouble(),
-      distance: (json['distance'] as num).toInt(), // 정수형으로 변환
+      distance: (json['distance'] as num).toInt(),
       images: List<String>.from(json['images']),
+      isHeart: json['is_heart'] as bool, // ✅ 추가
     );
   }
 
-  // 모델을 JSON으로 변환하는 메서드
+  // ✅ 모델을 JSON으로 변환하는 메서드
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -36,17 +39,19 @@ class RoomPost {
       'avg_rating': avgRating,
       'distance': distance,
       'images': images,
+      'is_heart': isHeart, // ✅ 추가
     };
   }
 
-  // copyWith 메서드: 변경할 필드만 지정하여 새로운 RoomPost 객체를 반환
+  // ✅ copyWith 메서드
   RoomPost copyWith({
     int? id,
     String? name,
     int? reviewsCount,
     double? avgRating,
-    int? distance, // int 타입으로 변경
+    int? distance,
     List<String>? images,
+    bool? isHeart, // ✅ 추가
   }) {
     return RoomPost(
       id: id ?? this.id,
@@ -55,6 +60,7 @@ class RoomPost {
       avgRating: avgRating ?? this.avgRating,
       distance: distance ?? this.distance,
       images: images ?? this.images,
+      isHeart: isHeart ?? this.isHeart,
     );
   }
 }

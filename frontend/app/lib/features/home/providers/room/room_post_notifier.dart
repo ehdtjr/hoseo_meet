@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:hoseomeet/features/home/data/models/room_post.dart';
 import 'package:hoseomeet/features/home/data/models/room_post_detail.dart';
+import 'package:hoseomeet/features/home/providers/room/room_post_provider.dart';
 import '../../data/services/room_post_service.dart';
 import 'room_post_category_provider.dart';
 
 final roomPlaceProvider = Provider<String>((ref) => '');
+final roomSearchKeywordProvider = StateProvider<String>((ref) => '');
 
 class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
   final RoomService _service;
@@ -25,7 +27,6 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
   late final ProviderSubscription<RoomPostCategory> _categorySubscription;
 
   RoomPostNotifier(this._service, this._ref) : super([]) {
-    // 카테고리 변경 리스너 (지연 처리)
     _categorySubscription = _ref.listen<RoomPostCategory>(
       roomPostCategoryProvider,
           (previous, next) {
@@ -35,7 +36,6 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
       },
     );
 
-    // 위치 초기화 및 초기 로드를 안전하게 비동기로 처리
     Future.microtask(() => _init());
   }
 
@@ -55,9 +55,9 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
         desiredAccuracy: LocationAccuracy.high,
       );
       _currentPosition = position;
-      debugPrint('초기 위치: 위도=${position.latitude}, 경도=${position.longitude}');
+      debugPrint('📍 초기 위치: 위도=${position.latitude}, 경도=${position.longitude}');
     } catch (e) {
-      debugPrint('초기 위치 획득 실패: $e');
+      debugPrint('⚠️ 초기 위치 획득 실패: $e');
     }
   }
 
@@ -72,7 +72,8 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
     ).listen(
           (position) {
         _currentPosition = position;
-        debugPrint('새 위치 업데이트: 위도=${position.latitude}, 경도=${position.longitude}');
+        debugPrint('📍 위치 업데이트: 위도=${position.latitude}, 경도=${position.longitude}');
+
         if (_lastReloadPosition != null) {
           final distanceMoved = Geolocator.distanceBetween(
             _lastReloadPosition!.latitude,
@@ -80,17 +81,18 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
             position.latitude,
             position.longitude,
           );
+
           if (distanceMoved >= 10) {
             _lastReloadPosition = position;
             resetAndLoad();
-            debugPrint('10m 이상 이동 감지: 리스트 데이터 재로드');
+            debugPrint('🔁 10m 이상 이동 - 리스트 재로드');
           }
         } else {
           _lastReloadPosition = position;
         }
       },
       onError: (error) {
-        debugPrint('위치 에러: $error');
+        debugPrint('⚠️ 위치 스트림 에러: $error');
       },
     );
   }
@@ -99,18 +101,10 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
     if (_isLoading) return;
     _isLoading = true;
 
-    try {
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      _currentPosition = position;
-      debugPrint('강제 업데이트 위치: 위도=${position.latitude}, 경도=${position.longitude}');
-    } catch (e) {
-      debugPrint('현재 위치 강제 업데이트 실패: $e');
-    }
-
     final place = _ref.read(roomPlaceProvider);
     final category = _ref.read(roomPostCategoryProvider);
+    final keyword = _ref.read(roomPostSearchQueryProvider);
+    final name = keyword.isEmpty ? null : keyword;
 
     String sortBy;
     switch (category) {
@@ -123,11 +117,15 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
       case RoomPostCategory.reviews:
         sortBy = 'reviews';
         break;
+      case RoomPostCategory.heart:
+        sortBy = 'heart';
+        break;
     }
 
     double? userLat = _currentPosition?.latitude;
     double? userLon = _currentPosition?.longitude;
-    debugPrint('API 호출 전: userLat=$userLat, userLon=$userLon');
+
+    debugPrint('📡 API 요청: skip=$_skip, place=$place, sortBy=$sortBy, name=$name');
 
     try {
       final posts = await _service.loadListRooms(
@@ -137,6 +135,7 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
         sortBy: sortBy,
         userLat: userLat,
         userLon: userLon,
+        name: name,
       );
 
       if (loadMore) {
@@ -147,13 +146,10 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
         state = posts;
       }
 
-      if (posts.length < _limit) {
-        _hasMore = false;
-      } else {
-        _skip += _limit;
-      }
+      _hasMore = posts.length >= _limit;
+      if (_hasMore) _skip += _limit;
     } catch (e) {
-      debugPrint('Failed to load room posts: $e');
+      debugPrint('❌ 방 리스트 불러오기 실패: $e');
     } finally {
       _isLoading = false;
     }
@@ -170,8 +166,32 @@ class RoomPostNotifier extends StateNotifier<List<RoomPost>> {
     try {
       return await _service.loadRoomDetail(roomId: roomId);
     } catch (e) {
-      debugPrint('Failed to load room detail: $e');
+      debugPrint('❌ 방 상세 정보 불러오기 실패: $e');
       return null;
+    }
+  }
+
+  Future<void> heartRoom(int roomId) async {
+    try {
+      await _service.heartRoom(roomId: roomId);
+      state = [
+        for (final post in state)
+          if (post.id == roomId) post.copyWith(isHeart: true) else post
+      ];
+    } catch (e) {
+      debugPrint('❌ 하트 등록 실패: $e');
+    }
+  }
+
+  Future<void> unheartRoom(int roomId) async {
+    try {
+      await _service.unheartRoom(roomId: roomId);
+      state = [
+        for (final post in state)
+          if (post.id == roomId) post.copyWith(isHeart: false) else post
+      ];
+    } catch (e) {
+      debugPrint('❌ 하트 취소 실패: $e');
     }
   }
 

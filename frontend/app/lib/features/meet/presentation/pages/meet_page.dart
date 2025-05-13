@@ -30,7 +30,7 @@ class _MeetPageState extends ConsumerState<MeetPage> {
     _searchController = TextEditingController();
 
     // 초기 검색어 상태 설정
-    _searchController.text = ref.read(searchQueryProvider);
+    _searchController.text = ref.read(meetPostSearchQueryProvider);
   }
 
   @override
@@ -53,7 +53,7 @@ class _MeetPageState extends ConsumerState<MeetPage> {
     }
 
     // 현재 검색어 상태 감시
-    ref.watch(searchQueryProvider);
+    ref.watch(meetPostSearchQueryProvider);
 
     // 모임 게시글 목록 상태
     final meetPosts = ref.watch(meetPostProvider);
@@ -72,12 +72,12 @@ class _MeetPageState extends ConsumerState<MeetPage> {
           child: MeetSearchBarWidget(
             controller: _searchController,
             onSearch: (query) {
-              ref.read(searchQueryProvider.notifier).state = query;
+              ref.read(meetPostSearchQueryProvider.notifier).state = query;
               notifier.resetAndLoad();
             },
             onClear: () {
               _searchController.clear();
-              ref.read(searchQueryProvider.notifier).state = '';
+              ref.read(meetPostSearchQueryProvider.notifier).state = '';
               notifier.resetAndLoad();
             },
           ),

@@ -151,6 +151,8 @@ class RoomHeaderWidget extends ConsumerWidget {
         return '별점순';
       case RoomPostCategory.reviews:
         return '리뷰순';
+      case RoomPostCategory.heart:
+        return '찜목록';
       default:
         return '알 수 없음';
     }
