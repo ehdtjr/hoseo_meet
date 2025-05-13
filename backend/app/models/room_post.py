@@ -8,7 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    func,
+    func, UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,6 +44,12 @@ class RoomPost(Base):
         "RoomReview",
         back_populates="room",
         lazy="selectin",  # Eager loading
+    )
+    hearts: Mapped[list["RoomPostHeart"]] = relationship(
+        "RoomPostHeart",
+        back_populates="room",
+        lazy="selectin",
+        cascade="all, delete-orphan"
     )
 
 
@@ -100,3 +106,34 @@ class RoomReviewImage(Base):
     )
 
     review: Mapped["RoomReview"] = relationship("RoomReview", back_populates="images")
+
+
+class RoomPostHeart(Base):
+    __tablename__ = "room_post_heart"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False
+    )
+    room_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("room_post.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "room_id", name="uq_user_room_heart"),
+    )
+
+    user: Mapped["User"] = relationship(
+        "User",
+        back_populates="hearts",
+        lazy="selectin"
+    )
+    room: Mapped["RoomPost"] = relationship(
+        "RoomPost",
+        back_populates="hearts",
+        lazy="selectin"
+    )
