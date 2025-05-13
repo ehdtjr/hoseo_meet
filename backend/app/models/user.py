@@ -63,6 +63,12 @@ class User(SQLAlchemyBaseUserTable, Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    hearts: Mapped[list["RoomPostHeart"]] = relationship(
+        "RoomPostHeart",
+        back_populates="user",
+        lazy="selectin",
+        cascade="all, delete-orphan"
+    )
 
 class UserReport(Base):
     __tablename__ = "user_report"

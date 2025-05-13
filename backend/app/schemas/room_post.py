@@ -15,10 +15,10 @@ class RoomPostListResponse(BaseModel):
     avg_rating: float = 0.0
     distance: float = 0.0
     images: Optional[List[str]]
+    is_heart: bool = False
 
 
 class RoomPostDetailResponse(RoomPostListResponse):
-    # 상속받았으므로 id, name, reviews_count, avg_rating, distance 포함
     address: Optional[str] = None
     contact: Optional[str] = None
     price: Optional[str] = None
@@ -29,6 +29,13 @@ class RoomPostDetailResponse(RoomPostListResponse):
     review_rating_counts: Dict[int, int] = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
 
     place: str
+
+class RoomPostHeartBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: Optional[int] = None
+    user_id: int
+    room_id: int
 
 
 class RoomReviewResponse(BaseModel):
@@ -51,4 +58,3 @@ class RoomReviewImageBase(BaseModel):
     room_id: int
     image: str
     created_at: datetime
-

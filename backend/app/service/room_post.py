@@ -1,13 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict
 
-from fastapi import UploadFile
+from fastapi import UploadFile, Depends
 from sqlalchemy import func, case
 from sqlalchemy import select, desc, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.s3 import s3_manager
-from app.models.room_post import RoomPost
+from app.crud.room_post import RoomPostHeartCRUD, RoomPostHeartCRUDProtocol, \
+    get_room_post_heart
+from app.models.room_post import RoomPost, RoomPostHeart
 from app.models.room_post import RoomReview
 from app.models.room_post import RoomReviewImage
 from app.models.user import User
@@ -23,6 +25,8 @@ class RoomPostServiceProtocol(ABC):
     async def get_room_posts(
         self,
         db: AsyncSession,
+        user_id: int,
+        name:Optional[str],
         place: Optional[str],
         sort_by: Optional[str],  # "distance", "reviews", "rating" 등
         user_lat: Optional[float],
@@ -43,9 +47,14 @@ class RoomPostServiceProtocol(ABC):
 
 class RoomPostService(RoomPostServiceProtocol):
 
+    def __init__(self, room_post_heart_crud: RoomPostHeartCRUDProtocol):
+        self._room_post_heart_crud = room_post_heart_crud
+
     async def get_room_posts(
             self,
             db: AsyncSession,
+            user_id: int,
+            name: Optional[str],
             place: Optional[str],
             sort_by: Optional[str],
             user_lat: Optional[float],
@@ -71,22 +80,36 @@ class RoomPostService(RoomPostServiceProtocol):
         if distance_expr is not None:
             columns.append(distance_expr.label("distance"))
 
-        stmt = (
-            select(*columns)
-            .outerjoin(RoomReview, RoomReview.room_id == RoomPost.id)
-            .group_by(RoomPost.id)
-        )
+        if sort_by == "heart":
+            stmt = (
+                select(*columns)
+                .join(RoomPostHeart, RoomPost.id == RoomPostHeart.room_id)
+                .where(RoomPostHeart.user_id == user_id)
+                .group_by(RoomPost.id)
+            )
+            if name:
+                stmt = stmt.where(
+                    RoomPost.name.ilike(f"%{name}%"))  # ✅ 이름 필터 추가
+        else:
+            stmt = (
+                select(*columns)
+                .outerjoin(RoomReview, RoomReview.room_id == RoomPost.id)
+                .group_by(RoomPost.id)
+            )
 
-        if place:
-            stmt = stmt.where(RoomPost.place == place)
+            if place:
+                stmt = stmt.where(RoomPost.place == place)
 
-        if sort_by == "distance" and distance_expr is not None:
-            stmt = stmt.order_by(distance_expr)  # 가까운 순으로 정렬
-        elif sort_by == "reviews":
-            stmt = stmt.order_by(desc(func.count(RoomReview.id)))
-        elif sort_by == "rating":
-            stmt = stmt.order_by(
-                desc(func.coalesce(func.avg(RoomReview.rating), 0)))
+            if name:
+                stmt = stmt.where(
+                    RoomPost.name.ilike(f"%{name}%"))  # ✅ 이름 필터 추가
+
+            if sort_by == "distance" and distance_expr is not None:
+                stmt = stmt.order_by(distance_expr)
+            elif sort_by == "reviews":
+                stmt = stmt.order_by(desc(func.count(RoomReview.id)))
+            elif sort_by == "rating":
+                stmt = stmt.order_by(desc(func.avg(RoomReview.rating)))
 
         stmt = stmt.offset(skip).limit(limit)
 
@@ -106,13 +129,19 @@ class RoomPostService(RoomPostServiceProtocol):
             image_urls = [img.image for img in
                           room_obj.images] if room_obj.images else []
 
+            is_heart = await self._room_post_heart_crud.is_heart(
+                db=db,
+                user_id=user_id,
+                room_id=room_obj.id
+            )
             item = RoomPostListResponse(
                 id=room_obj.id,
                 name=room_obj.name,
                 reviews_count=reviews_count_val,
                 avg_rating=avg_rating_val,
                 distance=distance_val,
-                images=image_urls
+                images=image_urls,
+                is_heart =is_heart
             )
             response_list.append(item)
 
@@ -190,8 +219,10 @@ class RoomPostService(RoomPostServiceProtocol):
 
 
 # FastAPI 의존성 주입용
-async def get_room_post_service() -> RoomPostServiceProtocol:
-    return RoomPostService()
+async def get_room_post_service(
+    room_poset_heart_crud: RoomPostHeartCRUDProtocol = Depends(get_room_post_heart)
+) -> RoomPostServiceProtocol:
+    return RoomPostService(room_poset_heart_crud)
 
 
 class RoomReviewService:
