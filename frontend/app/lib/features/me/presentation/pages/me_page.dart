@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hoseomeet/features/me/presentation/pages/terms_of_user_page.dart';
 
 import '../../../auth/providers/user_profile_provider.dart';
 import 'edit_profile_page.dart';
@@ -141,6 +142,11 @@ class _MePageState extends ConsumerState<MePage> {
               break;
             case "이용 규칙":
             // TODO: 해당 페이지로 이동 구현
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TermsOfUsePage()),
+              );
+
               break;
             case "자주 묻는 질문":
             // TODO: 해당 페이지로 이동 구현
