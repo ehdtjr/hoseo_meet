@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from starlette.responses import JSONResponse
 
 from app.core.db import get_async_session
 from app.core.security import current_active_user
@@ -35,6 +36,28 @@ async def create_story_post(
         user_id=user.id,
         story_request=story_request,
     )
+
+@router.delete("/delete/{story_post_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_story_post(
+    story_post_id: int,
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_async_session),
+    story_post_service: StoryPostService = Depends(get_story_post_service),
+):
+    """
+    스토리 게시물을 삭제하는 엔드포인트입니다.
+    - 존재하지 않거나 권한이 없으면 HTTP 404 또는 403 에러를 발생시킵니다.
+    """
+    try:
+        await story_post_service.delete_story_post(
+            db=db,
+            story_post_id=story_post_id,
+            user_id=user.id,
+        )
+        return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content={"success": True})
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
 
 @router.get("/list", response_model=list[StoryPostResponse])
 async def list_story_posts(

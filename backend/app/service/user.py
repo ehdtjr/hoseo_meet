@@ -3,18 +3,19 @@ from typing import Any, AsyncGenerator, Optional
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi_users import BaseUserManager, IntegerIDMixin, models, schemas
+import fastapi_users
 
 from fastapi_users.models import UP
 from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 
 from app.api.deps import get_user_db
 from app.core.config import settings
+from app.core.exceptions import PermissionDeniedException
 from app.models.user import User
 from app.service.email import EmailServiceProtocol, get_email_service
 
 
-class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
+class UserManager(fastapi_users.IntegerIDMixin, fastapi_users.BaseUserManager[User, int]):
 
     def __init__(
         self,
@@ -31,7 +32,7 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
 
     async def authenticate(
         self, credentials: OAuth2PasswordRequestForm
-    ) -> Optional[models.UP]:
+    ) -> Optional[fastapi_users.models.UP]:
         user = await super().authenticate(credentials)
         if user and not user.is_verified:
             raise HTTPException(
@@ -96,6 +97,26 @@ class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
                 return {"user":user, "is_first_login":True}
         
         return {"user":user, "is_first_login":False}
+
+    async def change_password(
+        self,
+        user: User,
+        current_password: str,
+        new_password: str
+    ) -> User:
+        verified, _ = self.password_helper.verify_and_update(
+            current_password,
+            user.hashed_password
+        )
+        if not verified:
+            raise PermissionDeniedException("올바르지 않은 현재 비밀번호")
+
+        await self.validate_password(new_password, user)
+
+        hashed = self.password_helper.hash(new_password)
+        updated_user = await self.user_db.update(user, {"hashed_password": hashed})
+
+        return updated_user
 
 
 async def get_user_manager(
