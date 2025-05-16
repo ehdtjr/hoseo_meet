@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hoseomeet/features/auth/presentation/pages/privacy_policy_page.dart';
+import 'package:hoseomeet/features/auth/presentation/pages/terms_policy_page.dart';
 import 'package:hoseomeet/features/me/presentation/pages/terms_of_user_page.dart';
 
 import '../../../auth/providers/auth_notifier_provider.dart';
@@ -97,9 +99,9 @@ class _MePageState extends ConsumerState<MePage> {
 
           // 메뉴 섹션
           ..._buildMenuSection("계정", ["프로필 변경", "비밀번호 변경"]),
-          ..._buildMenuSection("게시글", ["내가 작성한 글"]),
-          ..._buildMenuSection("이용 안내", ["이용 규칙"]),
-          ..._buildMenuSection("기타", ["약관 및 정책", "로그아웃", "회원 탈퇴"]),
+ //         ..._buildMenuSection("게시글", ["내가 작성한 글"]),
+          ..._buildMenuSection("이용 안내", ["이용 규칙","약관 및 정책", "개인정보 처리 방침"]),
+          ..._buildMenuSection("기타", ["로그아웃", "회원 탈퇴"]),
         ],
       ),
     );
@@ -134,7 +136,7 @@ class _MePageState extends ConsumerState<MePage> {
               );
               break;
             case "내가 작성한 글":
-            // TODO: 구현 필요
+            // TODO: 구현 필
               break;
             case "이용 규칙":
               Navigator.push(
@@ -143,7 +145,15 @@ class _MePageState extends ConsumerState<MePage> {
               );
               break;
             case "약관 및 정책":
-            // TODO: 구현 필요
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TermsPolicyPage()),
+              );
+              case "개인정보 처리 방침":
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+              );
               break;
             case "로그아웃":
               ref.read(authNotifierProvider.notifier).logout();
