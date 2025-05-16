@@ -140,8 +140,6 @@ class MeetHeaderWidget extends ConsumerWidget {
         return '배달';
       case MeetPostCategory.taxi:
         return '택시';
-      default:
-        return '알 수 없음';
-    }
+      }
   }
 }

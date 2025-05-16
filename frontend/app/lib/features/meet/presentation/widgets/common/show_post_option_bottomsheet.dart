@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'delete_confirm_dialog.dart';
+import '../../../../../widgets/showConfirmDialog.dart';
 
 Future<void> showPostOptionsBottomSheet({
   required BuildContext context,
@@ -8,6 +7,7 @@ Future<void> showPostOptionsBottomSheet({
 }) async {
   return showModalBottomSheet(
     context: context,
+    backgroundColor: Colors.white, // ✅ 흰 바탕 명시
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
@@ -23,17 +23,15 @@ Future<void> showPostOptionsBottomSheet({
                 title: const Text('삭제하기', style: TextStyle(color: Colors.red)),
                 onTap: () async {
                   Navigator.of(context).pop(); // 바텀시트 닫기
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (_) => const DeleteConfirmDialog(
-                      title: '정말 삭제할까요?',
-                      content: '삭제하면 복구할 수 없습니다.',
-                    ),
-                  );
 
-                  if (confirm == true) {
-                    onDelete();
-                  }
+                  await showConfirmDialog(
+                    context: context,
+                    title: '정말 삭제할까요?',
+                    description: '삭제하면 복구할 수 없습니다.',
+                    confirmText: '삭제',
+                    confirmColor: Colors.redAccent,
+                    onConfirm: onDelete,
+                  );
                 },
               ),
             ],

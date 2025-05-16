@@ -1,37 +1,41 @@
 import 'dart:io';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/story/data/models/story_post.dart';
+import '../../auth/data/models/user.dart';
+import '../../auth/data/services/user_service.dart';
+import '../data/models/story_post.dart';
 import '../data/services/story_post_service.dart';
 
 class StoryPostNotifier extends StateNotifier<List<StoryPost>> {
   final StoryPostService _service;
+  final UserService _userService;
 
-  bool _isLoading = false;
-  bool _hasMore = true;
-  int _skip = 0;
-  final int _limit = 10;
-
-  StoryPostNotifier(this._service) : super([]) {
+  StoryPostNotifier(this._service, this._userService) : super([]) {
     debugPrint("📌 StoryPostNotifier 초기화");
     loadStoryPosts();
   }
 
+  bool _isLoading = false;
+  bool _hasMore = true;
+  final int _limit = 10;
+
+  final Map<int, User> _authorCache = {};
+
   bool get isLoading => _isLoading;
   bool get hasMore => _hasMore;
 
-  /// 스토리 게시물 리스트 로드
+  User? getAuthor(int userId) => _authorCache[userId];
+
+  // ─────────────────────────────────────────────────────────
+  // 스토리 리스트 불러오기
+  // ─────────────────────────────────────────────────────────
   Future<void> loadStoryPosts({bool loadMore = false}) async {
     debugPrint("🟡 loadStoryPosts() 호출됨: loadMore=$loadMore, isLoading=$_isLoading, hasMore=$_hasMore");
 
-    if (_isLoading || (!loadMore && state.isNotEmpty)) {
-      debugPrint("⏳ 중복 호출 방지: 이미 로딩 중이거나 상태가 비어있지 않음");
-      return;
-    }
+    if (_isLoading || (!loadMore && state.isNotEmpty)) return;
 
     _isLoading = true;
-    debugPrint("🔵 스토리 게시물 가져오는 중...");
 
     try {
       final posts = await _service.loadListStoryPost();
@@ -41,120 +45,141 @@ class StoryPostNotifier extends StateNotifier<List<StoryPost>> {
         final existingIds = state.map((post) => post.id).toSet();
         final newPosts = posts.where((post) => !existingIds.contains(post.id)).toList();
         state = [...state, ...newPosts];
-        debugPrint("📌 ${newPosts.length}개의 새로운 게시물 추가 (총 ${state.length}개)");
+        await _loadAuthors(newPosts);
       } else {
         state = posts;
-        debugPrint("📌 게시물 리스트 갱신 (총 ${state.length}개)");
+        await _loadAuthors(posts);
       }
 
       _hasMore = posts.length >= _limit;
-      if (_hasMore) {
-        _skip += _limit;
-      }
-      debugPrint("ℹ️ hasMore=$_hasMore, 다음 skip=$_skip");
+      if (_hasMore);
     } catch (e) {
       debugPrint("❌ 스토리 게시물 로드 실패: $e");
     } finally {
       _isLoading = false;
-      debugPrint("🛑 로딩 완료");
     }
   }
 
-  /// 특정 스토리 게시글 상세 정보 로드
+  // ─────────────────────────────────────────────────────────
+  // 작성자 정보 불러오기
+  // ─────────────────────────────────────────────────────────
+  Future<void> _loadAuthors(List<StoryPost> posts) async {
+    try {
+      final authorIds = posts.map((p) => p.authorId).toSet();
+      final idsToFetch = authorIds.where((id) => !_authorCache.containsKey(id)).toList();
+
+      if (idsToFetch.isEmpty) return;
+
+      debugPrint("👤 작성자 ${idsToFetch.length}명 정보 로딩 중...");
+
+      final fetchedUsers = await Future.wait(
+        idsToFetch.map((id) => _userService.getUser(id)),
+      );
+
+      for (final user in fetchedUsers) {
+        _authorCache[user.id] = user;
+      }
+
+      debugPrint("✅ 작성자 정보 로딩 완료");
+    } catch (e) {
+      debugPrint("❌ 작성자 정보 로딩 실패: $e");
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────
+  // 상세 불러오기
+  // ─────────────────────────────────────────────────────────
   Future<StoryPost?> loadDetailStoryPost(int postId) async {
-    debugPrint("📌 loadDetailStoryPost() 호출됨: postId=$postId");
     try {
       final post = await _service.loadDetailStoryPost(postId);
-      debugPrint("✅ postId=$postId 상세 정보 로드 성공");
+      await _loadAuthors([post]);
       return post;
     } catch (e) {
-      debugPrint("❌ 스토리 게시글 상세 정보 로드 실패: $e");
+      debugPrint("❌ 상세 로드 실패: $e");
       return null;
     }
   }
 
-  /// 이미지 업로드 (업로드 전에 WebP로 변환)
+  // ─────────────────────────────────────────────────────────
+  // 이미지 업로드
+  // ─────────────────────────────────────────────────────────
   Future<String?> uploadStoryImage(File imageFile) async {
-    debugPrint("📌 uploadStoryImage() 호출됨: ${imageFile.path}");
     try {
-      // 이미지 파일을 WebP로 변환
       File? webpFile = await _convertFileToWebp(imageFile);
       final fileToUpload = webpFile ?? imageFile;
-      final uploadedImageUrl = await _service.uploadStoryImage(fileToUpload);
-      debugPrint("✅ 이미지 업로드 성공: $uploadedImageUrl");
-      return uploadedImageUrl;
+      return await _service.uploadStoryImage(fileToUpload);
     } catch (e) {
       debugPrint("❌ 이미지 업로드 실패: $e");
       return null;
     }
   }
 
-  /// 이미지 파일을 WebP로 변환하는 함수
   Future<File?> _convertFileToWebp(File file) async {
-    // 원본 파일의 확장자를 WebP로 변경한 경로 생성
     final targetPath = file.path.replaceAll(RegExp(r'\.\w+$'), '.webp');
-    debugPrint("🔄 이미지 변환: ${file.path} -> $targetPath");
     try {
       final xFile = await FlutterImageCompress.compressAndGetFile(
         file.absolute.path,
         targetPath,
         format: CompressFormat.webp,
-        quality: 80, // 필요에 따라 품질 수정
+        quality: 80,
       );
-      if (xFile != null) {
-        final resultFile = File(xFile.path);
-        debugPrint("✅ WebP 변환 성공: ${resultFile.path}");
-        return resultFile;
-      } else {
-        debugPrint("⚠️ WebP 변환 실패, 원본 파일 사용");
-        return null;
-      }
+      return xFile != null ? File(xFile.path) : null;
     } catch (e) {
-      debugPrint("❌ WebP 변환 중 에러 발생: $e");
+      debugPrint("❌ WebP 변환 실패: $e");
       return null;
     }
   }
 
-  /// 새로운 스토리 게시글 생성
+  // ─────────────────────────────────────────────────────────
+  // 게시글 생성
+  // ─────────────────────────────────────────────────────────
   Future<StoryPost?> createStoryPost(CreateStoryPost post) async {
-    debugPrint("📌 createStoryPost() 호출됨, imageUrl=${post.imageUrl}");
     try {
       final newPost = await _service.createStoryPost(post);
-      debugPrint("✅ 스토리 게시물 생성 성공: id=${newPost.id}");
-      // 새 게시물 최상단 추가
       state = [newPost, ...state];
+      await _loadAuthors([newPost]);
       return newPost;
     } catch (e) {
-      debugPrint("❌ 스토리 게시물 생성 실패: $e");
+      debugPrint("❌ 게시글 생성 실패: $e");
       return null;
     }
   }
+  Future<void> fetchAuthorsForStories(List<StoryPost> posts) async {
+    await _loadAuthors(posts);
+  }
 
-  /// 스토리 구독
+  // ─────────────────────────────────────────────────────────
+  // 구독 처리
+  // ─────────────────────────────────────────────────────────
   Future<bool> subscribeToStory(int postId) async {
-    debugPrint("📌 subscribeToStory() 호출됨: postId=$postId");
     try {
       final success = await _service.subscribeToStoryPost(postId);
       if (success) {
         state = state.map((post) {
-          if (post.id == postId) {
-            return post.copyWith(isSubscribed: true);
-          }
-          return post;
+          return post.id == postId ? post.copyWith(isSubscribed: true) : post;
         }).toList();
-        debugPrint("✅ 스토리 구독 성공: postId=$postId");
       }
       return success;
     } catch (e) {
-      debugPrint("❌ 스토리 구독 실패: $e");
+      debugPrint("❌ 구독 실패: $e");
       return false;
     }
   }
 
-  /// 데이터 초기화 및 다시 로드
+  Future<bool> deleteStoryPost(int postId) async {
+    try {
+      final success = await _service.deleteStoryPost(postId);
+      if (success) {
+        resetAndLoad(); // 삭제 후 전체 목록 새로 로딩
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
   void resetAndLoad() {
-    debugPrint("🔄 스토리 게시물 초기화 및 재로딩");
-    _skip = 0;
     _hasMore = true;
     state = [];
     loadStoryPosts();

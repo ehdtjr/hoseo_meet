@@ -73,7 +73,7 @@ class ChatMessageBubble extends ConsumerWidget {
     }
 
     // 상대방 메시지
-    final profileUrl = sender?.profile?.trim();
+    final profileUrl = sender?.profile.trim();
     final hasValidProfile = isValidProfileUrl(profileUrl);
 
     return Padding(

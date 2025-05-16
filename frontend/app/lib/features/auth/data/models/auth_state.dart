@@ -37,3 +37,47 @@ class AuthState {
     );
   }
 }
+
+class Register {
+  final bool success;
+  final String? message;
+  final String? error;
+
+  Register({
+    required this.success,
+    this.message,
+    this.error,
+  });
+
+  factory Register.success(String message) {
+    return Register(success: true, message: message);
+  }
+
+  factory Register.failure(String error) {
+    return Register(success: false, error: error);
+  }
+}
+
+class RegisterRequest {
+  final String email;
+  final String password;
+  final String name;
+  final String gender;
+
+  RegisterRequest({
+    required this.email,
+    required this.password,
+    required this.name,
+    required this.gender,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      "email": email,
+      "password": password,
+      "name": name,
+      "gender": gender,
+    };
+  }
+}
+

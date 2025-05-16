@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../auth/providers/user_profile_provider.dart'; // 필요 시 수정
+import '../../../auth/providers/auth_notifier_provider.dart';
+import '../../../auth/providers/user_profile_provider.dart';
 
 class ChangePasswordPage extends ConsumerStatefulWidget {
   const ChangePasswordPage({super.key});
@@ -12,6 +13,7 @@ class ChangePasswordPage extends ConsumerStatefulWidget {
 
 class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
   final _formKey = GlobalKey<FormState>();
+  final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -23,30 +25,31 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     setState(() => _isUpdating = true);
 
     try {
-      final newPassword = _newPasswordController.text.trim();
-
-      // 실제 비밀번호 변경 로직이 들어갈 자리
-      // await ref.read(userProfileNotifierProvider.notifier).changePassword(
-      //   newPassword: newPassword,
-      // );
+      await ref.read(userProfileNotifierProvider.notifier).changePassword(
+        currentPassword: _currentPasswordController.text.trim(),
+        newPassword: _newPasswordController.text.trim(),
+      );
+      await ref.read(authNotifierProvider.notifier).logout();
 
       if (!mounted) return;
+
+      // 로그인 화면으로 이동 (기존 화면 스택 제거)
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('비밀번호가 변경되었습니다')),
+        const SnackBar(content: Text('비밀번호가 변경되었습니다. 다시 로그인해주세요')),
       );
-      Navigator.pop(context);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('비밀번호 변경 중 오류가 발생했습니다')),
-      );
+    } catch (_) {
+      // 에러 메시지는 상태에서 처리됨
     } finally {
-      setState(() => _isUpdating = false);
+      if (mounted) setState(() => _isUpdating = false);
     }
   }
 
+
   @override
   void dispose() {
+    _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -67,6 +70,8 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final errorMessage = ref.watch(userProfileNotifierProvider).errorMessage;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('비밀번호 변경'),
@@ -82,6 +87,16 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
           key: _formKey,
           child: Column(
             children: [
+              TextFormField(
+                controller: _currentPasswordController,
+                obscureText: true,
+                decoration: _inputDecoration('현재 비밀번호'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) return '현재 비밀번호를 입력해주세요';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: _newPasswordController,
                 obscureText: true,
@@ -102,7 +117,18 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
                   return null;
                 },
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
+
+              /// 🔴 서버 에러 메시지 출력
+              if (errorMessage != null && errorMessage.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    errorMessage,
+                    style: const TextStyle(color: Colors.red, fontSize: 14),
+                  ),
+                ),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

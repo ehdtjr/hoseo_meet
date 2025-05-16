@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/auth_state.dart';
 import '../data/services/auth_service.dart';
@@ -29,14 +31,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-
-  /// (1) 로그인
   Future<void> loginUser(String username, String password) async {
-    // 로딩 시작
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     try {
-      // AuthService가 Map<String, dynamic> 형태로 결과를 반환
       final result = await _authService.loginUser(
         username: username,
         password: password,
@@ -44,11 +42,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final statusCode = result['statusCode'] as int?;
       if (statusCode == 200) {
-        // 토큰 추출
         final accessToken = result['accessToken'] as String?;
         final refreshToken = result['refreshToken'] as String?;
 
-        // 상태 업데이트
         state = state.copyWith(
           isLoading: false,
           isLoggedIn: (accessToken != null),
@@ -56,22 +52,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
           refreshToken: refreshToken,
         );
 
-        // (C) Refresh Token 저장
         if (refreshToken != null) {
           await _tokenStorage.writeRefreshToken(refreshToken);
         }
 
       } else {
-        // 로그인 실패
-        final error = result['error'];
+        // 로그인 실패 시, detail 필드만 추출
+        final errorRaw = result['error'];
+        String errorMessage;
+
+        try {
+          final parsed = jsonDecode(errorRaw);
+          errorMessage = parsed['detail'] ?? '로그인 실패';
+        } catch (_) {
+          errorMessage = errorRaw.toString();
+        }
+
         state = state.copyWith(
           isLoading: false,
           isLoggedIn: false,
-          errorMessage: '로그인 실패: $error',
+          errorMessage: '로그인 실패: $errorMessage',
         );
       }
+
     } catch (e) {
-      // 예외 (네트워크 등)
       state = state.copyWith(
         isLoading: false,
         isLoggedIn: false,
@@ -79,6 +83,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     }
   }
+
 
   /// (2) 토큰 리프레시
   Future<void> refreshAccessToken() async {
@@ -121,9 +126,48 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// (3) 로그아웃
   Future<void> logout() async {
-    // (E) 스토리지에서 Refresh Token 삭제
+    final accessToken = state.accessToken;
+
+    if (accessToken == null) {
+      print('[AuthNotifier] accessToken 없음 → 서버 로그아웃 생략');
+    } else {
+      await _authService.logout(accessToken: accessToken);
+    }
+
     await _tokenStorage.deleteRefreshToken();
-    // 상태를 초기화
     state = AuthState.initial();
   }
+
+  Future<Register> register(RegisterRequest request) async {
+    try {
+      final result = await _authService.register(request);
+
+      if (result.success) {
+        print('[AuthNotifier] 회원가입 성공: ${result.message}');
+      } else {
+        print('[AuthNotifier] 회원가입 실패: ${result.error}');
+      }
+
+      return result;
+    } catch (e) {
+      return Register.failure('회원가입 처리 중 예외 발생: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> requestPasswordReset(String email) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    final result = await _authService.requestPasswordReset(email);
+    final statusCode = result['statusCode'] as int?;
+
+    if (statusCode == 202) {
+      state = state.copyWith(isLoading: false);
+      return {'success': true, 'message': result['message']};
+    } else {
+      final error = result['error'] ?? '비밀번호 재설정 요청 실패';
+      state = state.copyWith(isLoading: false, errorMessage: error);
+      return {'success': false, 'error': error};
+    }
+  }
+
 }

@@ -142,9 +142,8 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
   }
 
   Widget _buildProfileWidget(User user) {
-    final profileUrl = user.profile?.trim();
-    final hasValidProfile = profileUrl != null &&
-        profileUrl.isNotEmpty &&
+    final profileUrl = user.profile.trim();
+    final hasValidProfile = profileUrl.isNotEmpty &&
         profileUrl != 'default_profile' &&
         Uri.tryParse(profileUrl)?.hasAbsolutePath == true;
 
@@ -178,7 +177,7 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
               color: Colors.grey.shade300,
               image: hasValidProfile
                   ? DecorationImage(
-                image: NetworkImage(profileUrl!),
+                image: NetworkImage(profileUrl),
                 fit: BoxFit.cover,
               )
                   : null,
@@ -207,9 +206,8 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
     }
 
     final icons = onlineUsers.map((user) {
-      final profileUrl = user.profile?.trim();
-      final hasValidProfile = profileUrl != null &&
-          profileUrl.isNotEmpty &&
+      final profileUrl = user.profile.trim();
+      final hasValidProfile = profileUrl.isNotEmpty &&
           profileUrl != 'default_profile' &&
           Uri.tryParse(profileUrl)?.hasAbsolutePath == true;
 
@@ -220,7 +218,7 @@ class _MapModalContentState extends ConsumerState<MapModalContent> {
           child: CircleAvatar(
             radius: 21,
             backgroundColor: Colors.grey.shade300,
-            backgroundImage: hasValidProfile ? NetworkImage(profileUrl!) : null,
+            backgroundImage: hasValidProfile ? NetworkImage(profileUrl) : null,
             child: hasValidProfile
                 ? null
                 : const Icon(Icons.person, color: Colors.white),

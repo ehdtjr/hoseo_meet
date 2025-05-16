@@ -109,4 +109,20 @@ class StoryPostService {
     }
   }
 
+  Future<bool> deleteStoryPost(int postId) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/story_post/delete/$postId');
+
+    try {
+      final response = await _client.deleteRequest(url.toString());
+
+      if (response.statusCode == 204) {
+        return true;
+      } else {
+        throw Exception('Failed to delete story post: ${response.statusCode}, Response: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting story post: $e');
+    }
+  }
+
 }

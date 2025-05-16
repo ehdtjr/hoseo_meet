@@ -262,7 +262,7 @@ class _StoryEditorPageState extends ConsumerState<StoryEditorPage> {
             });
           },
           child: Container(
-            padding: EdgeInsets.all(40),
+            padding: const EdgeInsets.all(40),
             color: Colors.transparent,
             child: Text(
               _textController.text,

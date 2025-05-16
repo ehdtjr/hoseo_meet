@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+
 import '../../../../auth/providers/user_profile_provider.dart';
+import '../../../../auth/presentation/pages/report_page.dart';
 import '../../../data/models/meet_post_detail.dart';
 import '../common/show_post_option_bottomsheet.dart';
 
@@ -63,24 +65,57 @@ class MeetAuthorSection extends ConsumerWidget {
             ],
           ),
           const Spacer(),
-          if (isAuthor)
-            Padding(
-              padding: const EdgeInsets.only(right: 15),
-              child: GestureDetector(
-                onTap: () => showPostOptionsBottomSheet(
-                  context: context,
-                  onDelete: onDelete,
-                ),
-                child: SvgPicture.asset(
-                  'assets/icons/fi-rr-menu-dots-vertical.svg',
-                  width: 18,
-                  colorFilter: const ColorFilter.mode(
-                    Color(0xFFE72410),
-                    BlendMode.srcIn,
-                  ),
+
+          // 🔴 본인이면 삭제 메뉴 / 아니면 신고 버튼
+          isAuthor
+              ? Padding(
+            padding: const EdgeInsets.only(right: 15),
+            child: GestureDetector(
+              onTap: () => showPostOptionsBottomSheet(
+                context: context,
+                onDelete: onDelete,
+              ),
+              child: SvgPicture.asset(
+                'assets/icons/fi-rr-menu-dots-vertical.svg',
+                width: 18,
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFFE72410),
+                  BlendMode.srcIn,
                 ),
               ),
             ),
+          )
+              : Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: TextButton(
+              style: TextButton.styleFrom(
+                minimumSize: Size.zero,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                backgroundColor: const Color(0xFFFEECEC),
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ReportPage(
+                      reportedUserId: post.author.id,
+                      reportedUserName: post.author.name,
+                      reportedUserProfile: post.author.profile,
+                    ),
+                  ),
+                );
+              },
+              child: const Text(
+                '신고하기',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFFE72410),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

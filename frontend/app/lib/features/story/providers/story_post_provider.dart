@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/commons/network/auth_http_client_provider.dart';
+import 'package:hoseomeet/features/auth/providers/user_profile_provider.dart';
 import 'package:hoseomeet/features/story/providers/story_post_notifier.dart';
 
 import '../data/models/story_post.dart';
@@ -13,7 +14,9 @@ final storyPostServiceProvider = Provider<StoryPostService>((ref) {
 final storyPostProvider =
 StateNotifierProvider<StoryPostNotifier, List<StoryPost>>((ref) {
   final service = ref.watch(storyPostServiceProvider);
-  return StoryPostNotifier(service);
+  final userService = ref.watch(userServiceProvider); // ✅ 추가된 부분
+
+  return StoryPostNotifier(service, userService);
 });
 
 final uploadedImageUrlProvider = StateProvider<String?>((ref) => null);

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../widgets/showConfirmDialog.dart';
+import '../../../auth/presentation/pages/report_page.dart';
 import '../../data/models/story_post.dart';
 import '../../providers/story_post_provider.dart';
+import '../../../auth/providers/user_profile_provider.dart';
 
 class StoryDetailPage extends ConsumerStatefulWidget {
   final List<StoryPost> stories;
@@ -35,13 +38,15 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
       duration: _storyDuration,
     )..addStatusListener(_handleAnimationStatus);
 
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(storyPostProvider.notifier).fetchAuthorsForStories(widget.stories);
+    });
+
     _startProgress();
   }
 
   void _handleAnimationStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed) {
-      _nextStory();
-    }
+    if (status == AnimationStatus.completed) _nextStory();
   }
 
   @override
@@ -52,20 +57,12 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
     super.dispose();
   }
 
-  void _startProgress() {
-    _progressController.forward(from: 0.0);
-  }
-
-  void _pauseProgress() {
-    _progressController.stop();
-  }
+  void _startProgress() => _progressController.forward(from: 0.0);
+  void _pauseProgress() => _progressController.stop();
 
   void _nextStory() {
     if (_currentIndex < widget.stories.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     } else {
       Navigator.pop(context);
     }
@@ -73,10 +70,7 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
 
   void _previousStory() {
     if (_currentIndex > 0) {
-      _pageController.previousPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     }
   }
 
@@ -96,23 +90,20 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
                 const SnackBar(content: Text("✅ 참여 완료!")),
               );
             }
-          } catch (e) {
+          } catch (_) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text("❌ 참여 실패")),
               );
             }
           } finally {
-            if (mounted) {
-              _startProgress();
-            }
+            if (mounted) _startProgress();
           }
         }
       },
       child: Container(
         width: 134,
         height: 52,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: ShapeDecoration(
           color: Colors.white,
           shape: RoundedRectangleBorder(
@@ -122,14 +113,6 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
             ),
             borderRadius: BorderRadius.circular(26),
           ),
-          shadows: const [
-            BoxShadow(
-              color: Color(0x0C000000),
-              blurRadius: 7.30,
-              offset: Offset(1, 4),
-              spreadRadius: 0,
-            )
-          ],
         ),
         child: Center(
           child: Text(
@@ -137,7 +120,6 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
             style: TextStyle(
               color: story.isSubscribed ? Colors.grey : const Color(0xFFE72410),
               fontSize: 21,
-              fontFamily: 'Pretendard',
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -148,6 +130,8 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
 
   @override
   Widget build(BuildContext context) {
+    final user = ref.watch(userProfileNotifierProvider);
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: GestureDetector(
@@ -159,9 +143,7 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
             _nextStory();
           }
         },
-        onTapUp: (details) {
-          _startProgress();
-        },
+        onTapUp: (_) => _startProgress(),
         child: SafeArea(
           child: Stack(
             children: [
@@ -177,42 +159,147 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
                 },
                 itemBuilder: (context, index) {
                   final story = widget.stories[index];
+                  final author = ref.read(storyPostProvider.notifier).getAuthor(story.authorId);
+                  final isMyStory = user.userProfile?.id == story.authorId;
+
                   return Stack(
                     fit: StackFit.expand,
                     children: [
                       Image.network(
                         story.imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Center(child: Text('이미지 로드 실패'));
-                        },
+                        errorBuilder: (_, __, ___) => const Center(child: Text('이미지 로드 실패')),
                       ),
-                      Positioned(
-                        left: story.textOverlay.position.x,
-                        top: story.textOverlay.position.y,
-                        child: Text(
-                          story.textOverlay.text,
-                          style: TextStyle(
-                            color: Color(int.parse(story.textOverlay.fontStyle.color, radix: 16)),
-                            fontSize: story.textOverlay.fontStyle.size.toDouble(),
-                            fontWeight: story.textOverlay.fontStyle.bold
-                                ? FontWeight.bold
-                                : FontWeight.normal,
+
+                      // ✅ 텍스트 오버레이 추가
+                      if (story.textOverlay.text.isNotEmpty)
+                        Positioned(
+                          left: story.textOverlay.position.x,
+                          top: story.textOverlay.position.y,
+                          child: Text(
+                            story.textOverlay.text,
+                            style: TextStyle(
+                              color: Color(int.parse(story.textOverlay.fontStyle.color, radix: 16)),
+                              fontSize: story.textOverlay.fontStyle.size.toDouble(),
+                              fontWeight: story.textOverlay.fontStyle.bold
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                            ),
                           ),
                         ),
+
+                      if (author != null)
+                        Positioned(
+                          top: 20,
+                          left: 10,
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundColor: Colors.grey.shade300,
+                                backgroundImage: author.profile.isNotEmpty
+                                    ? NetworkImage(author.profile)
+                                    : null,
+                                child: author.profile.isEmpty
+                                    ? const Icon(Icons.person, size: 30, color: Colors.white)
+                                    : null,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                author.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 4,
+                                      color: Colors.black54,
+                                      offset: Offset(1, 1),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // 옵션 메뉴
+                      Positioned(
+                        top: 20,
+                        right: 50,
+                        child: PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, color: Colors.white),
+                          onSelected: (value) {
+                            if (value == 'report') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => ReportPage(
+                                    reportedUserId: story.authorId,
+                                    reportedUserName: author?.name ?? '알 수 없음',
+                                    reportedUserProfile: author?.profile,
+                                  ),
+                                ),
+                              );
+                            } else if (value == 'delete') {
+                              showConfirmDialog(
+                                context: context,
+                                title: "정말 삭제할까요?",
+                                description: "삭제된 스토리는 복구할 수 없습니다.",
+                                confirmText: "삭제",
+                                confirmColor: Colors.redAccent,
+                                onConfirm: () async {
+                                  final success = await ref
+                                      .read(storyPostProvider.notifier)
+                                      .deleteStoryPost(story.id);
+
+                                  if (success) {
+                                    Navigator.pop(context); // DetailPage 닫기
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("삭제 완료")),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text("삭제 실패")),
+                                    );
+                                  }
+                                },
+                              );
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            if (isMyStory)
+                              const PopupMenuItem(value: 'delete', child: Text('삭제하기')),
+                            if (!isMyStory)
+                              const PopupMenuItem(value: 'report', child: Text('신고하기')),
+                          ],
+                        ),
                       ),
+
+                      // 닫기 버튼
+                      Positioned(
+                        top: 20,
+                        right: 10,
+                        child: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+
+                      // 참여 버튼
                       Positioned(
                         bottom: 50,
                         left: 0,
                         right: 0,
-                        child: Center(
-                          child: _buildParticipateButton(story),
-                        ),
+                        child: Center(child: _buildParticipateButton(story)),
                       ),
                     ],
                   );
                 },
               ),
+
+              // 상단 진행 바
               Positioned(
                 top: 10,
                 left: 10,
@@ -225,30 +312,19 @@ class _StoryDetailPageState extends ConsumerState<StoryDetailPage>
                         padding: const EdgeInsets.symmetric(horizontal: 2),
                         child: AnimatedBuilder(
                           animation: _progressController,
-                          builder: (context, child) {
-                            return LinearProgressIndicator(
-                              value: index == _currentIndex
-                                  ? _progressController.value
-                                  : index < _currentIndex
-                                  ? 1.0
-                                  : 0.0,
-                              backgroundColor: Colors.white.withOpacity(0.3),
-                              valueColor:
-                              const AlwaysStoppedAnimation<Color>(Colors.white),
-                            );
-                          },
+                          builder: (_, __) => LinearProgressIndicator(
+                            value: index == _currentIndex
+                                ? _progressController.value
+                                : index < _currentIndex
+                                ? 1.0
+                                : 0.0,
+                            backgroundColor: Colors.white.withOpacity(0.3),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              Positioned(
-                top: 20,
-                right: 10,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  onPressed: () => Navigator.pop(context),
                 ),
               ),
             ],

@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/me/presentation/pages/terms_of_user_page.dart';
 
+import '../../../auth/providers/auth_notifier_provider.dart';
 import '../../../auth/providers/user_profile_provider.dart';
 import 'edit_profile_page.dart';
-import 'change_password_page.dart'; // ← 비밀번호 변경 페이지 import 추가
+import 'change_password_page.dart';
 
 class MePage extends ConsumerStatefulWidget {
   const MePage({Key? key}) : super(key: key);
@@ -50,7 +51,7 @@ class _MePageState extends ConsumerState<MePage> {
                   CircleAvatar(
                     radius: 38.5,
                     backgroundColor: Colors.grey[300],
-                    child: userProfile != null
+                    child: userProfile != null && userProfile.profile.isNotEmpty
                         ? ClipOval(
                       child: Image.network(
                         userProfile.profile,
@@ -68,8 +69,9 @@ class _MePageState extends ConsumerState<MePage> {
                       Row(
                         children: [
                           Text(
-                            userProfile?.name ?? '이름 없음',
-                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                            userProfile?.name?.isNotEmpty == true ? userProfile!.name : '비회원',
+                            style: const TextStyle(
+                                fontSize: 17, fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(width: 6),
                           const Text("·",
@@ -79,15 +81,12 @@ class _MePageState extends ConsumerState<MePage> {
                                   color: Color(0xFFE72410))),
                           const SizedBox(width: 6),
                           Text(
-                            userProfile?.name ?? 'username 없음',
+                            userProfile?.name?.isNotEmpty == true ? userProfile!.name : '정보 없음',
                             style: const TextStyle(
                                 fontSize: 17, fontWeight: FontWeight.w400),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      const Text("호서대학",
-                          style: TextStyle(fontSize: 14, color: Colors.grey)),
                     ],
                   ),
                 ],
@@ -99,8 +98,8 @@ class _MePageState extends ConsumerState<MePage> {
           // 메뉴 섹션
           ..._buildMenuSection("계정", ["프로필 변경", "비밀번호 변경"]),
           ..._buildMenuSection("게시글", ["내가 작성한 글"]),
-          ..._buildMenuSection("이용 안내", ["문의하기", "이용 규칙"]),
-          ..._buildMenuSection("기타", ["자주 묻는 질문", "약관 및 정책", "회원 탈퇴"]),
+          ..._buildMenuSection("이용 안내", ["이용 규칙"]),
+          ..._buildMenuSection("기타", ["약관 및 정책", "로그아웃", "회원 탈퇴"]),
         ],
       ),
     );
@@ -135,27 +134,22 @@ class _MePageState extends ConsumerState<MePage> {
               );
               break;
             case "내가 작성한 글":
-            // TODO: 해당 페이지로 이동 구현
-              break;
-            case "문의하기":
-            // TODO: 해당 페이지로 이동 구현
+            // TODO: 구현 필요
               break;
             case "이용 규칙":
-            // TODO: 해당 페이지로 이동 구현
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const TermsOfUsePage()),
               );
-
-              break;
-            case "자주 묻는 질문":
-            // TODO: 해당 페이지로 이동 구현
               break;
             case "약관 및 정책":
-            // TODO: 해당 페이지로 이동 구현
+            // TODO: 구현 필요
+              break;
+            case "로그아웃":
+              ref.read(authNotifierProvider.notifier).logout();
               break;
             case "회원 탈퇴":
-            // TODO: 해당 페이지로 이동 구현
+            // TODO: 구현 필요
               break;
             default:
               break;

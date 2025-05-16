@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:hoseomeet/features/auth/presentation/pages/forgot_password_page.dart';
+import 'package:hoseomeet/features/auth/presentation/pages/register_page.dart';
 
 import '../../../../commons/network/auth_http_client_provider.dart';
 import '../../../../features/auth/providers/auth_notifier_provider.dart';
 import '../../../navigation/presentation/pages/main_tab_page.dart';
 import '../../data/models/auth_state.dart';
 import '../../providers/auth_notifier.dart';
-
 import 'package:hoseomeet/firebase/api/send_token_service.dart';
 import '../../providers/user_profile_provider.dart';
 
@@ -21,8 +22,7 @@ class LoginPage extends ConsumerStatefulWidget {
 class _LoginPageState extends ConsumerState<LoginPage> {
   final TextEditingController _idController = TextEditingController();
   final TextEditingController _pwController = TextEditingController();
-
-  bool _navigated = false; // ✅ 추가: 중복 이동 방지
+  bool _navigated = false;
 
   @override
   void dispose() {
@@ -52,7 +52,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     if (authState.isLoggedIn && !_navigated) {
       _navigated = true;
-
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final token = await FirebaseMessaging.instance.getToken();
         if (token != null && token.isNotEmpty) {
@@ -80,19 +79,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          if (authState.isLoading)
-            const Opacity(
-              opacity: 0.6,
-              child: ModalBarrier(dismissible: false, color: Colors.black),
-            ),
-          if (authState.isLoading)
-            const Center(child: CircularProgressIndicator()),
-
-          _buildMainUI(context, authState, authNotifier),
-        ],
-      ),
+      body: _buildMainUI(context, authState, authNotifier),
     );
   }
 
@@ -105,7 +92,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         decoration: const BoxDecoration(color: Colors.white),
         child: Stack(
           children: [
-            // 로고
             Positioned(
               left: w(context, 139),
               top: h(context, 198),
@@ -115,103 +101,55 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 child: Image.asset("assets/img/login_logo.png"),
               ),
             ),
-            // 아이디 입력
             Positioned(
               left: w(context, 79),
               top: h(context, 369),
-              child: Container(
-                width: w(context, 272),
-                height: h(context, 36),
-                decoration: ShapeDecoration(
-                  shape: RoundedRectangleBorder(
-                    side: const BorderSide(width: 1, color: Color(0xFFF0B3AD)),
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: w(context, 19)),
-                  child: TextField(
-                    controller: _idController,
-                    decoration: const InputDecoration(
-                      hintText: '아이디',
-                      border: InputBorder.none,
-                    ),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      height: 1.60,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              ),
+              child: _buildTextField(_idController, hintText: '아이디'),
             ),
-            // 비밀번호 입력
             Positioned(
               left: w(context, 79),
               top: h(context, 414),
-              child: Container(
-                width: w(context, 272),
-                height: h(context, 36),
-                decoration: ShapeDecoration(
-                  shape: RoundedRectangleBorder(
-                    side: const BorderSide(width: 1, color: Color(0xFFF0B3AD)),
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: w(context, 19)),
-                  child: TextField(
-                    controller: _pwController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      hintText: '비밀번호',
-                      border: InputBorder.none,
-                    ),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      height: 1.60,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-              ),
+              child: _buildTextField(_pwController, hintText: '비밀번호', obscureText: true),
             ),
-            // 로그인 버튼
             Positioned(
               left: w(context, 79),
               top: h(context, 469),
               child: GestureDetector(
-                onTap: () async {
+                onTap: authState.isLoading
+                    ? null
+                    : () async {
                   final id = _idController.text.trim();
                   final pw = _pwController.text.trim();
 
                   if (id.isEmpty || pw.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('아이디와 비밀번호를 입력해주세요.')),
-                    );
+                    _showDialog(context, '입력 오류', '아이디와 비밀번호를 입력해주세요.');
                     return;
                   }
 
                   await authNotifier.loginUser(id, pw);
 
                   final err = ref.read(authNotifierProvider).errorMessage;
-                  if (err != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+                  if (err != null && context.mounted) {
+                    _showDialog(context, '로그인 실패', err);
                   }
                 },
                 child: Container(
                   width: w(context, 272),
                   height: h(context, 38),
                   decoration: ShapeDecoration(
-                    color: const Color(0xFFE72410),
+                    color: authState.isLoading ? Colors.grey : const Color(0xFFE72410),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(32),
                     ),
                   ),
-                  child: const Center(
-                    child: Text(
+                  child: Center(
+                    child: authState.isLoading
+                        ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                        : const Text(
                       '캠퍼스밋 로그인',
                       style: TextStyle(
                         color: Colors.white,
@@ -224,64 +162,52 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 ),
               ),
             ),
-            // 회원가입 / 아이디/비번 찾기
             Positioned(
-              left: w(context, 129),
+              left: w(context, 79),
               top: h(context, 526),
               child: SizedBox(
-                width: w(context, 200),
+                width: w(context, 272),
                 height: h(context, 30),
-                child: Stack(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      child: GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('회원가입 페이지 이동 미구현')),
-                          );
-                        },
-                        child: const Text(
-                          '회원가입',
-                          style: TextStyle(
-                            color: Color(0xFFB5B5B5),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            height: 1.60,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 62,
-                      top: 0,
-                      child: GestureDetector(
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('아이디/비번 찾기 미구현')),
-                          );
-                        },
-                        child: const Text(
-                          '아이디/비밀번호 찾기',
-                          style: TextStyle(
-                            color: Color(0xFFB5B5B5),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            height: 1.60,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: w(context, 52),
-                      top: h(context, 7),
-                      child: Container(
-                        width: w(context, 1),
-                        height: w(context, 1),
-                        decoration: const BoxDecoration(
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const RegisterPage()),
+                        );
+                      },
+                      child: const Text(
+                        '회원가입',
+                        style: TextStyle(
                           color: Color(0xFFB5B5B5),
-                          shape: BoxShape.circle,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          height: 1.60,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Container(
+                      width: 1,
+                      height: 12,
+                      color: Color(0xFFB5B5B5),
+                    ),
+                    const SizedBox(width: 16),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
+                        );},
+                      child: const Text(
+                        '비밀번호 찾기',
+                        style: TextStyle(
+                          color: Color(0xFFB5B5B5),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          height: 1.60,
                         ),
                       ),
                     ),
@@ -292,6 +218,103 @@ class _LoginPageState extends ConsumerState<LoginPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField(
+      TextEditingController controller, {
+        required String hintText,
+        bool obscureText = false,
+      }) {
+    return Container(
+      width: w(context, 272),
+      height: h(context, 36),
+      decoration: ShapeDecoration(
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(width: 1, color: Color(0xFFF0B3AD)),
+          borderRadius: BorderRadius.circular(32),
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: w(context, 19)),
+        child: TextField(
+          controller: controller,
+          obscureText: obscureText,
+          decoration: InputDecoration(
+            hintText: hintText,
+            border: InputBorder.none,
+          ),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            height: 1.60,
+            color: Colors.black,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDialog(BuildContext context, String title, String message) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: title,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (_, __, ___) => const SizedBox.shrink(),
+      transitionBuilder: (context, animation, secondaryAnimation, _) {
+        return Center(
+          child: Transform.scale(
+            scale: animation.value,
+            child: Opacity(
+              opacity: animation.value,
+              child: Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                backgroundColor: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        message,
+                        style: const TextStyle(fontSize: 15, color: Colors.black87),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: const Color(0xFFE72410),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('확인'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

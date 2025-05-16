@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hoseomeet/features/home/data/models/room_review.dart';
 import 'package:hoseomeet/features/home/presentation/widgets/room_page/review/review_button.dart';
+import '../../../../../auth/presentation/pages/report_page.dart';
 import '../../../../../auth/providers/user_profile_provider.dart';
 import '../../../../providers/room/review/room_review_provider.dart';
 
@@ -9,6 +10,12 @@ class VisitorReviews extends ConsumerWidget {
   final int postId; // roomId 또는 postId로 사용
 
   const VisitorReviews({super.key, required this.postId});
+  bool isValidUrl(String? url) {
+    return url != null &&
+        url.isNotEmpty &&
+        Uri.tryParse(url)?.hasAbsolutePath == true;
+  }
+
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,23 +40,6 @@ class VisitorReviews extends ConsumerWidget {
             Text(
               "방문자 리뷰",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            Row(
-              children: [
-                Text(
-                  "최신순",
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF5F5F5F),
-                  ),
-                ),
-                SizedBox(width: 4),
-                Icon(
-                  Icons.arrow_drop_down,
-                  color: Color(0xFF5F5F5F),
-                  size: 16,
-                ),
-              ],
             ),
           ],
         ),
@@ -83,8 +73,14 @@ class VisitorReviews extends ConsumerWidget {
                       children: [
                         // 프로필 사진
                         CircleAvatar(
-                          radius: 26,
-                          backgroundImage: NetworkImage(review.author.profile),
+                          radius: 28,
+                          backgroundColor: Colors.grey.shade300,
+                          backgroundImage: isValidUrl(review.author.profile)
+                              ? NetworkImage(review.author.profile)
+                              : null,
+                          child: !isValidUrl(review.author.profile)
+                              ? const Icon(Icons.person, color: Colors.white, size: 28)
+                              : null,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -153,7 +149,16 @@ class VisitorReviews extends ConsumerWidget {
                                   else
                                     TextButton(
                                       onPressed: () {
-                                        // 신고하기 동작 추가
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => ReportPage(
+                                              reportedUserId: review.author.id,
+                                              reportedUserName: review.author.name,
+                                              reportedUserProfile: review.author.profile,
+                                            ),
+                                          ),
+                                        );
                                       },
                                       child: const Text(
                                         "신고하기",
@@ -163,6 +168,7 @@ class VisitorReviews extends ConsumerWidget {
                                         ),
                                       ),
                                     ),
+
                                 ],
                               ),
                             ],
