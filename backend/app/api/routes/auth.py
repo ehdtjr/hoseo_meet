@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users import models
+from app.models.user import User
 from fastapi_users.manager import BaseUserManager
 from fastapi_users.router.common import ErrorCode
 
-from app.core.security import fastapi_users
+from app.core.security import fastapi_users, current_active_user
 from app.core.security import (
     get_custom_jwt_strategy,
     get_redis_token_storage,
@@ -71,14 +72,11 @@ async def login(
 # 로그아웃
 @router.post("/logout", tags=["auth"])
 async def logout(
-    data: RefreshTokenRequest,
+    user: User = Depends(current_active_user),
     redis_storage: RedisTokenStorage = Depends(get_redis_token_storage),
-    jwt_strategy: CustomJWTStrategy = Depends(get_custom_jwt_strategy),
 ):
     try:
-        user_id = await jwt_strategy.validate_refresh_token(data.refresh_token)
-        await redis_storage.delete_token(user_id)
-
+        await redis_storage.delete_token(str(user.id))
         return {"message": "Logout successful"}
     except ValueError as e:
         raise HTTPException(

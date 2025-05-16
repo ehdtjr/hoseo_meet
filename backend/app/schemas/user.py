@@ -62,18 +62,26 @@ class UserReportBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: Optional[int] = None
-    reporter_user_id: Optional[int] = None
+    reporter_id: Optional[int] = None
     reported_user_id: Optional[int] = None
     reason: Optional[str] = None
 
     created_at: Optional[datetime] = None
 
-class UserReportRequest(UserReportBase):
+class UserReportRequest(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     reported_user_id: int
     reason: str = Field(..., max_length=500, description="신고 사유 (최대 500자)")
 
-class UserReportCreate(UserReportBase):
-    reporter_user_id: int
+class UserReportCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    reporter_id: int
     reported_user_id: int
     reason: str = Field(..., max_length=500, description="신고 사유 (최대 500자)")
 
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=6, max_length=128, description="현재 비밀번호")
+    new_password: str = Field(..., min_length=6, max_length=128, description="새 비밀번호")

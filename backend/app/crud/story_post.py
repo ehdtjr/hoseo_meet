@@ -1,3 +1,5 @@
+from typing import Any, Coroutine
+
 from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -21,7 +23,7 @@ class StoryPostCRUD(CRUDBase[StoryPost, StoryPostBase]):
                 StoryPostBase):
             return await super().update(db, story_post)
 
-    async def delete(self, db: AsyncSession, story_post_id: int) -> None:
+    async def delete(self, db: AsyncSession, story_post_id: int) -> bool:
         return await super().delete(db, story_post_id)
 
     async def list(self, db: AsyncSession, skip: int = 0, limit: int = 10) -> \

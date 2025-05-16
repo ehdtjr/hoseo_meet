@@ -53,6 +53,10 @@ class User(SQLAlchemyBaseUserTable, Base):
     reports_received: Mapped[List["UserReport"]] = relationship(
         "UserReport", back_populates="reported_user", foreign_keys="[UserReport.reported_user_id]"
     )
+    term_agreements: Mapped[List["UserTermAgreement"]] = relationship(
+        "UserTermAgreement", back_populates="user",
+        cascade="all, delete-orphan"
+    )
 
 
     reviews: Mapped[List["RoomReview"]] = relationship(

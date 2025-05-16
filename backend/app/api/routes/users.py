@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile
 from fastapi import HTTPException
 from fastapi.params import Depends, File
 from sqlmodel.ext.asyncio.session import AsyncSession
+from starlette.responses import JSONResponse
 
 from app.core.db import get_async_session
 from app.core.s3 import S3Manager
@@ -14,9 +15,10 @@ from app.schemas.stream import SubscriptionRequest
 from app.schemas.user import (UserFCMTokenCreate, UserFCMTokenRequest,
                               UserRead, UserPublicRead, UserUpdate,
                               UserReportBase, UserReportRequest,
-                              UserReportCreate)
+                              UserReportCreate, ChangePasswordRequest)
 from app.service.stream import SubscriberServiceProtocol, \
     get_subscription_service
+from app.service.user import get_user_manager, UserManager
 from app.utils.image import convert_image_to_webp
 from app.utils.s3 import generate_s3_key
 
@@ -193,25 +195,41 @@ async def get_user_profile(
         raise (HTTPException(status_code=500,
                              detail=f"Failed to fetch user profile: {str(e)}"))
 
+@router.post("/change-password", response_model=UserPublicRead)
+async def change_password(
+    data: ChangePasswordRequest,
+    user: User = Depends(current_active_user),
+    user_manager: UserManager = Depends(get_user_manager),
+):
+    updated_user = await user_manager.change_password(
+        user=user,
+        current_password=data.current_password,
+        new_password=data.new_password,
+    )
+    return updated_user
 
-@router.post("/report",
-    response_model=UserReportBase
-)
+@router.post("/report")
 async def user_report(
     user_report_request: UserReportRequest,
     user: User = Depends(current_active_user),
     db: AsyncSession = Depends(get_async_session),
-    user_report_crud:UserReportCRUDProtocol = Depends(get_user_report_crud)
+    user_report_crud: UserReportCRUDProtocol = Depends(get_user_report_crud)
 ):
     try:
         report = UserReportCreate(
-            reporter_user_id=user.id,
-            reported_user_id=user_report_request.id,
+            reporter_id=user.id,
+            reported_user_id=user_report_request.reported_user_id,
             reason=user_report_request.reason
         )
         await user_report_crud.create(db, report)
 
-    except Exception as e:
-        raise (HTTPException(status_code=500,
-            detail=f"Failed to create report: {str(e)}"))
+        return JSONResponse(
+            status_code=201,
+            content={"message": "신고가 성공적으로 접수되었습니다."}
+        )
 
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create report: {str(e)}"
+        )

@@ -1,7 +1,10 @@
 from fastapi import UploadFile
 from fastapi.params import Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
+from starlette import status
+from starlette.responses import JSONResponse, Response
 
+from app.core.exceptions import PermissionDeniedException, NotFoundException
 from app.core.s3 import S3Manager, get_s3_manager
 from app.crud.story_post import StoryPostCRUD, get_story_post_crud
 from app.schemas.story_post import StoryPostCreate, StoryPostBase, \
@@ -96,6 +99,28 @@ class StoryPostService:
             is_subscribed=is_subscribed,
             created_at=story_post_base.created_at
         )
+
+    async def delete_story_post(
+            self,
+            db: AsyncSession,
+            story_post_id: int,
+            user_id: int
+    ) -> JSONResponse:
+
+        story_post_base: StoryPostBase = await self.story_post_crud.get(db,
+                                                                        story_post_id)
+
+        if story_post_base is None:
+            raise NotFoundException()
+
+        if story_post_base.author_id != user_id:
+            raise PermissionDeniedException()
+
+        try:
+            await self.story_post_crud.delete(db, story_post_id)
+            return JSONResponse(status_code=204, content={"success": True})
+        except Exception as e:
+            raise e
 
     async def list_story_post(
             self,

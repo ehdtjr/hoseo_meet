@@ -6,6 +6,7 @@ from app.models.user import User
 from app.models.room_post import RoomPost, RoomReview, RoomReviewImage
 from app.models.story_post import StoryPost
 from app.models.chat_bot import ChatBotMessage
+from app.models.term import Term, UserTermAgreement
 
 __all__ = [
     "User",
@@ -19,4 +20,6 @@ __all__ = [
     "RoomReviewImage",
     "StoryPost",
     "ChatBotMessage",
+    "Term",
+    "UserTermAgreement",
 ]
