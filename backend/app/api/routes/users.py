@@ -169,7 +169,10 @@ async def update_user_profile(
 
         # 기존 이미지 삭제 (DB 업데이트 후 실행)
         if current_profile_url:
-            await s3_manager.delete_file(current_profile_url)
+            try:
+                await s3_manager.delete_file(current_profile_url)
+            except Exception as e:
+                print(f"[경고] 기존 프로필 이미지 삭제 실패: {e}")
         return {"msg": "Profile updated successfully", "profile_url": profile_url}
 
     except Exception as e:
