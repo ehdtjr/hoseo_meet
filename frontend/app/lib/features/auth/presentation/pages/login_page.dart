@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:hoseomeet/features/auth/presentation/pages/agreement_page.dart';
 import 'package:hoseomeet/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:hoseomeet/features/auth/presentation/pages/register_page.dart';
 
@@ -175,7 +176,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const RegisterPage()),
+                          MaterialPageRoute(builder: (_) => const AgreementPage()),
                         );
                       },
                       child: const Text(

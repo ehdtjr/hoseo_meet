@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 class TermsPolicyPage extends StatelessWidget {
-  const TermsPolicyPage({super.key});
+  final int initialIndex;
+
+  const TermsPolicyPage({super.key, this.initialIndex = 0});
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
+      initialIndex: initialIndex,
       child: Scaffold(
         backgroundColor: Colors.white,
         appBar: AppBar(
