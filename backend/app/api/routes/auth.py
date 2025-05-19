@@ -22,27 +22,26 @@ router = APIRouter()
 
 
 # 이메일 인증
-@router.get("/verify-email", tags=["auth"])
+@router.get("/verify-email", tags=["auth"], response_class=HTMLResponse)
 async def verify_email(
-    token: str,
-    user_manager: UserManager = Depends(get_user_manager),
-    email_verification_service: EmailVerificationService = Depends(
-        get_email_verification_service
-    ),
+        request: Request,
+        token: str,
+        user_manager=Depends(get_user_manager),
+        email_verification_service: EmailVerificationService = Depends(
+            get_email_verification_service)
 ):
     try:
-        user = await email_verification_service.verify_email_token(token, user_manager)
+        user = await email_verification_service.verify_email_token(token,
+                                                                   user_manager)
+        user.is_verified = True
+        await user_manager.user_db.update(user)
+
+        return templates.TemplateResponse("verify_success.html",
+                                          {"request": request})
+
     except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token."
-        )
-
-    # Pydantic 모델로 명시적 캐스팅
-    user_data = UserRead.model_validate(user)
-    await user_manager.activate_user(user_data.id)
-    return {"message": "Email verified successfully", "user": user_data}
-
-
+        return templates.TemplateResponse("verify_failed.html",
+                                          {"request": request}, status_code=400)
 # 로그인
 @router.post("/login", tags=["auth"])
 async def login(
