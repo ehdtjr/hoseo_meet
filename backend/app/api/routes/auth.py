@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Request
+from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users import models
-from app.models.user import User
 from fastapi_users.manager import BaseUserManager
 from fastapi_users.router.common import ErrorCode
 
@@ -10,15 +11,16 @@ from app.core.security import (
     get_custom_jwt_strategy,
     get_redis_token_storage,
 )
+from app.models.user import User
 from app.schemas.user import UserRead, UserCreate, RefreshTokenRequest
 from app.schemas.user import UserUpdate
 from app.service.auth import CustomJWTStrategy, RedisTokenStorage
 from app.service.email import EmailVerificationService, \
     get_email_verification_service
-from app.service.user import UserManager, get_user_manager
+from app.service.user import get_user_manager
+from app.api.deps import templates
 
 router = APIRouter()
-
 
 
 # 이메일 인증
