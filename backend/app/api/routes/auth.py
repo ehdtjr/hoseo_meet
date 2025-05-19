@@ -35,9 +35,7 @@ async def verify_email(
     try:
         user = await email_verification_service.verify_email_token(token,
                                                                    user_manager)
-        user.is_verified = True
-        await user_manager.user_db.update(user)
-
+        await user_manager.activate_user(user.id)
         return templates.TemplateResponse("verify_success.html",
                                           {"request": request})
 
