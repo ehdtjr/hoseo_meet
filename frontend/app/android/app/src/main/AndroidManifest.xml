@@ -16,7 +16,7 @@
 
 
     <application
-        android:label="app"
+        android:label="캠퍼스밋"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:requestLegacyExternalStorage="true"

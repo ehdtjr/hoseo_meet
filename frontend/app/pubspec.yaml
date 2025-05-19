@@ -1,4 +1,4 @@
-name: hoseomeet
+name: campusmeet
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -55,6 +55,7 @@ dependencies:
   photo_manager: ^3.6.4
   fluttertoast: ^8.2.10
   flutter_image_compress: ^2.4.0
+  flutter_launcher_icons: ^0.14.3
 
   # Use with the CupertinoIcons class for iOS style icons.
 
@@ -93,3 +94,9 @@ flutter_native_splash:
   android_12:
     image: assets/img/splash_logo.png
     icon_background_color: "#E72410"
+
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/img/main_logo.png"
