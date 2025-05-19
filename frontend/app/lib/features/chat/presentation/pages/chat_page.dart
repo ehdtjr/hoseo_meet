@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/svg.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-// UI 위젯
 import '../../../navigation/providers/bottom_nav_index_provider.dart';
 import '../../data/models/chat_room.dart';
 import '../../providers/chat_category_provider.dart';
@@ -19,14 +18,13 @@ class ChatPage extends ConsumerStatefulWidget {
 }
 
 class _ChatPageState extends ConsumerState<ChatPage> {
-  bool _isInitialLoading = true; // 첫 로딩 시 표시용
-  bool _isInitialized = false; // ✅ 탭 이동 감지
+  bool _isInitialLoading = true;
+  bool _isInitialized = false;
 
   @override
   void initState() {
     super.initState();
 
-    // 페이지 진입 시 한 번 fetchRooms()
     Future.microtask(() async {
       await ref.read(chatRoomNotifierProvider.notifier).fetchRooms();
       setState(() {
@@ -35,42 +33,30 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     });
   }
 
-  /// Pull-to-Refresh
   Future<void> _onRefresh() async {
     await ref.read(chatRoomNotifierProvider.notifier).fetchRooms();
   }
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 현재 선택된 탭 감시
     final currentIndex = ref.watch(bottomNavIndexProvider);
 
-    // ✅ 채팅방 페이지가 활성화될 때 초기화
     if (currentIndex == 2 && !_isInitialized) {
       _isInitialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(chatRoomNotifierProvider.notifier).fetchRooms(); // 채팅방 목록 다시 불러오기
+        ref.read(chatRoomNotifierProvider.notifier).fetchRooms();
       });
     }
 
-    // ✅ 다른 탭으로 이동하면 초기화 상태를 리셋
     if (currentIndex != 2) {
       _isInitialized = false;
     }
 
-    // 1) 전체 채팅방 목록
     final chatRooms = ref.watch(chatRoomNotifierProvider);
-
-    // 2) 현재 선택된 카테고리(enum)
     final selectedCategory = ref.watch(chatCategoryProvider);
-
-    // 3) 나가기 모드 상태
     final isExitMode = ref.watch(chatRoomNotifierProvider.notifier).isExitMode;
-
-    // 4) 필터링된 채팅방 목록
     final filteredRooms = _filterRoomsByCategory(chatRooms, selectedCategory);
 
-    // 로딩 표시
     if (_isInitialLoading && chatRooms.isEmpty) {
       return const Scaffold(
         body: SafeArea(
@@ -79,7 +65,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
       );
     }
 
-    // 정상 화면
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -89,22 +74,30 @@ class _ChatPageState extends ConsumerState<ChatPage> {
             children: [
               ChatHeader(
                 isExitMode: isExitMode,
-                onToggleExitMode: () => ref.read(chatRoomNotifierProvider.notifier).toggleExitMode(),
+                onToggleExitMode: () =>
+                    ref.read(chatRoomNotifierProvider.notifier).toggleExitMode(),
               ),
               const SizedBox(height: 25),
               const ChatCategoryBar(),
               const SizedBox(height: 10),
 
-              // Pull-to-Refresh
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _onRefresh,
-                  child: ChatRoomList(
+                  child: filteredRooms.isEmpty
+                      ? _buildEmptyState()
+                      : ChatRoomList(
                     rooms: filteredRooms,
                     isExitMode: isExitMode,
-                    selectedRoomIds: ref.watch(chatRoomNotifierProvider.notifier).roomsToRemove.map((room) => room.streamId).toSet(),
+                    selectedRoomIds: ref
+                        .watch(chatRoomNotifierProvider.notifier)
+                        .roomsToRemove
+                        .map((room) => room.streamId)
+                        .toSet(),
                     onRoomToggle: (roomId) {
-                      ref.read(chatRoomNotifierProvider.notifier).toggleRoomRemoval(roomId);
+                      ref
+                          .read(chatRoomNotifierProvider.notifier)
+                          .toggleRoomRemoval(roomId);
                     },
                   ),
                 ),
@@ -113,20 +106,16 @@ class _ChatPageState extends ConsumerState<ChatPage> {
           ),
         ),
       ),
-
       floatingActionButton: isExitMode
           ? RawMaterialButton(
         onPressed: () async {
-          final notifier = ref.read(chatRoomNotifierProvider.notifier);
-
-          print('Exit mode active: ${notifier.isExitMode}');
-          print('Rooms to remove: ${notifier.roomsToRemove.map((room) => room.streamId).toList()}');
+          final notifier =
+          ref.read(chatRoomNotifierProvider.notifier);
 
           if (notifier.roomsToRemove.isNotEmpty) {
             try {
-              await notifier.removeSelectedRooms(); // 선택된 방 제거
-              notifier.toggleExitMode(); // 나가기 모드 해제
-              print('Selected rooms successfully removed.');
+              await notifier.removeSelectedRooms();
+              notifier.toggleExitMode();
             } catch (e) {
               print('Error while removing selected rooms: $e');
             }
@@ -145,7 +134,6 @@ class _ChatPageState extends ConsumerState<ChatPage> {
     );
   }
 
-  /// rooms 목록을 카테고리에 따라 필터링
   List<ChatRoom> _filterRoomsByCategory(List<ChatRoom> rooms, ChatCategory cat) {
     switch (cat) {
       case ChatCategory.all:
@@ -158,4 +146,49 @@ class _ChatPageState extends ConsumerState<ChatPage> {
         return rooms.where((r) => r.type == 'taxi').toList();
     }
   }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SvgPicture.asset(
+            'assets/icons/empty_chat.svg',
+            width: 100,
+            height: 100,
+            color: const Color(0xFFE72410), // 포인트 컬러
+            placeholderBuilder: (context) => const Icon(
+              Icons.chat_bubble_outline,
+              size: 80,
+              color: Color(0xFFE72410),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            '채팅방이 비어 있어요',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Meet 게시판 통해\n새로운 대화를 시작해보세요',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey,
+              fontWeight: FontWeight.w400,
+              height: 1.4,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 }
