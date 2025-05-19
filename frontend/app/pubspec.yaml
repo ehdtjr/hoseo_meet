@@ -97,6 +97,9 @@ flutter_native_splash:
 
 
 flutter_launcher_icons:
-  android: true
   ios: true
-  image_path: "assets/img/main_logo.png"
+  android: "launcher_icon"
+  adaptive_icon_background: "assets/img/back.png"
+  adaptive_icon_foreground: "assets/img/front.png"
+  image_path: "assets/img/main_logo.png"  # iOS용 아이콘 경로
+  #image_path_android: "assets/img/android_logo.png"              # 안드로이드 기본 아이콘 경로를 null로 설정
