@@ -52,6 +52,14 @@
       font-size: 20px;
       font-weight: 500;
       margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .check-icon {
+      font-size: 24px;
     }
 
     .subtext {
@@ -70,7 +78,10 @@
 <body>
   <div class="card">
     <div class="brand">Campus Meet</div>
-    <div class="message">이메일 인증이 완료되었습니다</div>
+    <div class="message">
+      <span class="check-icon">✅</span>
+      이메일 인증이 완료되었습니다
+    </div>
     <div class="subtext">
       캠퍼스 밋에 오신 것을 진심으로 환영합니다.<br>
       새로운 연결과 만남이 지금부터 시작됩니다.
