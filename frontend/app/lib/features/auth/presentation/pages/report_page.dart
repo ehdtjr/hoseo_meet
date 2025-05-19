@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/auth/providers/user_profile_provider.dart';
+
+import '../../providers/user_profile_provider.dart';
 
 class ReportPage extends ConsumerStatefulWidget {
   final int reportedUserId;

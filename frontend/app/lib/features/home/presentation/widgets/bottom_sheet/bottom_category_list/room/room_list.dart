@@ -1,6 +1,6 @@
+import 'package:campusmeet/features/home/presentation/widgets/bottom_sheet/bottom_category_list/room/room_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/home/presentation/widgets/bottom_sheet/bottom_category_list/room/room_item.dart';
 
 import '../../../../../providers/room/room_post_provider.dart'; // RoomPostNotifier 관련 Provider
 

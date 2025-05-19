@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'package:hoseomeet/commons/network/auth_http_client.dart';
-import 'package:hoseomeet/config.dart';
-import 'package:hoseomeet/features/home/data/models/room_post.dart';
 
+import '../../../../commons/network/auth_http_client.dart';
+import '../../../../config.dart';
+import '../models/room_post.dart';
 import '../models/room_post_detail.dart';
 
 class RoomService {

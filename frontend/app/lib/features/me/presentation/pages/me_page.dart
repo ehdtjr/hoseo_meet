@@ -1,9 +1,9 @@
+import 'package:campusmeet/features/me/presentation/pages/terms_of_user_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/auth/presentation/pages/privacy_policy_page.dart';
-import 'package:hoseomeet/features/auth/presentation/pages/terms_policy_page.dart';
-import 'package:hoseomeet/features/me/presentation/pages/terms_of_user_page.dart';
 
+import '../../../auth/presentation/pages/privacy_policy_page.dart';
+import '../../../auth/presentation/pages/terms_policy_page.dart';
 import '../../../auth/providers/auth_notifier_provider.dart';
 import '../../../auth/providers/user_profile_provider.dart';
 import 'edit_profile_page.dart';

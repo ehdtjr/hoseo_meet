@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:hoseomeet/features/chat/data/models/chat_message.dart';
 
 import '../../../../auth/data/models/user.dart';
+import '../../../data/models/chat_message.dart';
 import 'chat_message_bubble.dart';
 
 class ChatMessageListView extends StatelessWidget {

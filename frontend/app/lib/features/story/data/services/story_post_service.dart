@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:hoseomeet/commons/network/auth_http_client.dart';
-import 'package:hoseomeet/features/story/data/models/story_post.dart';
+import '../../../../commons/network/auth_http_client.dart';
 import '../../../../config.dart';
+import '../models/story_post.dart';
 
 class StoryPostService {
   final AuthHttpClient _client;

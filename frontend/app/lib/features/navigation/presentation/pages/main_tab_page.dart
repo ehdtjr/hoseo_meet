@@ -2,18 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:hoseomeet/features/home/presentation/pages/home_page.dart';
-import 'package:hoseomeet/features/chat/presentation/pages/chat_page.dart';
-import 'package:hoseomeet/features/meet/presentation/pages/meet_page.dart';
-
 // 바텀 내비게이션 인덱스 Provider
+import '../../../auth/presentation/pages/login_page.dart';
+import '../../../auth/providers/auth_notifier_provider.dart';
+import '../../../chat/presentation/pages/chat_page.dart';
+import '../../../home/presentation/pages/home_page.dart';
 import '../../../me/presentation/pages/me_page.dart';
+import '../../../meet/presentation/pages/meet_page.dart';
 import '../../providers/bottom_nav_index_provider.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 
 // (★) 로그인 상태 감시하기 위해 AuthNotifier import
-import 'package:hoseomeet/features/auth/providers/auth_notifier_provider.dart';
-import 'package:hoseomeet/features/auth/presentation/pages/login_page.dart';
 
 class MainTabPage extends ConsumerWidget {
   const MainTabPage({super.key});

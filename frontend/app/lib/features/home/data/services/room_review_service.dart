@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:hoseomeet/commons/network/auth_http_client.dart';
-import 'package:hoseomeet/config.dart';
+import '../../../../commons/network/auth_http_client.dart';
+import '../../../../config.dart';
 import '../models/room_review.dart'; // RoomReview 모델 추가
 
 class RoomReviewService {

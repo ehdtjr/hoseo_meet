@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/auth/data/services/user_service.dart';
 
 import '../data/models/user.dart';
+import '../data/services/user_service.dart';
 
 class UserProfileNotifier extends StateNotifier<UserProfileState> {
   final UserService userService;

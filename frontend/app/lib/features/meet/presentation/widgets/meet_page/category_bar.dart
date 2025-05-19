@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hoseomeet/features/meet/providers/meet_post_category_provider.dart';
+
+import '../../../providers/meet_post_category_provider.dart';
 
 
 class CategoryBar extends StatelessWidget {

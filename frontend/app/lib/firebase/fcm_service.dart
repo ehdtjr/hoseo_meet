@@ -5,9 +5,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/chat/data/models/chat_message.dart';
 
 // ChatRoomNotifier Provider import (경로 맞게 수정)
+import '../features/chat/data/models/chat_message.dart';
 import '../features/chat/providers/chat_room_provicer.dart';
 
 class FcmService {

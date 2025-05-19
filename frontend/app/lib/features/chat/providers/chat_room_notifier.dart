@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/chat/data/models/chat_message.dart';
+import '../data/models/chat_message.dart';
 import '../data/models/chat_room.dart';
 import '../data/services/chat_room_service.dart';
 

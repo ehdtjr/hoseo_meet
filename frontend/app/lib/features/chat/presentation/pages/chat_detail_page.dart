@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/chat/presentation/widgets/detail/chat_message_loading_indicator.dart';
 
 import '../../data/models/chat_message.dart';
 import '../../data/models/chat_room.dart';
@@ -8,6 +7,7 @@ import '../../providers/chat_detail_provider.dart';
 import '../../providers/chat_detail_notifier.dart';
 import '../../providers/chat_room_provicer.dart';
 import '../widgets/detail/chat_message_list.dart';
+import '../widgets/detail/chat_message_loading_indicator.dart';
 import '../widgets/detail/chat_room_app_bar.dart';
 import '../widgets/detail/input_bar/chat_input_bar.dart';
 

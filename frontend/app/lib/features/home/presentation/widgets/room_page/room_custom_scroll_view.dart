@@ -1,10 +1,11 @@
+import 'package:campusmeet/features/home/presentation/widgets/room_page/photo_section.dart';
+import 'package:campusmeet/features/home/presentation/widgets/room_page/review/review_section.dart';
+import 'package:campusmeet/features/home/presentation/widgets/room_page/room_info_section.dart';
+import 'package:campusmeet/features/home/presentation/widgets/room_page/tab_bar_delegate.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:hoseomeet/features/home/presentation/widgets/room_page/photo_section.dart';
-import 'package:hoseomeet/features/home/presentation/widgets/room_page/review/review_section.dart';
-import 'package:hoseomeet/features/home/presentation/widgets/room_page/room_info_section.dart';
-import 'package:hoseomeet/features/home/data/models/room_post_detail.dart';
-import 'package:hoseomeet/features/home/presentation/widgets/room_page/tab_bar_delegate.dart';
+
+import '../../../data/models/room_post_detail.dart';
 
 class RoomCustomScrollView extends StatefulWidget {
   final RoomDetail roomDetail;

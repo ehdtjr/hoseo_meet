@@ -1,8 +1,8 @@
+import 'package:campusmeet/features/story/providers/story_post_notifier.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/commons/network/auth_http_client_provider.dart';
-import 'package:hoseomeet/features/auth/providers/user_profile_provider.dart';
-import 'package:hoseomeet/features/story/providers/story_post_notifier.dart';
 
+import '../../../commons/network/auth_http_client_provider.dart';
+import '../../auth/providers/user_profile_provider.dart';
 import '../data/models/story_post.dart';
 import '../data/services/story_post_service.dart';
 

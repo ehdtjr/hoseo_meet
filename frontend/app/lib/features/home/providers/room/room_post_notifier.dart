@@ -1,10 +1,10 @@
 import 'dart:async';
+import 'package:campusmeet/features/home/providers/room/room_post_provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:hoseomeet/features/home/data/models/room_post.dart';
-import 'package:hoseomeet/features/home/data/models/room_post_detail.dart';
-import 'package:hoseomeet/features/home/providers/room/room_post_provider.dart';
+import '../../data/models/room_post.dart';
+import '../../data/models/room_post_detail.dart';
 import '../../data/services/room_post_service.dart';
 import 'room_post_category_provider.dart';
 

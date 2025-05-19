@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/meet/presentation/pages/create_meet_page.dart';
 import '../../../story/presentation/widgets/story_circula_image_list.dart';
 import '../widgets/meet_page/category_bar.dart';
 import '../widgets/meet_page/meet_page_list.dart';
@@ -11,7 +10,8 @@ import '../../providers/meet_post_category_provider.dart';
 import '../../providers/meet_post_provider.dart';
 import '../../providers/meet_post_search.dart';
 import '../../../story/providers/story_post_provider.dart'; // ✅ 스토리 데이터 Provider 추가
-import '../../../navigation/providers/bottom_nav_index_provider.dart'; // 탭 상태 감시
+import '../../../navigation/providers/bottom_nav_index_provider.dart';
+import 'create_meet_page.dart'; // 탭 상태 감시
 
 class MeetPage extends ConsumerStatefulWidget {
   const MeetPage({super.key});

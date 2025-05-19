@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hoseomeet/features/chat/presentation/widgets/chat_toggle_button.dart';
 import '../../data/models/chat_room.dart';
 import 'chat_room_item.dart';
+import 'chat_toggle_button.dart';
 
 class ChatRoomList extends StatelessWidget {
   final List<ChatRoom> rooms;

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/chat/data/models/chat_message.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../auth/data/models/user.dart';
 import '../../../../auth/providers/user_profile_provider.dart';
+import '../../../data/models/chat_message.dart';
 
 class ChatMessageBubble extends ConsumerWidget {
   final ChatMessage msg;

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/home/presentation/widgets/home_map_widgets.dart';
-import 'package:hoseomeet/widgets/search_bar.dart';
+import '../../../../widgets/search_bar.dart';
 import '../../../auth/providers/user_profile_provider.dart';
 import '../../../meet/providers/meet_post_provider.dart';
 import '../../../meet/providers/meet_post_search.dart';
@@ -9,6 +8,7 @@ import '../../providers/category_provider.dart';
 import '../../providers/room/room_post_provider.dart';
 import '../widgets/bottom_sheet/bottom_sheet_container.dart';
 import '../widgets/home_category_row.dart';
+import '../widgets/home_map_widgets.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});

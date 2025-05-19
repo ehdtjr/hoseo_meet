@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:hoseomeet/features/auth/presentation/pages/agreement_page.dart';
-import 'package:hoseomeet/features/auth/presentation/pages/forgot_password_page.dart';
-import 'package:hoseomeet/features/auth/presentation/pages/register_page.dart';
 
 import '../../../../commons/network/auth_http_client_provider.dart';
 import '../../../../features/auth/providers/auth_notifier_provider.dart';
+import '../../../../firebase/api/send_token_service.dart';
 import '../../../navigation/presentation/pages/main_tab_page.dart';
 import '../../data/models/auth_state.dart';
 import '../../providers/auth_notifier.dart';
-import 'package:hoseomeet/firebase/api/send_token_service.dart';
 import '../../providers/user_profile_provider.dart';
+import 'agreement_page.dart';
+import 'forgot_password_page.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});

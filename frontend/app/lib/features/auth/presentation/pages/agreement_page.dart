@@ -1,6 +1,6 @@
+import 'package:campusmeet/features/auth/presentation/pages/privacy_policy_page.dart';
+import 'package:campusmeet/features/auth/presentation/pages/register_page.dart';
 import 'package:flutter/material.dart';
-import 'package:hoseomeet/features/auth/presentation/pages/privacy_policy_page.dart';
-import 'package:hoseomeet/features/auth/presentation/pages/register_page.dart';
 import 'terms_policy_page.dart'; // TermsPolicyPage를 import 해주세요
 
 class AgreementPage extends StatefulWidget {

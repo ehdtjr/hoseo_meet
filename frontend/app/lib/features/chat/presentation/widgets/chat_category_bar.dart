@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/chat/providers/chat_category_provider.dart';
+
+import '../../providers/chat_category_provider.dart';
 
 class ChatCategoryBar extends ConsumerWidget {
   const ChatCategoryBar({super.key});

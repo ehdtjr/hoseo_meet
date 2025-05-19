@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:hoseomeet/features/home/presentation/widgets/room_page/room_custom_scroll_view.dart';
+import '../../../data/models/room_post_detail.dart';
 import '../../../providers/room/room_post_provider.dart';
+import '../../widgets/room_page/room_custom_scroll_view.dart';
 import '../../widgets/room_page/room_header_widget.dart';
-import 'package:hoseomeet/features/home/data/models/room_post_detail.dart';
 
 import 'create_room_review_page.dart';
 

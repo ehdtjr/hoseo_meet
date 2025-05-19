@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hoseomeet/features/home/providers/room/room_post_category_provider.dart';
+
+import '../../../../../providers/room/room_post_category_provider.dart';
 
 /// RoomHeaderWidget은 사용자 이름을 표시하고 카테고리 선택 드롭다운을 제공합니다.
 class RoomHeaderWidget extends ConsumerWidget {

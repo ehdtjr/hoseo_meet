@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:hoseomeet/features/home/presentation/widgets/bottom_sheet/bottom_category_list/meet/meet_container.dart';
 import '../../../data/models/category.dart';
+import 'bottom_category_list/meet/meet_container.dart';
 import 'bottom_category_list/meet/meet_header.dart';
 import 'bottom_category_list/room/room_header.dart'; // RoomHeaderWidget 임포트
 import 'bottom_category_list/room/room_container.dart'; // RoomContainerWidget 임포트

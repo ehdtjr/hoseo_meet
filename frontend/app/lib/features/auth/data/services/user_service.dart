@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;   // http.Response
 
-import 'package:hoseomeet/commons/network/auth_http_client.dart';
-import 'package:hoseomeet/features/auth/data/models/user.dart';
+import '../../../../commons/network/auth_http_client.dart';
 import '../../../../config.dart';
+import '../models/user.dart';
 
 class UserService {
   final AuthHttpClient _client;

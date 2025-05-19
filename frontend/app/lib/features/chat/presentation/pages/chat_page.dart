@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 
-// 전역 Provider (chatRoomNotifier) + chatCategoryProvider
-import 'package:hoseomeet/features/chat/providers/chat_room_provicer.dart';
-import 'package:hoseomeet/features/chat/providers/chat_category_provider.dart';
-import 'package:hoseomeet/features/navigation/providers/bottom_nav_index_provider.dart'; // ✅ 탭 상태 감시 추가
-
 // UI 위젯
+import '../../../navigation/providers/bottom_nav_index_provider.dart';
 import '../../data/models/chat_room.dart';
+import '../../providers/chat_category_provider.dart';
+import '../../providers/chat_room_provicer.dart';
 import '../widgets/chat_header.dart';
 import '../widgets/chat_category_bar.dart';
 import '../widgets/chat_room_list.dart';
