@@ -63,7 +63,7 @@ class RoomPostService(RoomPostServiceProtocol):
             limit: int,
     ) -> List[RoomPostListResponse]:
 
-        # 거리 계산: 사용자 위치가 제공되면, ST_Distance를 사용하여 미터 단위 거리를 계산합니다.
+        # 거리 계산 식 정의
         distance_expr = None
         if user_lat is not None and user_lon is not None:
             distance_expr = func.ST_Distance(
@@ -71,25 +71,32 @@ class RoomPostService(RoomPostServiceProtocol):
                 func.ST_SetSRID(func.ST_MakePoint(user_lon, user_lat), 4326)
             )
 
+        # 기본 컬럼 설정
         columns = [
             RoomPost,
             func.coalesce(func.avg(RoomReview.rating), 0).label("avg_rating"),
             func.count(RoomReview.id).label("reviews_count"),
         ]
-
         if distance_expr is not None:
             columns.append(distance_expr.label("distance"))
 
+        # 좋아요 필터인 경우
         if sort_by == "heart":
             stmt = (
                 select(*columns)
                 .join(RoomPostHeart, RoomPost.id == RoomPostHeart.room_id)
+                .outerjoin(RoomReview, RoomReview.room_id == RoomPost.id)
                 .where(RoomPostHeart.user_id == user_id)
                 .group_by(RoomPost.id)
             )
+
             if name:
-                stmt = stmt.where(
-                    RoomPost.name.ilike(f"%{name}%"))  # ✅ 이름 필터 추가
+                stmt = stmt.where(RoomPost.name.ilike(f"%{name}%"))
+
+            if distance_expr is not None:
+                stmt = stmt.order_by(distance_expr)
+
+        # 일반 정렬인 경우
         else:
             stmt = (
                 select(*columns)
@@ -101,8 +108,7 @@ class RoomPostService(RoomPostServiceProtocol):
                 stmt = stmt.where(RoomPost.place == place)
 
             if name:
-                stmt = stmt.where(
-                    RoomPost.name.ilike(f"%{name}%"))  # ✅ 이름 필터 추가
+                stmt = stmt.where(RoomPost.name.ilike(f"%{name}%"))
 
             if sort_by == "distance" and distance_expr is not None:
                 stmt = stmt.order_by(distance_expr)
@@ -111,8 +117,10 @@ class RoomPostService(RoomPostServiceProtocol):
             elif sort_by == "rating":
                 stmt = stmt.order_by(desc(func.avg(RoomReview.rating)))
 
+        # 페이징
         stmt = stmt.offset(skip).limit(limit)
 
+        # 쿼리 실행
         rows = await db.execute(stmt)
         results = rows.all()
 
@@ -123,8 +131,8 @@ class RoomPostService(RoomPostServiceProtocol):
             avg_rating_val: float = float(row[1]) if row[1] else 0.0
             reviews_count_val: int = row[2]
             distance_val: float = 0
-            if distance_expr is not None:
-                distance_val = row[3]
+            if distance_expr is not None and len(row) > 3:
+                distance_val = row[3] or 0.0
 
             image_urls = [img.image for img in
                           room_obj.images] if room_obj.images else []
@@ -141,7 +149,7 @@ class RoomPostService(RoomPostServiceProtocol):
                 avg_rating=avg_rating_val,
                 distance=distance_val,
                 images=image_urls,
-                is_heart =is_heart
+                is_heart=is_heart
             )
             response_list.append(item)
 
