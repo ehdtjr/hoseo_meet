@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi import Request
+from fastapi import Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi_users import models
@@ -115,6 +115,19 @@ async def refresh_token(
             detail=str(e),
         )
 
+@router.delete("/delete", status_code=204)
+async def delete_user(
+    user: User = Depends(current_active_user),
+    user_manager = Depends(get_user_manager),
+):
+    try:
+        await user_manager.deactivate_user(user)
+        return Response(status_code=204)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"회원 탈퇴 처리 중 오류가 발생했습니다: {str(e)}"
+        )
 
 # 인증 및 사용자 관련 라우터 추가
 router.include_router(

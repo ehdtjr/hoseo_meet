@@ -14,12 +14,11 @@ from app.models import User
 from app.schemas.stream import SubscriptionRequest
 from app.schemas.user import (UserFCMTokenCreate, UserFCMTokenRequest,
                               UserRead, UserPublicRead, UserUpdate,
-                              UserReportBase, UserReportRequest,
+                              UserReportRequest,
                               UserReportCreate, ChangePasswordRequest)
 from app.service.stream import SubscriberServiceProtocol, \
     get_subscription_service
 from app.service.user import get_user_manager, UserManager
-from app.utils.image import convert_image_to_webp
 from app.utils.s3 import generate_s3_key
 
 router = APIRouter()
@@ -150,14 +149,8 @@ async def update_user_profile(
         # 새로운 S3 경로 생성
         unique_url = generate_s3_key(f"profile/user_{user.id}", "profile.webp")
 
-        # WebP 형식인지 확인
-        if file.content_type == "image/webp":
-            file.file.seek(0)  # 파일 포인터를 처음으로 이동
-            profile_url = await s3_manager.upload_file(file, unique_url)
-        else:
-            # WebP가 아닌 경우 변환 후 업로드
-            webp_file = convert_image_to_webp(file.file)
-            profile_url = await s3_manager.upload_byte_file(webp_file, unique_url, "image/webp")
+        file.file.seek(0)  # 파일 포인터를 처음으로 이동
+        profile_url = await s3_manager.upload_file(file, unique_url)
 
         # DB 업데이트
         user_update = UserUpdate(
@@ -236,3 +229,4 @@ async def user_report(
             status_code=500,
             detail=f"Failed to create report: {str(e)}"
         )
+

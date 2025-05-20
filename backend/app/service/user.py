@@ -10,7 +10,7 @@ from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 
 from app.api.deps import get_user_db
 from app.core.config import settings
-from app.core.exceptions import PermissionDeniedException
+from app.core.exceptions import PermissionDeniedException, ConflictException
 from app.models.user import User
 from app.service.email import EmailServiceProtocol, get_email_service
 
@@ -117,6 +117,11 @@ class UserManager(fastapi_users.IntegerIDMixin, fastapi_users.BaseUserManager[Us
         updated_user = await self.user_db.update(user, {"hashed_password": hashed})
 
         return updated_user
+
+    async def deactivate_user(self, user: User) -> User:
+        if not user.is_active:
+            raise ConflictException(detail="이미 탈퇴된 사용자입니다.")
+        return await self._update(user, {"is_active": False})
 
 
 async def get_user_manager(
