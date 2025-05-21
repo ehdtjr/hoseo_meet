@@ -1,4 +1,6 @@
 /backend/.env
+/backend/.idea/
+*.iml
 /.env
 /backend/app/alembic/versions/*
 !/backend/app/alembic/versions/.gitkeep
