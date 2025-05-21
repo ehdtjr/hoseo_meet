@@ -242,6 +242,24 @@ class AuthService {
     }
   }
 
+  Future<int> deleteAccount({required String accessToken}) async {
+    const url = '${AppConfig.baseUrl}/auth/delete';
+
+    try {
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: {
+          'accept': '*/*',
+          'Authorization': 'Bearer $accessToken',
+        },
+      );
+
+      return response.statusCode;
+    } catch (e) {
+      print('[AuthService] 계정 삭제 중 오류: $e');
+      return -1;
+    }
+  }
 
   /// 필요 시 리소스 정리
   void dispose() {

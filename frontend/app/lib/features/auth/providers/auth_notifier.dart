@@ -170,4 +170,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> deleteAccount() async {
+    final accessToken = state.accessToken;
+
+    if (accessToken == null) {
+      state = state.copyWith(errorMessage: '로그인 정보가 없습니다.');
+      return;
+    }
+
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    try {
+      final statusCode = await _authService.deleteAccount(accessToken: accessToken);
+
+      if (statusCode == 204) {
+        await _tokenStorage.deleteRefreshToken();
+        state = AuthState.initial();
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: '계정 삭제 실패 (status: $statusCode)',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: '계정 삭제 중 오류 발생: $e',
+      );
+    }
+  }
 }

@@ -2,6 +2,7 @@ import 'package:campusmeet/features/me/presentation/pages/terms_of_user_page.dar
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../widgets/showConfirmDialog.dart';
 import '../../../auth/presentation/pages/privacy_policy_page.dart';
 import '../../../auth/presentation/pages/terms_policy_page.dart';
 import '../../../auth/providers/auth_notifier_provider.dart';
@@ -159,7 +160,24 @@ class _MePageState extends ConsumerState<MePage> {
               ref.read(authNotifierProvider.notifier).logout();
               break;
             case "회원 탈퇴":
-            // TODO: 구현 필요
+              showConfirmDialog(
+                context: context,
+                title: "정말 탈퇴하시겠어요?",
+                description: "계정 정보와 모든 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+                confirmText: "탈퇴하기",
+                confirmColor: Colors.redAccent,
+                onConfirm: () async {
+                  try {
+                    await ref.read(authNotifierProvider.notifier).deleteAccount();
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('탈퇴 실패: $e')),
+                      );
+                    }
+                  }
+                },
+              );
               break;
             default:
               break;
