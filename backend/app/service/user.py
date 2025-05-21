@@ -46,6 +46,12 @@ class UserManager(fastapi_users.IntegerIDMixin, fastapi_users.BaseUserManager[Us
     ) -> None:
         await self.email_service.send_email_verification_link(user)
 
+    async def on_after_forgot_password(
+        self, user: UP, token: str, request: Optional[Request] = None
+
+    ) -> None:
+        await self.email_service.send_email_reset_password_link(user, token)
+
     async def activate_user(self, user_id: int) -> None:
         user = await self.user_db.get(user_id)  # user 조회
 
