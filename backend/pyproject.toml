@@ -55,7 +55,10 @@ httptools = "^0.6.4"
 geoalchemy2 = "^0.17.1"
 openai = "^1.76.0"
 pydantic-ai = "^0.1.8"
+<<<<<<< HEAD
 pyinstrument = "^5.0.1"
+=======
+>>>>>>> c927965c131dd28ab51c0dfe9eb8d747ae34fb36
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.1"
