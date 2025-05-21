@@ -129,6 +129,17 @@ async def delete_user(
             detail=f"회원 탈퇴 처리 중 오류가 발생했습니다: {str(e)}"
         )
 
+@router.get("/reset-password-form", response_class=HTMLResponse)
+async def reset_password_form(request: Request, token: str):
+    return templates.TemplateResponse(
+        "reset_password.html",
+        {
+            "request": request,
+            "token": token
+        }
+    )
+
+
 # 인증 및 사용자 관련 라우터 추가
 router.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate), tags=["auth"]

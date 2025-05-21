@@ -13,6 +13,10 @@ class EmailServiceProtocol(Protocol):
     async def send_email_verification_link(self, user: models.UP) -> None:
         pass
 
+    async def send_email_reset_password_link(self, user: models.UP,
+                                             token: str) -> None:
+        pass
+
     def validate_email_domain(self, email: str) -> bool:
         pass
 
@@ -36,7 +40,7 @@ class EmailService(EmailServiceProtocol):
         # 인증 토큰 생성
         token = await self.verification_service.create_verification_token(user)
         verification_link = (
-            f"http://{self.send_email_domain}/api/v1/auth/verify-email?token"
+            f"https://{self.send_email_domain}/api/v1/auth/verify-email?token"
             f"={token}"
         )
         # 이메일 템플릿 렌더링
@@ -45,6 +49,12 @@ class EmailService(EmailServiceProtocol):
         )
         send_email_task.delay(user.email, "이메일 인증", content)
 
+    async def send_email_reset_password_link(self, user: models.UP, token: str) -> None:
+        reset_link = f"https://{self.send_email_domain}/api/v1/auth/reset-password-form?token={token}"
+        content = self.template_renderer.render_template(
+            "forgot_password.html", reset_link=reset_link, user=user
+        )
+        send_email_task.delay(user.email, "비밀번호 재설정", content)
 
 # 이메일 인증 서비스 클래스
 class EmailVerificationService:
