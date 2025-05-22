@@ -48,15 +48,6 @@ Future<void> main() async {
 
 Future<void> _initPermissions() async {
   try {
-    // 위치 서비스 확인
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      debugPrint('위치 서비스가 비활성화되어 있습니다.');
-      await Geolocator.openLocationSettings(); // <-- 이 줄이 빠져 있음!
-
-    }
-
-    // 위치 및 알림 권한 요청
     Map<Permission, PermissionStatus> statuses = await [
       Permission.locationWhenInUse,
       Permission.notification,
