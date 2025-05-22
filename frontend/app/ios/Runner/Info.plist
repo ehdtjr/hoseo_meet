@@ -63,5 +63,7 @@
         <string>리뷰 작성 시 사진 업로드를 위해 갤러리 접근 권한이 필요합니다.</string>
         <key>NSCameraUsageDescription</key>
         <string>리뷰 작성 시 사진 촬영을 위해 카메라 접근 권한이 필요합니다.</string>
+        <key>ITSAppUsesNonExemptEncryption</key>
+        <false/>
 	</dict>
 </plist>
