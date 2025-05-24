@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../../commons/file/image_utils.dart';
 import '../../../providers/room/review/room_review_provider.dart';
 import '../../widgets/room_page/review/create/image_add_section.dart';
 import '../../widgets/room_page/review/create/review_content_input.dart';
@@ -36,20 +37,22 @@ class _CreateRoomReviewPageState extends ConsumerState<CreateRoomReviewPage> {
       );
       return;
     }
-    // 선택된 이미지 경로들을 File 객체 리스트로 변환
-    final imagesFiles = _selectedImageUrls.map((path) => File(path)).toList();
 
-    // widget.roomId가 String이므로 int로 변환합니다.
+    final List<File> imageFiles = [];
+    for (final path in _selectedImageUrls) {
+      final originalFile = File(path);
+      final webpFile = await ensureWebP(originalFile);
+      imageFiles.add(webpFile);
+    }
+
     final roomIdInt = int.tryParse(widget.roomId) ?? 0;
+
     try {
-      await ref
-          .read(roomReviewProvider(roomIdInt).notifier)
-          .createRoomReview(
+      await ref.read(roomReviewProvider(roomIdInt).notifier).createRoomReview(
         content: content,
-        rating: _selectedRating.toInt(), // 평점은 int로 전환
-        images: imagesFiles,
+        rating: _selectedRating.toInt(),
+        images: imageFiles,
       );
-      // 리뷰 작성 완료 후 스낵바를 띄우고 일정 시간 후 자동 pop
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("리뷰 작성 완료")),
       );
@@ -62,6 +65,7 @@ class _CreateRoomReviewPageState extends ConsumerState<CreateRoomReviewPage> {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

@@ -121,7 +121,7 @@ class StoryPostNotifier extends StateNotifier<List<StoryPost>> {
         file.absolute.path,
         targetPath,
         format: CompressFormat.webp,
-        quality: 80,
+        quality: 100,
       );
       return xFile != null ? File(xFile.path) : null;
     } catch (e) {

@@ -162,7 +162,7 @@ class _StoryEditorPageState extends ConsumerState<StoryEditorPage> {
       right: 0,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,

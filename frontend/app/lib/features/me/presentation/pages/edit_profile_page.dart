@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../commons/file/image_utils.dart';
 import '../../../auth/providers/user_profile_provider.dart';
 import '../../../home/presentation/widgets/room_page/review/create/gallery_picker_screen.dart';
 
@@ -31,14 +32,13 @@ class _EditProfileImagePageState extends ConsumerState<EditProfileImagePage> {
 
   Future<void> _saveImage() async {
     if (_selectedImagePath == null) return;
-
     setState(() => _isUploading = true);
 
     try {
-      final file = File(_selectedImagePath!);
+      final originalFile = File(_selectedImagePath!);
+      final fileToUpload = await ensureWebP(originalFile);
 
-      // ✅ 올바른 메서드 호출 방식
-      await ref.read(userProfileNotifierProvider.notifier).uploadProfileImage(file);
+      await ref.read(userProfileNotifierProvider.notifier).uploadProfileImage(fileToUpload);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
