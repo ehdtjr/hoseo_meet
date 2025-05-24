@@ -22,6 +22,8 @@ class _CreateRoomReviewPageState extends ConsumerState<CreateRoomReviewPage> {
   final _contentController = TextEditingController();
   double _selectedRating = 3.0; // 초기 평점
   final List<String> _selectedImageUrls = [];
+  bool _isSubmitting = false;
+
 
   @override
   void dispose() {
@@ -30,6 +32,8 @@ class _CreateRoomReviewPageState extends ConsumerState<CreateRoomReviewPage> {
   }
 
   Future<void> _onSubmit() async {
+    if (_isSubmitting) return;
+
     final content = _contentController.text.trim();
     if (content.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -37,6 +41,8 @@ class _CreateRoomReviewPageState extends ConsumerState<CreateRoomReviewPage> {
       );
       return;
     }
+
+    setState(() => _isSubmitting = true); // ⬅️ 로딩 시작
 
     final List<File> imageFiles = [];
     for (final path in _selectedImageUrls) {
@@ -53,18 +59,24 @@ class _CreateRoomReviewPageState extends ConsumerState<CreateRoomReviewPage> {
         rating: _selectedRating.toInt(),
         images: imageFiles,
       );
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("리뷰 작성 완료")),
       );
       Future.delayed(const Duration(seconds: 1), () {
-        Navigator.of(context).pop();
+        if (mounted) Navigator.of(context).pop();
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("리뷰 작성 중 오류가 발생했습니다.\n$e")),
       );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false); // ⬅️ 로딩 종료
     }
   }
+
 
 
   @override
@@ -145,6 +157,7 @@ class _CreateRoomReviewPageState extends ConsumerState<CreateRoomReviewPage> {
                 child: Center(
                   child: SubmitButton(
                     text: '작성하기',
+                    isLoading: _isSubmitting,
                     onPressed: _onSubmit,
                   ),
                 ),

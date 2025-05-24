@@ -99,13 +99,13 @@ class VisitorReviews extends ConsumerWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 4),
-                                  const Text(
-                                    "리뷰 53",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF8A8A8A),
-                                    ),
-                                  ),
+//                                   const Text(
+//                                     "리뷰 53",
+//                                     style: TextStyle(
+//                                       fontSize: 12,
+//                                       color: Color(0xFF8A8A8A),
+//                                     ),
+//                                   ),
                                 ],
                               ),
                               // 별점, 날짜, 신고하기 또는 삭제 버튼
