@@ -71,6 +71,11 @@ class _BlockUserPageState extends ConsumerState<BlockUserPage> {
         itemCount: _blockedUsers.length,
         itemBuilder: (context, index) {
           final user = _blockedUsers[index];
+          final profileUrl = user.profile;
+
+          final isValidUrl = profileUrl.trim().isNotEmpty &&
+              Uri.tryParse(profileUrl)?.hasAbsolutePath == true;
+
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
@@ -78,9 +83,9 @@ class _BlockUserPageState extends ConsumerState<BlockUserPage> {
                 width: 56,
                 height: 56,
                 child: ClipOval(
-                  child: user.profile.isNotEmpty
+                  child: isValidUrl
                       ? Image.network(
-                    user.profile,
+                    profileUrl,
                     fit: BoxFit.cover,
                     loadingBuilder: (_, child, loadingProgress) {
                       if (loadingProgress == null) return child;
@@ -108,10 +113,10 @@ class _BlockUserPageState extends ConsumerState<BlockUserPage> {
     );
   }
 
-  // 기본 프로필 표시 위젯
+  // 기본 프로필 아이콘
   Widget _defaultProfile() {
     return Container(
-      color: const Color(0xFFBDBDBD), // 회색 배경
+      color: const Color(0xFFBDBDBD),
       child: const Icon(Icons.person, color: Colors.white, size: 24),
     );
   }

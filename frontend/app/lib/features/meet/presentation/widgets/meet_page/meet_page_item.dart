@@ -5,6 +5,7 @@ import '../../../../auth/providers/user_profile_provider.dart';
 import '../../../data/models/meet_post.dart';
 import '../../../providers/meet_post_provider.dart';
 import '../common/show_post_option_bottomsheet.dart';
+import '../common/show_user_action_bottomsheet.dart'; // ✅ 신고/차단 바텀시트 import
 import '../meet_detail_page/meet_detail_modal.dart';
 
 class MeetPageItem extends ConsumerWidget {
@@ -44,12 +45,12 @@ class MeetPageItem extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Text(post.author.name, style: _TextStyles.authorName),
                       const Spacer(),
-                      if (isAuthor)
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(999),
-                            onTap: () {
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(999),
+                          onTap: () {
+                            if (isAuthor) {
                               showPostOptionsBottomSheet(
                                 context: context,
                                 onDelete: () async {
@@ -66,21 +67,28 @@ class MeetPageItem extends ConsumerWidget {
                                   }
                                 },
                               );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: SvgPicture.asset(
-                                'assets/icons/fi-rr-menu-dots-vertical.svg',
-                                width: 18,
-                                height: 18,
-                                colorFilter: const ColorFilter.mode(
-                                  Color(0xFF707070),
-                                  BlendMode.srcIn,
-                                ),
+                            } else {
+                              showUserActionBottomSheet(
+                                context: context,
+                                ref: ref,
+                                user: post.author,
+                              );
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: SvgPicture.asset(
+                              'assets/icons/fi-rr-menu-dots-vertical.svg',
+                              width: 18,
+                              height: 18,
+                              colorFilter: const ColorFilter.mode(
+                                Color(0xFF707070),
+                                BlendMode.srcIn,
                               ),
                             ),
                           ),
                         ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),

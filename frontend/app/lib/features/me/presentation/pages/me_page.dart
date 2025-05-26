@@ -72,8 +72,8 @@ class _MePageState extends ConsumerState<MePage> {
                     children: [
                       Row(
                         children: [
-                          Text(
-                            userProfile?.name?.isNotEmpty == true ? userProfile!.name : '비회원',
+                        Text(
+                            userProfile?.name.isNotEmpty == true ? userProfile!.name : '비회원',
                             style: const TextStyle(
                                 fontSize: 17, fontWeight: FontWeight.w600),
                           ),
@@ -85,7 +85,7 @@ class _MePageState extends ConsumerState<MePage> {
                                   color: Color(0xFFE72410))),
                           const SizedBox(width: 6),
                           Text(
-                            userProfile?.name?.isNotEmpty == true ? userProfile!.name : '정보 없음',
+                            userProfile?.name.isNotEmpty == true ? userProfile!.name : '정보 없음',
                             style: const TextStyle(
                                 fontSize: 17, fontWeight: FontWeight.w400),
                           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../../commons/services/block_manager.dart';
 
 import '../../../../auth/data/models/user.dart';
 import '../../../../auth/presentation/pages/report_page.dart';
@@ -94,10 +95,14 @@ class ChatSlideMenu extends ConsumerWidget {
                               : PopupMenuButton<String>(
                             color: Colors.white,
                             elevation: 2,
+                            icon: const Icon(
+                              Icons.more_vert,
+                              color: Colors.grey, // ✅ 아이콘 색상
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            onSelected: (value) {
+                            onSelected: (value) async {
                               Navigator.pop(context); // 슬라이드 닫기
                               if (value == 'report') {
                                 Navigator.push(
@@ -110,6 +115,12 @@ class ChatSlideMenu extends ConsumerWidget {
                                     ),
                                   ),
                                 );
+                              }else if (value == 'block') {
+                                await BlockedUsers.blockUser(user.id);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text('${user.name} 님을 차단했습니다.')),
+                                );
                               }
                             },
                             itemBuilder: (context) => const [
@@ -117,6 +128,16 @@ class ChatSlideMenu extends ConsumerWidget {
                                 value: 'report',
                                 child: Text(
                                   '신고하기',
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'block',
+                                child: Text(
+                                  '차단하기',
                                   style: TextStyle(
                                     color: Colors.grey,
                                     fontWeight: FontWeight.w500,

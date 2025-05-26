@@ -1,10 +1,9 @@
+import 'package:campusmeet/features/meet/presentation/widgets/common/show_user_action_bottomsheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../../../../commons/services/block_manager.dart';
 import '../../../../auth/providers/user_profile_provider.dart';
-import '../../../../auth/presentation/pages/report_page.dart';
 import '../../../data/models/meet_post_detail.dart';
 import '../common/show_post_option_bottomsheet.dart';
 
@@ -20,7 +19,9 @@ class MeetAuthorSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userProfile = ref.watch(userProfileNotifierProvider).userProfile;
+    final userProfile = ref
+        .watch(userProfileNotifierProvider)
+        .userProfile;
     final isAuthor = userProfile?.id == post.author.id;
 
     return Padding(
@@ -39,18 +40,20 @@ class MeetAuthorSection extends ConsumerWidget {
               child: Image.network(
                 post.author.profile,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  color: const Color(0xFFBDBDBD),
-                  child: const Icon(Icons.person, color: Colors.white, size: 24),
-                ),
+                errorBuilder: (_, __, ___) =>
+                    Container(
+                      color: const Color(0xFFBDBDBD),
+                      child: const Icon(
+                          Icons.person, color: Colors.white, size: 24),
+                    ),
                 loadingBuilder: (_, child, loadingProgress) =>
                 loadingProgress == null
                     ? child
                     : const Center(
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.grey,
-                  )
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.grey,
+                    )
                 ),
               ),
             ),
@@ -77,7 +80,11 @@ class MeetAuthorSection extends ConsumerWidget {
                     onDelete: onDelete,
                   );
                 } else {
-                  _showUserActionSheet(context, post);
+                  showUserActionBottomSheet(
+                      context: context,
+                      user: post.author,
+                      ref: ref
+                  );
                 }
               },
               child: SvgPicture.asset(
@@ -116,52 +123,8 @@ class MeetAuthorSection extends ConsumerWidget {
     return typeMap[type.toLowerCase()] ?? '전체';
   }
 
-  void _showUserActionSheet(BuildContext context, MeetDetail post) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.report, color: Color(0xFFE72410)),
-                title: const Text('신고하기'),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ReportPage(
-                        reportedUserId: post.author.id,
-                        reportedUserName: post.author.name,
-                        reportedUserProfile: post.author.profile,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.block, color: Colors.black87),
-                title: const Text('차단하기'),
-                onTap: () async {
-                  Navigator.pop(context); // BottomSheet 닫기
-                  await BlockedUsers.blockUser(post.author.id);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('${post.author.name} 님을 차단했습니다.')),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }
+
 
 class _TextStyles {
   static const redTag = TextStyle(

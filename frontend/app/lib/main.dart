@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -64,11 +63,7 @@ Future<void> _initPermissions() async {
     );
     if (permissionState.isAuth || permissionState == PermissionState.limited) {
       debugPrint('PhotoManager 권한 허용됨');
-    } else {
-      debugPrint('PhotoManager 권한 거부됨');
-      await PhotoManager.openSetting();
     }
-
     debugPrint('✅ 모든 권한 초기화 완료');
   } catch (e) {
     debugPrint('권한 초기화 오류: $e');

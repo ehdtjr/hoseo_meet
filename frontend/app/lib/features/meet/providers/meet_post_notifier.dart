@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../commons/services/block_manager.dart';
 import '../data/models/meet_post.dart';
 import '../data/models/meet_post_detail.dart';
 import '../data/services/meet_post_service.dart';
@@ -30,7 +31,10 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
     final type = category == 'all' ? '' : category;
 
     try {
-      // title 및 content 검색 결과 병합
+      // ✅ 차단된 사용자 ID 목록 가져오기
+      final blockedUserIds = (await BlockedUsers.getBlockedUserIds()).toSet();
+
+      // ✅ 게시글 검색 (제목 기준)
       final titlePosts = await _service.loadListMeetPost(
         type: type,
         title: query,
@@ -39,6 +43,7 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
         limit: _limit,
       );
 
+      // ✅ 게시글 검색 (내용 기준)
       final contentPosts = await _service.loadListMeetPost(
         type: type,
         title: '',
@@ -47,24 +52,30 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
         limit: _limit,
       );
 
-      final combinedPosts = [
-        ...titlePosts,
-        ...contentPosts,
-      ];
+      // ✅ 게시글 병합
+      final combinedPosts = [...titlePosts, ...contentPosts];
 
-      final uniquePosts = {
+      // ✅ 중복 제거 (post.id 기준)
+      final deduplicatedPosts = {
         for (var post in combinedPosts) post.id: post
-      }.values.toList(); // id 기준으로 중복 제거
+      }.values.toList();
 
+      // ✅ 차단된 사용자 필터링
+      final filteredPosts = deduplicatedPosts
+          .where((post) => !blockedUserIds.contains(post.author.id))
+          .toList();
+
+      // ✅ 기존 리스트에 더하기 or 새로 덮어쓰기
       if (loadMore) {
         final existingIds = state.map((post) => post.id).toSet();
-        final newPosts = uniquePosts.where((post) => !existingIds.contains(post.id)).toList();
+        final newPosts = filteredPosts.where((post) => !existingIds.contains(post.id)).toList();
         state = [...state, ...newPosts];
       } else {
-        state = uniquePosts;
+        state = filteredPosts;
       }
 
-      if (uniquePosts.length < _limit) {
+      // ✅ 더 불러올 수 있는지 여부 갱신
+      if (filteredPosts.length < _limit) {
         _hasMore = false;
       } else {
         _skip += _limit;
@@ -75,6 +86,7 @@ class MeetPostNotifier extends StateNotifier<List<MeetPost>> {
       _isLoading = false;
     }
   }
+
 
   /// 특정 게시글의 상세 정보 로드
   Future<MeetDetail?> loadDetailMeetPost(int postId) async {

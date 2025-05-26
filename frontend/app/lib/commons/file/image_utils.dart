@@ -9,7 +9,12 @@ bool isWebP(String path) {
 Future<File> ensureWebP(File file, {int quality = 80}) async {
   if (isWebP(file.path)) return file;
 
+  if (!await file.exists()) {
+    throw Exception('파일이 존재하지 않음: ${file.path}');
+  }
+
   final targetPath = p.setExtension(file.path, '.webp');
+
   final result = await FlutterImageCompress.compressAndGetFile(
     file.absolute.path,
     targetPath,
@@ -17,7 +22,9 @@ Future<File> ensureWebP(File file, {int quality = 80}) async {
     quality: quality,
   );
 
-  if (result == null) throw Exception('WebP 변환 실패');
+  if (result == null) {
+    throw Exception('WebP 변환 실패 (파일: ${file.path})');
+  }
+
   return File(result.path);
 }
-
