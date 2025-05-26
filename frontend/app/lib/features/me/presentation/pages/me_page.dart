@@ -1,3 +1,4 @@
+import 'package:campusmeet/features/me/presentation/pages/block_user_page.dart';
 import 'package:campusmeet/features/me/presentation/pages/terms_of_user_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -99,7 +100,7 @@ class _MePageState extends ConsumerState<MePage> {
           const Divider(height: 32, thickness: 1, color: Color(0xFFF0B4AD)),
 
           // 메뉴 섹션
-          ..._buildMenuSection("계정", ["프로필 변경", "비밀번호 변경"]),
+          ..._buildMenuSection("계정", ["프로필 변경", "비밀번호 변경", "차단한 사용자"]),
  //         ..._buildMenuSection("게시글", ["내가 작성한 글"]),
           ..._buildMenuSection("이용 안내", ["이용 규칙","약관 및 정책", "개인정보 처리 방침"]),
           ..._buildMenuSection("기타", ["로그아웃", "회원 탈퇴"]),
@@ -136,8 +137,11 @@ class _MePageState extends ConsumerState<MePage> {
                 MaterialPageRoute(builder: (_) => const ChangePasswordPage()),
               );
               break;
-            case "내가 작성한 글":
-            // TODO: 구현 필
+            case "차단한 사용자":
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const BlockUserPage()),
+              );
               break;
             case "이용 규칙":
               Navigator.push(
