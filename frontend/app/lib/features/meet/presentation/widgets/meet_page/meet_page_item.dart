@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../../../../../commons/services/block_manager.dart';
+import '../../../../auth/presentation/pages/report_page.dart';
 import '../../../../auth/providers/user_profile_provider.dart';
 import '../../../data/models/meet_post.dart';
 import '../../../providers/meet_post_provider.dart';
@@ -70,8 +72,28 @@ class MeetPageItem extends ConsumerWidget {
                             } else {
                               showUserActionBottomSheet(
                                 context: context,
-                                ref: ref,
                                 user: post.author,
+                                onReport: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ReportPage(
+                                        reportedUserId: post.author.id,
+                                        reportedUserName: post.author.name,
+                                        reportedUserProfile: post.author.profile,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                onBlock: () async {
+                                  await BlockedUsers.blockUser(post.author.id);
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('${post.author.name} 님을 차단했습니다.')),
+                                  );
+                                  await Navigator.of(context).maybePop();
+                                  ref.read(meetPostProvider.notifier).resetAndLoad();
+                                },
                               );
                             }
                           },
