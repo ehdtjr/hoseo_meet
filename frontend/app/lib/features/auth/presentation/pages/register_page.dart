@@ -219,6 +219,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 items: const [
                   DropdownMenuItem(value: "male", child: Text("남자")),
                   DropdownMenuItem(value: "female", child: Text("여자")),
+                  DropdownMenuItem(value: "other", child: Text("선택안함")),
                 ],
                 onChanged: (value) {
                   setState(() => _selectedGender = value);
