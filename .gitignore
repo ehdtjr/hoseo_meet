@@ -15,10 +15,6 @@ hoseo-meet-firebase.json
 /backend/celerybeat-schedule
 *.csv
 /backend/app/ai_model/
-<<<<<<< HEAD
 .env
-=======
->>>>>>> c927965c131dd28ab51c0dfe9eb8d747ae34fb36
 .DS_Store
-.DS_Store
-.DS_Store
+/backend/app/celery/ai_moel

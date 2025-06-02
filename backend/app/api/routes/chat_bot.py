@@ -99,7 +99,6 @@ async def post_chat(
                     ensure_ascii=False
                 ).encode("utf-8") + b'\n'
 
-            # 응답 메시지 저장
             messages = result.new_messages()
             for message in messages:
                 try:

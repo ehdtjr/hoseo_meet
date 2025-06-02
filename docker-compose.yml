@@ -80,7 +80,7 @@ services:
   celery-worker:
     build:
       context: ./backend
-    command: ["celery", "-A", "app.celery.worker", "worker", "--loglevel=info"]
+    command: ["celery", "-A", "app.celery.worker", "worker", "--loglevel=info", "--concurrency=1"]
     volumes:
       - ./backend:/app
     depends_on:
@@ -91,6 +91,12 @@ services:
     environment:
       - POSTGRES_SERVER=db
       - REDIS_HOST=redis
+      - TOKENIZERS_PARALLELISM=false
+      - TRANSFORMERS_NO_ADVISORY_WARNINGS=1
+      - OMP_NUM_THREADS=1
+      - MKL_NUM_THREADS=1
+      - OPENBLAS_NUM_THREADS=1
+
     networks:
       - app_backend_net
 

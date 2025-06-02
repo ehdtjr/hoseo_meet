@@ -74,6 +74,13 @@ class User(SQLAlchemyBaseUserTable, Base):
         cascade="all, delete-orphan"
     )
 
+
+    # tag
+    user_tags: Mapped[List["UserTag"]] = relationship(
+        "UserTag", back_populates="user", cascade="all, delete-orphan"
+    )
+
+
 class UserReport(Base):
     __tablename__ = "user_report"
 
@@ -118,4 +125,3 @@ class OAuthAccount(SQLAlchemyBaseOAuthAccountTable[int], Base):
         return mapped_column(
             Integer, ForeignKey("user.id", ondelete="cascade"), nullable=False
         )
-
