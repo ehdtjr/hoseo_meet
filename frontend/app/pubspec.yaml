@@ -37,7 +37,7 @@ dependencies:
   http: ^1.2.2
   web_socket_channel: ^2.1.0  # 최신 버전 추가
   shared_preferences: ^2.0.15
-  firebase_core: ^3.9.0
+  firebase_core: ^3.13.1
   firebase_messaging: ^15.1.6
   permission_handler: ^11.3.1
   kakao_flutter_sdk: ^1.9.7+3
