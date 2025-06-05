@@ -56,14 +56,6 @@ geoalchemy2 = "^0.17.1"
 openai = "^1.76.0"
 pydantic-ai = "^0.1.8"
 pyinstrument = "^5.0.1"
-transformers = "<4.52.0"
-sentence-transformers = "^4.1.0"
-accelerate = "^1.7.0"
-torch = {version = "^2.7.0+cpu", source = "pytorch-cpu"}
-torchvision = {version = "^0.22.0+cpu", source = "pytorch-cpu"}
-torchaudio = {version = "^2.7.0+cpu", source = "pytorch-cpu"}
-bitsandbytes = {version = "^0.46.0", allow-prereleases = true}
-optimum = {extras = ["onnxruntime"], version = "^1.25.3"}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.1"
@@ -71,12 +63,6 @@ pytest-asyncio = "^0.23.8"
 pytest-cov = "^5.0.0"
 pyinstrument = "^5.0.0"
 
-
-
-[[tool.poetry.source]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-priority = "explicit"
 
 [build-system]
 requires = ["poetry-core"]
