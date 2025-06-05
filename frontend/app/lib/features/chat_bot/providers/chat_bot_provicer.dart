@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../commons/network/auth_http_client_provider.dart';
 import '../data/models/chat_bot_message.dart';
 import '../data/services/chat_bot_service.dart';
@@ -11,7 +10,7 @@ final chatStreamServiceProvider = Provider<ChatStreamService>((ref) {
 });
 
 final chatNotifierProvider =
-StateNotifierProvider<ChatNotifier, List<ChatBotChunk>>((ref) {
-  final service = ref.read(chatStreamServiceProvider);
+StateNotifierProvider<ChatNotifier, ChatState>((ref) {
+  final service = ref.watch(chatStreamServiceProvider);
   return ChatNotifier(service);
 });

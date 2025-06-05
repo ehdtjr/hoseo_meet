@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../commons/network/auth_http_client_provider.dart';
 import '../../../../features/auth/providers/auth_notifier_provider.dart';
 import '../../../../firebase/api/send_token_service.dart';
 import '../../../navigation/presentation/pages/main_tab_page.dart';
+import '../../../onbord/presentation/pages/onboard_page.dart';
 import '../../data/models/auth_state.dart';
 import '../../providers/auth_notifier.dart';
 import '../../providers/user_profile_provider.dart';
@@ -69,11 +71,25 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         await userProfileNotifier.fetchUserProfile();
 
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => MainTabPage()),
-          );
+          final prefs = await SharedPreferences.getInstance();
+
+          // ✅ 테스트용: 무조건 true로 설정
+          final isFirstLogin = true;
+
+          if (isFirstLogin) {
+            await prefs.setBool('isFirstLogin', false); // 이 줄은 있어도 되고 없어도 됨
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => OnboardingPage()),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => MainTabPage()),
+            );
+          }
         }
+
       });
     }
 

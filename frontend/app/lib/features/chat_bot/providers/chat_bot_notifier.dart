@@ -1,46 +1,47 @@
-// lib/features/chat/data/providers/chat_providers.dart
-
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../data/models/chat_bot_message.dart';
 import '../data/services/chat_bot_service.dart';
 
-class ChatNotifier extends StateNotifier<List<ChatBotChunk>> {
+class ChatNotifier extends StateNotifier<ChatState> {
   final ChatStreamService _service;
   StreamSubscription<ChatBotChunk>? _sub;
-  bool _isStreaming = false;
 
-  ChatNotifier(this._service) : super([]);
+  ChatNotifier(this._service)
+      : super(const ChatState(messages: [], isStreaming: false));
 
-  bool get isStreaming => _isStreaming;
-
-  /// prompt를 보내고, user/assistant 청크를 받아 state에 반영
-  void sendMessage(String prompt) {
-    if (_isStreaming) return;
+  void sendMessage(String prompt, {bool showInUI = true}) {
+    if (state.isStreaming || state.isFinished) return;
 
     _sub?.cancel();
-    _isStreaming = true;
+    state = state.copyWith(isStreaming: true);
 
     _sub = _service.streamMessages(prompt: prompt).listen(
           (chunk) {
+        final current = [...state.messages];
+
+        final isEndMessage = chunk.content.contains('이제 대화는 여기까지야! 고마워 :)');
         if (chunk.role == 'user') {
-          state = [...state, chunk];
+          if (showInUI) current.add(chunk);
         } else {
-          if (state.isNotEmpty && state.last.role == 'assistant') {
-            final updated = ChatBotChunk(
-              userId: chunk.userId,
-              role: chunk.role,
-              content: chunk.content, // ✅ 덮어쓰기
-            );
-            state = [...state.sublist(0, state.length - 1), updated];
+          if (current.isNotEmpty && current.last.role == 'assistant') {
+            current[current.length - 1] = chunk;
           } else {
-            state = [...state, chunk];
+            current.add(chunk);
           }
         }
+
+        state = state.copyWith(
+          messages: current,
+          isFinished: isEndMessage ? true : state.isFinished,
+        );
+
+        if (isEndMessage) {
+          _sub?.cancel();
+        }
       },
-      onDone: () => _isStreaming = false,
-      onError: (_) => _isStreaming = false,
+      onDone: () => state = state.copyWith(isStreaming: false),
+      onError: (_) => state = state.copyWith(isStreaming: false),
     );
   }
 

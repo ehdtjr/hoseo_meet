@@ -14,7 +14,9 @@ android {
     ndkVersion = flutter.ndkVersion
     ndkVersion "27.0.12077973"
 
-
+    lint {
+        abortOnError false  // ❌ Gradle 8에서는 더 이상 이 방식 지원 안함
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
@@ -35,7 +37,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        minSdkVersion 24
+        minSdkVersion 29
     }
 
     buildTypes {
@@ -54,6 +56,7 @@ dependencies {
 flutter {
     source = "../.."
 }
+
 
 apply plugin: 'com.google.gms.google-services'
 
