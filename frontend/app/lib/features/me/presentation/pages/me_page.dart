@@ -26,8 +26,9 @@ class _MePageState extends ConsumerState<MePage> {
     super.initState();
     Future.microtask(() =>
         ref.read(userProfileNotifierProvider.notifier).fetchUserProfile());
-        ref.read(tagNotifierProvider.notifier).fetchTags();
+    Future.microtask(() => ref.read(tagNotifierProvider.notifier).fetchTags());
   }
+
 
   @override
   Widget build(BuildContext context) {

@@ -31,7 +31,7 @@ class TagCompleteDialog extends StatelessWidget {
       ),
 
       content: const Text(
-        '대화를 바탕으로 태그를 생성해드릴게요.\n곧 메인 화면으로 이동합니다.',
+        '대화를 바탕으로 태그를 생성해드릴게요.',
         style: TextStyle(
           fontSize: 16,
           height: 1.6,

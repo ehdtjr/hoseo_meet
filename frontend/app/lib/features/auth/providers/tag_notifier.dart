@@ -9,7 +9,7 @@ class TagNotifier extends StateNotifier<TagState> {
 
   Future<void> fetchTags() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
-
+    print('태그 불러오기 시작');
     try {
       final tags = await userService.getUserTags();
       state = state.copyWith(

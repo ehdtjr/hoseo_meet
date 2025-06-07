@@ -12,25 +12,15 @@ class ProfileSection extends ConsumerStatefulWidget {
 }
 
 class _ProfileSectionState extends ConsumerState<ProfileSection> {
-  bool _hasFetched = false;
+
 
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      ref.read(tagNotifierProvider.notifier).fetchTags();
-    });
-  }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_hasFetched) {
-      _hasFetched = true;
-      Future.microtask(() {
-        ref.read(tagNotifierProvider.notifier).fetchTags();
-      });
-    }
+    Future.microtask(() async {
+      await ref.read(tagNotifierProvider.notifier).fetchTags();
+    });
   }
 
   /// 카테고리 분류 맵
@@ -106,8 +96,10 @@ class _ProfileSectionState extends ConsumerState<ProfileSection> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
+
     final userProfileState = ref.watch(userProfileNotifierProvider);
     final tagState = ref.watch(tagNotifierProvider);
     final userProfile = userProfileState.userProfile;

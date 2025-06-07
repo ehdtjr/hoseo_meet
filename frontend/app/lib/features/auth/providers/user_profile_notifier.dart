@@ -14,7 +14,7 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
   // 내 정보 불러오기
   Future<void> fetchUserProfile() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
-
+  print("내 정보 불러오기 시작");
     try {
       final userProfile = await userService.getUserProfile();
       state = state.copyWith(
