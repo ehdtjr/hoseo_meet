@@ -20,6 +20,6 @@ app.conf.beat_schedule = {
     },
     'process_user_tag': {
         'task': 'app.celery.tag_task.process_user_tag',
-        'schedule': crontab(minute='*/1')
+        'schedule': crontab(minute='*/3')
     }
 }

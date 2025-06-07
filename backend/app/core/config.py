@@ -82,6 +82,10 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int = 6379
 
+    RUNPOD_SENTIMENT_API_URL:str
+    RUNPOD_API_KEY:str
+    RUNPOD_ENDPOINT_ID:str
+
     @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
