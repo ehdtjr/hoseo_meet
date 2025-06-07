@@ -15,6 +15,14 @@ class _ProfileSectionState extends ConsumerState<ProfileSection> {
   bool _hasFetched = false;
 
   @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      ref.read(tagNotifierProvider.notifier).fetchTags();
+    });
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_hasFetched) {
