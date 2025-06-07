@@ -73,11 +73,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         if (mounted) {
           final prefs = await SharedPreferences.getInstance();
 
-          // ✅ 테스트용: 무조건 true로 설정
-          final isFirstLogin = true;
+          // ✅ 실제 값으로 변경
+          final isFirstLogin = prefs.getBool('isFirstLogin') ?? true;
 
           if (isFirstLogin) {
-            await prefs.setBool('isFirstLogin', false); // 이 줄은 있어도 되고 없어도 됨
+            await prefs.setBool('isFirstLogin', false); // 한 번만 실행되도록 설정
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => OnboardingPage()),
