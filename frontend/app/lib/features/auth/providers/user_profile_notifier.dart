@@ -105,7 +105,6 @@ class UserProfileNotifier extends StateNotifier<UserProfileState> {
     }
   }
 
-
   // 프로필 초기화(로그아웃 시점 등)
   void clearProfile() {
     state = const UserProfileState();

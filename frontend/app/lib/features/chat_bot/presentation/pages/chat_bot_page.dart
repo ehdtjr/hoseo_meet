@@ -1,3 +1,4 @@
+import 'package:campusmeet/features/chat_bot/presentation/widgets/tag_complete_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../navigation/presentation/pages/main_tab_page.dart';
@@ -65,49 +66,23 @@ class _ChatBotPageState extends ConsumerState<ChatBotPage> {
   }
 
   void _showTagCompleteDialog(BuildContext context) async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 1000));
     if (!mounted) return;
 
-    showGeneralDialog(
+    showDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.5),
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (_, __, ___) => const SizedBox.shrink(),
-      transitionBuilder: (_, animation, __, ___) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: animation, curve: Curves.easeOutBack),
-          child: AlertDialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Row(
-              children: [
-                Icon(Icons.tag, color: Color(0xFFE72410)),
-                SizedBox(width: 8),
-                Text('태그 생성 완료', style: TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            ),
-            content: const Text(
-              '대화를 바탕으로 맞춤 태그를 생성했어요.\n이제 메인 화면으로 이동합니다.',
-              style: TextStyle(fontSize: 14),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MainTabPage()),
-                  );
-                },
-                child: const Text('확인', style: TextStyle(color: Color(0xFFE72410))),
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (_) => TagCompleteDialog(
+        onComplete: () {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const MainTabPage()),
+          );
+        },
+      ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -117,15 +92,32 @@ class _ChatBotPageState extends ConsumerState<ChatBotPage> {
     final isFinished = chatState.isFinished;
 
     ref.listen(chatNotifierProvider, (prev, next) {
-      if (prev == null || next.messages.length > prev.messages.length) {
-        if (_isNearBottom()) _scrollToBottom();
+      final prevLen = prev?.messages.length ?? 0;
+      final nextLen = next.messages.length;
+
+      // 메시지 개수 증가 OR 스트리밍 중 -> 스크롤 하단 이동
+      if (nextLen > prevLen || next.isStreaming) {
+        if (_isNearBottom()) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToBottom();
+          });
+        }
       }
 
+      // 대화가 끝나면 다이얼로그 보여주기
       if (next.isFinished && !_dialogShown) {
         _dialogShown = true;
-        _showTagCompleteDialog(context);
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Future.delayed(const Duration(milliseconds: 100), () {
+            if (mounted) {
+              _showTagCompleteDialog(context);
+            }
+          });
+        });
       }
     });
+
 
     return Scaffold(
       appBar: AppBar(

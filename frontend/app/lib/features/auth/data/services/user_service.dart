@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;   // http.Response
 
 import '../../../../commons/network/auth_http_client.dart';
 import '../../../../config.dart';
+import '../models/tag.dart';
 import '../models/user.dart';
 
 class UserService {
@@ -165,5 +166,23 @@ class UserService {
     }
   }
 
+  Future<List<Tag>> getUserTags() async {
+    const url = '${AppConfig.baseUrl}/users/tags';
+
+    try {
+      final response = await _client.getRequest(url);
+
+      if (response.statusCode == 200) {
+        final decoded = utf8.decode(response.bodyBytes);
+        final List<dynamic> jsonList = jsonDecode(decoded);
+
+        return jsonList.map((e) => Tag.fromJson(e)).toList();
+      } else {
+        throw Exception('태그 불러오기 실패: ${response.statusCode}, body: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('태그 불러오기 중 오류: $e');
+    }
+  }
 
 }
