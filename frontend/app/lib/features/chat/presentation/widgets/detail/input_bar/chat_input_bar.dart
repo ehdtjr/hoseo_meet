@@ -24,13 +24,13 @@ class ChatInputBar extends StatefulWidget {
 
 class _ChatInputBarState extends State<ChatInputBar> {
   OverlayEntry? _overlayEntry;
-  final GlobalKey _inputBarKey = GlobalKey(); // 입력 바 위치 계산용
+  final LayerLink _layerLink = LayerLink(); // 케밥 위치 추적용
+  bool _isSendButtonPressed = false;
+  bool _isKebabPressed = false;
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
-      key: _inputBarKey,
       width: double.infinity,
       height: widget.height,
       decoration: const BoxDecoration(
@@ -44,19 +44,43 @@ class _ChatInputBarState extends State<ChatInputBar> {
         children: [
           const SizedBox(width: 19),
 
-          // 케밥 아이콘
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: InkWell(
-              onTap: _toggleKebabOverlay,
-              child: const Icon(Icons.more_vert, color: Colors.red),
+          /// 케밥 버튼 - 위치 추적용 타겟
+          CompositedTransformTarget(
+            link: _layerLink,
+            child: GestureDetector(
+              onTapDown: (_) => setState(() => _isKebabPressed = true),
+              onTapUp: (_) {
+                setState(() => _isKebabPressed = false);
+                _toggleKebabOverlay();
+              },
+              onTapCancel: () => setState(() => _isKebabPressed = false),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 100),
+                width: 35,
+                height: 35,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: _isKebabPressed
+                      ? [
+                    const BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                      offset: Offset(0, 4),
+                    ),
+                  ]
+                      : [],
+                ),
+                child: const Center(
+                  child: Icon(Icons.more_vert, color: Colors.red),
+                ),
+              ),
             ),
           ),
 
           const SizedBox(width: 10),
 
-          // 메시지 입력부
           Expanded(
             child: Container(
               height: 40,
@@ -81,19 +105,34 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
           const SizedBox(width: 10),
 
-          // 전송 버튼
-          InkWell(
-            onTap: widget.onSend,
-            child: Container(
-              width: 28,
-              height: 28,
+          GestureDetector(
+            onTapDown: (_) => setState(() => _isSendButtonPressed = true),
+            onTapUp: (_) {
+              setState(() => _isSendButtonPressed = false);
+              widget.onSend();
+            },
+            onTapCancel: () => setState(() => _isSendButtonPressed = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 100),
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
                 color: Colors.white,
                 border: Border.all(
                   color: const Color.fromRGBO(231, 36, 16, 1),
                   width: 1,
                 ),
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(40),
+                boxShadow: _isSendButtonPressed
+                    ? [
+                  const BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                    offset: Offset(0, 4),
+                  ),
+                ]
+                    : [],
               ),
               child: const Center(
                 child: Icon(
@@ -120,26 +159,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
   }
 
   void _showKebabOverlay() {
-    final box = _inputBarKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return;
-
-    final Offset pos = box.localToGlobal(Offset.zero);
-    const double totalHeightApprox = 160;
-    final double top = pos.dy - totalHeightApprox;
-    final double left = pos.dx + 20;
-
     _overlayEntry = OverlayEntry(
       builder: (BuildContext context) {
         return KebabOverlay(
-          left: left,
-          top: top,
+          layerLink: _layerLink,
           onTapOutside: _removeOverlay,
-          onTapEmoticonButton: () {
-            print('이모티콘 버튼 탭 → 여기서 원하는 로직');
-          },
-          onTapPhotoButton: () {
-            print('사진 버튼 탭 → 여기서 원하는 로직');
-          },
           chatRoom: widget.chatRoom,
         );
       },

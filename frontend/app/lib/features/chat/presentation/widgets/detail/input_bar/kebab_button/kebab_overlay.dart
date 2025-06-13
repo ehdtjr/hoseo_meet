@@ -3,95 +3,51 @@ import '../../../../../data/models/chat_room.dart';
 import 'map_button.dart';
 
 class KebabOverlay extends StatelessWidget {
-  final double left;
-  final double top;
-
-  /// 바깥 영역 탭 시 실행되는 콜백
+  final LayerLink layerLink;
   final VoidCallback onTapOutside;
-
-  /// 이모티콘 버튼 콜백
-  final VoidCallback onTapEmoticonButton;
-
   final ChatRoom chatRoom;
-
-
-  /// 사진 버튼 콜백
-  final VoidCallback onTapPhotoButton;
 
   const KebabOverlay({
     super.key,
-    required this.left,
-    required this.top,
+    required this.layerLink,
     required this.onTapOutside,
-    required this.onTapEmoticonButton,
-    required this.onTapPhotoButton,
     required this.chatRoom,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent, // 오버레이 배경 투명
-      child: GestureDetector(
-        onTap: onTapOutside, // 바깥을 탭하면 오버레이 닫기
-        behavior: HitTestBehavior.translucent,
-        child: Stack(
-          children: [
-            // 반투명 배경
-            Positioned.fill(
-              child: Container(color: Colors.black45),
-            ),
-
-            // 3개 버튼 배치
-            Positioned(
-              left: left,
-              bottom: 90, // 최하단 기준으로 100px 위
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // (1) 지도 버튼
-                  MapButton(
-                    chatRoom: chatRoom,
-                    onCloseOverlay: onTapOutside,
-                  ),
-
-                  const SizedBox(height: 15), // 버튼 간격 추가
-
-                  // // (2) 이모티콘 버튼
-                  // InkWell(
-                  //   onTap: () {
-                  //     onTapOutside(); // 먼저 오버레이 닫고
-                  //     onTapEmoticonButton(); // 이모티콘 로직
-                  //     debugPrint('이모티콘 버튼 탭');
-                  //   },
-                  //   child: SvgPicture.asset(
-                  //     'assets/icons/camera.svg', // SVG 파일 경로
-                  //     width: 54, // 아이콘 너비
-                  //     height: 54, // 아이콘 높이
-                  //   ),
-                  // ),
-                  //
-                  // const SizedBox(height: 15), // 버튼 간격 추가
-                  //
-                  // // (3) 사진 버튼
-                  // InkWell(
-                  //   onTap: () {
-                  //     onTapOutside(); // 먼저 오버레이 닫고
-                  //     onTapPhotoButton(); // 사진 선택 로직
-                  //     debugPrint('사진 버튼 탭');
-                  //   },
-                  //   child: SvgPicture.asset(
-                  //     'assets/icons/image.svg', // SVG 파일 경로
-                  //     width: 54, // 아이콘 너비
-                  //     height: 54, // 아이콘 높이
-                  //   ),
-                  // ),
-                ],
-              ),
-            ),
-          ],
+    return Stack(
+      children: [
+        // 바깥 탭 시 오버레이 제거
+        Positioned.fill(
+          child: GestureDetector(
+            onTap: onTapOutside,
+            behavior: HitTestBehavior.translucent,
+            child: Container(color: Colors.black45),
+          ),
         ),
-      ),
+
+        // 오버레이 내용 (버튼들)
+        CompositedTransformFollower(
+          link: layerLink,
+          showWhenUnlinked: false,
+          offset: const Offset(0, -100), // 버튼 기준으로 위쪽에 위치
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                MapButton(
+                  chatRoom: chatRoom,
+                  onCloseOverlay: onTapOutside,
+                ),
+                const SizedBox(height: 15),
+                // 추가 버튼들 여기에
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
