@@ -100,13 +100,15 @@ class ChatDetailState {
   final bool isLoadingMore;
   final List<ChatMessage> messages;
   final List<User> participants;
-  final bool hasMore; // ✅ 더 불러올 메시지가 있는지 여부
+  final bool hasMore;
+  final bool isLocationSharing; // ✅ 위치 공유 상태 추가
 
   ChatDetailState({
     this.isLoadingMore = false,
     this.messages = const [],
     this.participants = const [],
-    this.hasMore = true, // 기본값: true
+    this.hasMore = true,
+    this.isLocationSharing = false, // ✅ 기본값 false
   });
 
   ChatDetailState copyWith({
@@ -114,12 +116,14 @@ class ChatDetailState {
     List<ChatMessage>? messages,
     List<User>? participants,
     bool? hasMore,
+    bool? isLocationSharing, // ✅ copyWith에 추가
   }) {
     return ChatDetailState(
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       messages: messages ?? this.messages,
       participants: participants ?? this.participants,
       hasMore: hasMore ?? this.hasMore,
+      isLocationSharing: isLocationSharing ?? this.isLocationSharing, // ✅
     );
   }
 
@@ -128,7 +132,9 @@ class ChatDetailState {
     return 'isLoadingMore:$isLoadingMore, '
         'messages.length:${messages.length}, '
         'participants.length:${participants.length}, '
-        'hasMore:$hasMore';
+        'hasMore:$hasMore, '
+        'isLocationSharing:$isLocationSharing'; // ✅ 디버깅용 toString에 추가
   }
 }
+
 

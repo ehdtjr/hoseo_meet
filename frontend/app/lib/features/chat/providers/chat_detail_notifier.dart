@@ -34,6 +34,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   Timer? _activateTimer;
   StreamSubscription<Map<String, dynamic>>? _socketSubscription;
 
+  String? _lastAnchor;
   final Set<String> _exhaustedAnchors = {}; // ✅ 추가된 anchor 추적
 
   Future<void> init() async {
@@ -76,6 +77,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
 
   Future<void> startLocationTracking() async {
     _locationTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (!state.isLocationSharing) return;
       try {
         final position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
@@ -100,6 +102,11 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     stopLocationTracking();
     _activateTimer?.cancel();
     _activateTimer = null;
+
+    final mapNotifier = ref.read(mapNotifierProvider.notifier);
+    for (final user in state.participants) {
+      mapNotifier.removeUser(user.id);
+    }
 
     await _deactivateCurrentChatRoom();
     await _socketSubscription?.cancel();
@@ -137,6 +144,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         : 'first_unread';
 
     state = state.copyWith(isLoadingMore: true);
+    _lastAnchor = oldestId;
 
     try {
       final moreMessages = await _chatRepository.loadMessages(

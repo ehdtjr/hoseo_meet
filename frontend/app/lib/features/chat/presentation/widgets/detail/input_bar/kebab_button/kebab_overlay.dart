@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../../data/models/chat_room.dart';
+import 'location_toggle_button.dart';
 import 'map_button.dart';
 
 class KebabOverlay extends StatelessWidget {
@@ -31,7 +32,7 @@ class KebabOverlay extends StatelessWidget {
         CompositedTransformFollower(
           link: layerLink,
           showWhenUnlinked: false,
-          offset: const Offset(0, -100), // 버튼 기준으로 위쪽에 위치
+          offset: const Offset(0, -160), // 버튼 기준으로 위쪽에 위치
           child: Material(
             color: Colors.transparent,
             child: Column(
@@ -42,6 +43,10 @@ class KebabOverlay extends StatelessWidget {
                   onCloseOverlay: onTapOutside,
                 ),
                 const SizedBox(height: 15),
+                LocationToggleButton(
+                  chatRoom: chatRoom,
+                  onCloseOverlay: onTapOutside,
+                ),
                 // 추가 버튼들 여기에
               ],
             ),
