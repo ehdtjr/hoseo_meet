@@ -100,31 +100,35 @@ class ChatDetailState {
   final bool isLoadingMore;
   final List<ChatMessage> messages;
   final List<User> participants;
+  final bool hasMore; // ✅ 더 불러올 메시지가 있는지 여부
 
   ChatDetailState({
     this.isLoadingMore = false,
     this.messages = const [],
     this.participants = const [],
+    this.hasMore = true, // 기본값: true
   });
 
-  /// copyWith → 일부 필드만 변경해 새 [ChatDetailState] 반환
   ChatDetailState copyWith({
     bool? isLoadingMore,
     List<ChatMessage>? messages,
     List<User>? participants,
+    bool? hasMore,
   }) {
     return ChatDetailState(
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       messages: messages ?? this.messages,
       participants: participants ?? this.participants,
+      hasMore: hasMore ?? this.hasMore,
     );
   }
 
   @override
   String toString() {
-    return
-        'isLoadingMore:$isLoadingMore, '
+    return 'isLoadingMore:$isLoadingMore, '
         'messages.length:${messages.length}, '
-        'participants.length:${participants.length})';
+        'participants.length:${participants.length}, '
+        'hasMore:$hasMore';
   }
 }
+

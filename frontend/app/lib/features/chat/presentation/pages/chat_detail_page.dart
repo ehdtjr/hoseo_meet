@@ -90,11 +90,17 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
   /// (A) 스크롤 리스너
   void _onScroll() {
     final currentState = ref.read(chatDetailNotifierProvider(widget.chatRoom));
-    // 스크롤 맨 위쪽 근접 & 아직 로딩 중이 아닐 때 → 이전 메시지 로드
-    if (_scrollController.position.pixels <= 100 && !currentState.isLoadingMore) {
+
+    final shouldLoadMore =
+        _scrollController.position.pixels <= 100 &&
+            !currentState.isLoadingMore &&
+            currentState.hasMore; // ✅ 더 이상 없으면 호출 X
+
+    if (shouldLoadMore) {
       _loadMoreMessagesSafely();
     }
   }
+
 
   /// 이전 메시지 로드 시 "스크롤 튐" 최소화를 위한 offset 보정
   Future<void> _loadMoreMessagesSafely() async {
