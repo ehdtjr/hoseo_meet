@@ -33,15 +33,11 @@ target_metadata = Base.metadata
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-def include_object(object, name, type_, reflected, compare_to):
-    """Exclude PostGIS system tables from migrations"""
-    if type_ == "table" and name in [
-        "spatial_ref_sys",
-        "geography_columns",
-        "geometry_columns",
-    ]:
-        return False
+def include_name(name, type_, parent_names):
+    if type_ == "table":
+        return name in target_metadata.tables
     return True
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -61,7 +57,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        include_object=include_object,
+        include_name=include_name,
         compare_type=True
     )
 
@@ -73,7 +69,7 @@ def do_run_migrations(connection):
     context.configure(
         connection=connection,
         target_metadata=target_metadata,
-        include_object=include_object,
+        include_name=include_name,
         compare_type=True,
     )
 

@@ -18,7 +18,7 @@ class User(SQLAlchemyBaseUserTable, Base):
     __tablename__ = "user"  # 테이블 이름 지정
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    name: Mapped[str] = mapped_column(String(length=255), nullable=False, unique=True)
     gender: Mapped[str] = mapped_column(String(length=20), nullable=False)
     profile: Mapped[str] = mapped_column(String(length=1024), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
