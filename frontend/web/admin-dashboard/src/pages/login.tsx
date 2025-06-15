@@ -20,7 +20,7 @@ import { login } from "../services/authService";
 import { useSetRecoilState } from "recoil";
 import { authState } from "../state/authAtom";
 import axios from "axios";
-import { setAuthTokens } from "../lib/authStore"; // ✅ 추가
+import { setAuthTokens } from "../lib/authStore";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -46,12 +46,25 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const { access_token, refresh_token, message } = await login(
+      const { access_token, refresh_token, message, is_admin } = await login(
         username,
         password
       );
 
-      // ✅ Recoil에 로그인 상태 저장
+      // ✅ 관리자 여부 확인
+      if (!is_admin) {
+        toast({
+          title: "접근 제한",
+          description: "관리자만 접근할 수 있습니다.",
+          status: "error",
+          duration: 2000,
+          isClosable: true,
+        });
+        setLoading(false);
+        return;
+      }
+
+      // ✅ 로그인 상태 저장
       setAuth({
         isLoggedIn: true,
         username,
@@ -59,7 +72,7 @@ export default function Login() {
         refreshToken: refresh_token,
       });
 
-      // ✅ 전역 상태(authStore)에 토큰 저장 (axios에서 사용)
+      // ✅ 토큰 저장
       setAuthTokens(access_token, refresh_token, username);
 
       toast({

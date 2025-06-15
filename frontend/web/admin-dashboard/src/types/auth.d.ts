@@ -5,7 +5,7 @@ export interface AuthState {
   refreshToken: string;
 }
 
-export interface User {
+export interface LoignUser {
   username: string;
 }
 
@@ -13,4 +13,5 @@ export interface LoginResponse {
   message: string;
   access_token: string;
   refresh_token: string;
+  is_admin: boolean;
 }

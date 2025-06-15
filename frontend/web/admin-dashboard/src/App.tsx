@@ -3,6 +3,7 @@ import RequireAuth from "./components/RequireAuth";
 import Login from "./pages/login";
 import AdminLayout from "./layouts/AdminLayout";
 import Dashboard from "./pages/Dashboard";
+import UserPage from "./pages/UserPage";
 
 export default function App() {
   return (
@@ -21,7 +22,7 @@ export default function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
-          <Route path="users" element={<div>사용자 관리</div>} />
+          <Route path="users" element={<UserPage />} />
           <Route path="settings" element={<div>설정 페이지</div>} />
         </Route>
       </Routes>
