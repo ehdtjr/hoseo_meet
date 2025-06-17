@@ -1,75 +1,39 @@
-import { Box, Input, Button, useToast, Flex, Spinner } from "@chakra-ui/react";
-import { useEffect, useRef, useState } from "react";
-import { fetchUsers } from "../services/userService";
-import type { User } from "../types/user";
+import { Box, Input, Button, Flex, Spinner } from "@chakra-ui/react";
+import { useEffect, useRef } from "react";
 import UserList from "../components/users/UserList";
+import { useUsers } from "../hooks/useUsers";
 
 export default function UserPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [keyword, setKeyword] = useState("");
-  const [skip, setSkip] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const toast = useToast();
-  const LIMIT = 30;
+  const {
+    users,
+    loading,
+    keyword,
+    update,
+    setKeyword,
+    handleSearch,
+    loadMore,
+    hasMore,
+  } = useUsers();
+
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
-  const loadUsers = async (initial = false) => {
-    if (loading || (!initial && !hasMore)) return;
-
-    setLoading(true);
-    try {
-      const data = await fetchUsers({
-        user_name_key: keyword,
-        skip: initial ? 0 : skip,
-        limit: LIMIT,
-      });
-
-      if (initial) {
-        setUsers(data);
-        setSkip(LIMIT);
-        setHasMore(data.length === LIMIT);
-      } else {
-        setUsers((prev) => [...prev, ...data]);
-        setSkip((prev) => prev + LIMIT);
-        setHasMore(data.length === LIMIT);
-      }
-    } catch {
-      toast({
-        title: "불러오기 실패",
-        description: "사용자 목록을 가져올 수 없습니다.",
-        status: "error",
-        duration: 2000,
-        isClosable: true,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = () => {
-    setSkip(0);
-    setHasMore(true);
-    loadUsers(true);
-  };
-
-  // 무한 스크롤 감지
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) loadUsers();
+        if (entry.isIntersecting && hasMore) {
+          loadMore();
+        }
       },
       { threshold: 1.0 }
     );
-    if (loaderRef.current) observer.observe(loaderRef.current);
-    return () => {
-      if (loaderRef.current) observer.unobserve(loaderRef.current);
-    };
-  }, [loaderRef.current]);
 
-  useEffect(() => {
-    loadUsers(true);
-  }, []);
+    const current = loaderRef.current;
+    if (current) observer.observe(current);
+
+    return () => {
+      if (current) observer.unobserve(current);
+    };
+  }, [hasMore, loadMore]);
 
   return (
     <Box p={6} maxH="100vh" overflowY="auto">
@@ -84,9 +48,14 @@ export default function UserPage() {
         </Button>
       </Flex>
 
-      <UserList users={users} />
+      <UserList users={users} onUpdate={update} />
 
-      {loading && <Spinner mt={4} />}
+      {loading && (
+        <Flex justify="center" align="center" mt={4} minH="100px">
+          <Spinner size="lg" />
+        </Flex>
+      )}
+
       <div ref={loaderRef} style={{ height: "1px" }} />
     </Box>
   );

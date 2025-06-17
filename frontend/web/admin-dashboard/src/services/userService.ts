@@ -16,3 +16,8 @@ export const fetchUsers = async ({
 
   return response.data;
 };
+
+export const updateUser = async (user: User) => {
+  const response = await api.post("/admin/user/update", user);
+  return response.data;
+};
