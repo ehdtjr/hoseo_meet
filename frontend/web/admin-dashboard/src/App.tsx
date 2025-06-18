@@ -2,8 +2,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import RequireAuth from "./components/RequireAuth";
 import Login from "./pages/login";
 import AdminLayout from "./layouts/AdminLayout";
-import Dashboard from "./pages/Dashboard";
-import UserPage from "./pages/UserPage";
+import UserPage from "./pages/uerPage";
+import Dashboard from "./pages/dashboard";
+import ReportPage from "./pages/reports";
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users" element={<UserPage />} />
+          <Route path="reports" element={<ReportPage />} />
           <Route path="settings" element={<div>설정 페이지</div>} />
         </Route>
       </Routes>

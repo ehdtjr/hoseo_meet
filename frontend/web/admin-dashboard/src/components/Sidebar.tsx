@@ -8,11 +8,12 @@ import {
   useColorModeValue,
 } from "@chakra-ui/react";
 import { Link as RouterLink, useLocation } from "react-router-dom";
-import { FiHome, FiUsers, FiSettings } from "react-icons/fi";
+import { FiHome, FiUsers, FiSettings, FiAlertCircle } from "react-icons/fi"; // 👈 신고 아이콘 추가
 
 const navItems = [
   { label: "대시보드", to: "/dashboard", icon: FiHome },
   { label: "사용자 관리", to: "/users", icon: FiUsers },
+  { label: "신고 게시판", to: "/reports", icon: FiAlertCircle }, // ✅ 신고 게시판 추가
   { label: "설정", to: "/settings", icon: FiSettings },
 ];
 
