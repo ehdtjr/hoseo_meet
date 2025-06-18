@@ -60,11 +60,11 @@ async def login(
 
     # access_token, refresh_token 생성
     tokens = await jwt_strategy.write_token(user)
-
     return {
         "message": "login successful",
         "access_token": tokens["access_token"],
         "refresh_token": tokens["refresh_token"],
+        "is_admin": user.is_superuser,
     }
 
 

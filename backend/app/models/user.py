@@ -9,6 +9,7 @@ from fastapi_users_db_sqlalchemy import (
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql.sqltypes import Boolean
 
 from app.core.db import Base
 
@@ -92,6 +93,7 @@ class UserReport(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    is_resolved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     reporter: Mapped["User"] = relationship(
         "User", foreign_keys=[reporter_id], back_populates="reports_made"

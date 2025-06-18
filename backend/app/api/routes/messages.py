@@ -1,5 +1,3 @@
-import time
-from time import sleep
 from typing import List
 
 from fastapi import APIRouter

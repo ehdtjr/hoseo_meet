@@ -21,6 +21,15 @@ class UserCRUDProtocol:
      -> List[UserRead]:
         pass
 
+    async def get_user_list(
+        self,
+        db: AsyncSession,
+        skip: int = 0,
+        limit: int = 20,
+        keyword: Optional[str] = None,
+    ) -> List[UserRead]:
+        ...
+
 
 class UserCRUD(CRUDBase[User, UserRead], UserCRUDProtocol):
     def __init__(self):
@@ -42,6 +51,27 @@ class UserCRUD(CRUDBase[User, UserRead], UserCRUDProtocol):
         )
         users = result.scalars().unique().all()
         return [UserRead.model_construct(**u.__dict__) for u in users]
+
+    async def get_user_list(
+        self,
+        db: AsyncSession,
+        skip: int = 0,
+        limit: int = 20,
+        keyword: Optional[str] = None,
+    ) -> List[UserRead]:
+        stmt = select(User)
+
+        # 🔍 이름 검색 조건 추가
+        if keyword:
+            stmt = stmt.where(User.name.ilike(f"%{keyword}%"))
+
+        stmt = stmt.offset(skip).limit(limit)
+
+        result = await db.execute(stmt)
+        users = result.unique().scalars().all()
+
+        return [UserRead.model_validate(u) for u in users]
+
 
 
 class UserFCMTokenCRUDProtocol:
@@ -124,6 +154,14 @@ class UserReportCRUDProtocol:
         user_report_create: UserReportCreate
     ) -> UserReportBase:
         ...
+    async def list(
+        self,
+        db: AsyncSession,
+        skip: int = 0,
+        limit: int = 100,
+        is_resolved: Optional[bool] = None  # 필터링 옵션
+    ) -> Optional[List[UserReportBase]]:
+        ...
 
 class UserReportCRUD(
     CRUDBase[UserReport, UserReportBase],
@@ -138,6 +176,30 @@ class UserReportCRUD(
         user_report_create: UserReportCreate) -> UserReportBase:
 
         return await super().create(db, user_report_create)
+
+    async def list(
+        self,
+        db: AsyncSession,
+        skip: int = 0,
+        limit: int = 100,
+        is_resolved: Optional[bool] = None  # 필터링 옵션
+    ) -> Optional[List[UserReportBase]]:
+        query = select(UserReport)
+
+        if is_resolved is not None:
+            query = query.where(UserReport.is_resolved == is_resolved)
+
+        query = query.offset(skip).limit(limit)
+        result = await db.execute(query)
+        reports = result.scalars().all()
+        return [UserReportBase.model_validate(report) for report in reports]
+
+    async def update(
+        self,
+        db: AsyncSession,
+        obj_in: UserReportBase
+        ) -> UserReportBase:
+            return await super().update(db, obj_in)
 
 def get_user_report_crud() -> UserReportCRUDProtocol:
     return UserReportCRUD()

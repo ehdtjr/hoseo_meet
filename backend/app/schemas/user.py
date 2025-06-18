@@ -65,6 +65,7 @@ class UserReportBase(BaseModel):
     reporter_id: Optional[int] = None
     reported_user_id: Optional[int] = None
     reason: Optional[str] = None
+    is_resolved: Optional[bool] = False
 
     created_at: Optional[datetime] = None
 

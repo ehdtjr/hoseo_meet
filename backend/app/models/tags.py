@@ -1,8 +1,7 @@
 from typing import List
 
 from sqlalchemy import String, Integer, ForeignKey, Float
-from sqlalchemy.orm import Mapped, relationship
-from sqlalchemy.testing.schema import mapped_column
+from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from app.core.db import Base
 

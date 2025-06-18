@@ -50,3 +50,9 @@ async def current_active_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Email not verified"
         )
     return user
+
+
+async def current_admin_user(
+    user: User = Depends(fastapi_users.current_user(active=True, superuser=True)),
+):
+    return user

@@ -47,6 +47,7 @@ class CustomJWTStrategy(JWTStrategy):
         self.refresh_lifetime_seconds = lifetime_seconds * 24 * 14
         self.token_storage = token_storage
 
+
     def _generate_token(self, user_id: str, expires_in: int, token_type: str) -> str:
         payload = {
             "sub": user_id,  # 오직 user_id만 저장

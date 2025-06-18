@@ -1,5 +1,3 @@
-from typing import Any, Coroutine
-
 from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 

@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from sqlalchemy.orm import DeclarativeBase
 
+from app.core.exceptions import NotFoundException
 
 ModelType = TypeVar("ModelType", bound=DeclarativeBase)
 SchemaType = TypeVar("SchemaType", bound=BaseModel)

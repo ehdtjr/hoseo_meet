@@ -13,6 +13,7 @@ from app.api.routes import (
     chat_bot,
     info
 )
+from app.admin import router as admin_router
 
 
 api_router = APIRouter()
@@ -37,4 +38,7 @@ api_router.include_router(
 )
 api_router.include_router(
     info.router, prefix="/info", tags=["info"]
+)
+api_router.include_router(
+    admin_router.admin_router, prefix="/admin", tags=["admin"]
 )
