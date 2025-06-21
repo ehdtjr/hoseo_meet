@@ -81,6 +81,28 @@ class User(SQLAlchemyBaseUserTable, Base):
         "UserTag", back_populates="user", cascade="all, delete-orphan"
     )
 
+    #Restaurant 관련 역참조 추가
+    restaurant_posts: Mapped[List["RestaurantPost"]] = relationship(
+        "RestaurantPost",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
+    restaurant_post_versions: Mapped[List["RestaurantPostVersion"]] = relationship(
+        "RestaurantPostVersion",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
+    restaurant_menus: Mapped[List["RestaurantMenu"]] = relationship(
+        "RestaurantMenu",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
+    restaurant_menu_versions: Mapped[List["RestaurantMenuVersion"]] = relationship(
+        "RestaurantMenuVersion",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
+
 
 class UserReport(Base):
     __tablename__ = "user_report"

@@ -56,6 +56,8 @@ geoalchemy2 = "^0.17.1"
 openai = "^1.76.0"
 pydantic-ai = "^0.1.8"
 pyinstrument = "^5.0.1"
+slowapi = "^0.1.9"
+shapely = "^2.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.1"
