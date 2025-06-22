@@ -92,6 +92,16 @@ class User(SQLAlchemyBaseUserTable, Base):
         back_populates="editor",
         cascade="all, delete-orphan"
     )
+    restaurant_post_images: Mapped[List["RestaurantPostImage"]] = relationship(
+        "RestaurantPostImage",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
+    restaurant_post_image_set_versions: Mapped[List["RestaurantPostImageSetVersion"]] = relationship(
+        "RestaurantPostImageSetVersion",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
     restaurant_menus: Mapped[List["RestaurantMenu"]] = relationship(
         "RestaurantMenu",
         back_populates="editor",

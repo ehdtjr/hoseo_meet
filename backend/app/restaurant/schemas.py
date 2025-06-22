@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from geoalchemy2.types import WKBElement
 from shapely import wkb
@@ -48,15 +48,21 @@ class RestaurantPostRequest(BaseModel):
     location: Location
 
 class RestaurantListItem(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     address: str
+    comment: Optional[str] = None
     distance: float
     location: Location
     avg_rating: float
     review_count: int
     is_hearted: bool
     images: Optional[List[str]] = []
+
+class RestaurantPostDetail(RestaurantListItem):
+    review_rating_counts: Dict[int, int] = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
 
 class RestaurantPostUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -91,12 +97,57 @@ class RestaurantPostVersionBase(BaseModel):
             "longitude": point.x
         }
 
-
 class RestaurantPostVersionCreate(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        arbitrary_types_allowed=True,
+    )
 
     editor_id: int
     post_id: int
+    version: Optional[int]
     name: str
     address: str
-    location: Location
+    location: WKBElement
+
+    @field_serializer("location", when_used="always")
+    def serialize_location(self, location: WKBElement) -> dict:
+        point = wkb.loads(bytes(location.data))
+        return {
+            "latitude": point.y,
+            "longitude": point.x
+        }
+
+class RestaurantPostImageBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    post_id: int
+    image: str
+    editor_id: int
+
+
+class RestaurantPostImageCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    post_id: int
+    image: str
+    editor_id: int
+
+class RestaurantPostImageSetVersionBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    post_id: int
+    image_urls: List[str]
+    version: int
+    created_at: datetime
+    editor_id: int
+
+class RestaurantPostImageSetVersionCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    post_id: int
+    image_urls: List[str]
+    version: Optional[int] = None  # 새로 생성 시 자동 증가를 위해 생략 가능
+    editor_id: int

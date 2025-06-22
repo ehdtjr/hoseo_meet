@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List
 
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy import Integer, String, Text, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from geoalchemy2 import Geography, WKBElement
@@ -117,7 +118,23 @@ class RestaurantPostImage(Base):
     post_id: Mapped[int] = mapped_column(ForeignKey("restaurant_post.id", ondelete="CASCADE"))
     image: Mapped[str] = mapped_column(String(200), nullable=False)
 
+    editor_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+
     post: Mapped["RestaurantPost"] = relationship("RestaurantPost", back_populates="images")
+    editor: Mapped["User"] = relationship("User", lazy="selectin")
+
+class RestaurantPostImageSetVersion(Base):
+    __tablename__ = "restaurant_post_image_set_version"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    post_id: Mapped[int] = mapped_column(ForeignKey("restaurant_post.id", ondelete="CASCADE"), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    image_urls: Mapped[List[str]] = mapped_column(JSON, nullable=False)
+    editor_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    post: Mapped["RestaurantPost"] = relationship("RestaurantPost", lazy="selectin")
+    editor: Mapped["User"] = relationship("User", lazy="selectin")
 
 
 class RestaurantReview(Base):
