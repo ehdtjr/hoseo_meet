@@ -5,6 +5,7 @@ import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../../data/models/restaurant/restaurant_post_detail.dart';
 import '../../pages/restaurant/location_pick_page.dart';
+import 'bottom/edit_history_bottom_sheet.dart';
 
 class PhoneNumberFormatter extends TextInputFormatter {
   @override
@@ -53,6 +54,8 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
   bool _editingContact = false;
   bool _editingLocation = false;
   bool _editingHours = false;
+
+  bool _isEditMode = false;
 
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
@@ -121,6 +124,32 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
     widget.onUpdate?.call(updated);
   }
 
+  void _showEditHistory() {
+    final history = [
+      {
+        'date': '2025.06.24 15:21',
+        'field': '전화번호',
+        'old': '010-1234-5678',
+        'new': _contactController.text,
+      },
+      {
+        'date': '2025.06.20 09:11',
+        'field': '영업시간',
+        'old': '03:00 ~ 06:00',
+        'new': '${_formatTime(_startTime)} ~ ${_formatTime(_endTime)}',
+      },
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+      ),
+      isScrollControlled: true,
+      builder: (context) => EditHistoryBottomSheet(history: history),
+    );
+  }
+
   Widget _buildEditableRow({
     required String iconPath,
     required Widget content,
@@ -130,7 +159,7 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
     required VoidCallback onCancel,
   }) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: isEditing ? 4 : 1),
+      padding: const EdgeInsets.symmetric(vertical: 6), // 👈 여기를 고정값 8로 변경
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -145,7 +174,9 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
               IconButton(icon: const Icon(Icons.close, size: 16), onPressed: onCancel),
             ],
           )
-              : IconButton(icon: const Icon(Icons.edit, size: 16), onPressed: onEdit),
+              : _isEditMode
+              ? IconButton(icon: const Icon(Icons.edit, size: 16), onPressed: onEdit)
+              : const SizedBox.shrink(),
         ],
       ),
     );
@@ -158,6 +189,8 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+
+
           // 주소
           _buildEditableRow(
             iconPath: 'assets/icons/fi-rr-marker.svg',
@@ -252,7 +285,7 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
             ),
           ),
 
-          // 위치 (위도/경도)
+          // 위치
           _buildEditableRow(
             iconPath: 'assets/icons/fi-rr-marker.svg',
             isEditing: _editingLocation,
@@ -298,6 +331,42 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
               style: const TextStyle(fontSize: 13, height: 1.3, color: Color(0xFF5F5F5F)),
             ),
           ),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // 왼쪽: 편집 버튼
+              TextButton.icon(
+                onPressed: () => setState(() {
+                  _isEditMode = !_isEditMode;
+                  _editingAddress = false;
+                  _editingContact = false;
+                  _editingLocation = false;
+                  _editingHours = false;
+                }),
+                icon: Icon(
+                  _isEditMode ? Icons.close : Icons.edit,
+                  size: 13,
+                  color: Colors.grey,
+                ),
+                label: Text(
+                  _isEditMode ? '편집 취소' : '편집',
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+              ),
+
+              // 오른쪽: 수정 이력 버튼
+              TextButton.icon(
+                onPressed: _showEditHistory,
+                icon: const Icon(Icons.history, size: 13, color: Colors.grey),
+                label: const Text(
+                  '수정 이력',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+
         ],
       ),
     );

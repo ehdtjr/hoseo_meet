@@ -190,7 +190,6 @@ class _RestaurantCustomScrollViewState extends State<RestaurantCustomScrollView>
                             );
                           },
                         ),
-                        const SizedBox(height: 10),
                         const Divider(color: Color(0xFFF0B4AD), thickness: 1.0),
                       ],
                     );
