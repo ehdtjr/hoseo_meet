@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../auth/presentation/pages/report_page.dart';
 import '../../../../../auth/providers/user_profile_provider.dart';
-import '../../../../data/models/room_review.dart';
+import '../../../../data/models/room/room_review.dart';
 import '../../../../providers/room/review/room_review_provider.dart';
 
 class VisitorReviews extends ConsumerWidget {

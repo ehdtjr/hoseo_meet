@@ -34,7 +34,6 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   Timer? _activateTimer;
   StreamSubscription<Map<String, dynamic>>? _socketSubscription;
 
-  String? _lastAnchor;
   final Set<String> _exhaustedAnchors = {}; // ✅ 추가된 anchor 추적
 
   Future<void> init() async {
@@ -144,7 +143,6 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         : 'first_unread';
 
     state = state.copyWith(isLoadingMore: true);
-    _lastAnchor = oldestId;
 
     try {
       final moreMessages = await _chatRepository.loadMessages(

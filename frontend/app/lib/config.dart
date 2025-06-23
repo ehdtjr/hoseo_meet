@@ -23,9 +23,9 @@ class AppConfig {
  //  static const String baseUrl = 'http://10.0.2.2/api/v1';
  //  static const String socketUrl = 'ws://10.0.2.2/api/v1/events/connect';
 
- static const String baseUrl = 'https://www.campusmeet.store/api/v1';
- static const String socketUrl = 'wss://www.campusmeet.store/api/v1/events/connect';
-  //
+ static const String baseUrl = 'http://192.168.0.25/api/v1';
+ static const String socketUrl = 'ws://192.168.0.25/api/v1/events/connect';
+
   // static const String baseUrl = 'http://www.campus-meet.shop/api/v1';
   // static const String socketUrl = 'ws://www.campus-meet.shop/api/v1/events/connect';
 

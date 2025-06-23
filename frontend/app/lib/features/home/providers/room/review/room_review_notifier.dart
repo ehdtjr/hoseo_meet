@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/models/room_review.dart';
-import '../../../data/services/room_review_service.dart';
+import '../../../data/models/room/room_review.dart';
+import '../../../data/services/room/room_review_service.dart';
 
 class RoomReviewNotifier extends StateNotifier<List<RoomReview>> {
   final RoomReviewService _service;

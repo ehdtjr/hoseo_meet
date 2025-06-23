@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../data/models/room_post_detail.dart';
+import '../../../../data/models/room/room_post_detail.dart';
 import 'rating_overview.dart';
 import 'photo_reviews.dart';
 import 'visitor_reviews.dart';

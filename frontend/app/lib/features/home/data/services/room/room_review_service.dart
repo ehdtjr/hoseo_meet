@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-import '../../../../commons/network/auth_http_client.dart';
-import '../../../../config.dart';
-import '../models/room_review.dart'; // RoomReview 모델 추가
+import '../../../../../commons/network/auth_http_client.dart';
+import '../../../../../config.dart';
+import '../../models/room/room_review.dart'; // RoomReview 모델 추가
 
 class RoomReviewService {
   final AuthHttpClient _client;

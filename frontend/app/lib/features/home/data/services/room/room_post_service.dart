@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import '../../../../commons/network/auth_http_client.dart';
-import '../../../../config.dart';
-import '../models/room_post.dart';
-import '../models/room_post_detail.dart';
+import '../../../../../commons/network/auth_http_client.dart';
+import '../../../../../config.dart';
+import '../../models/room/room_post.dart';
+import '../../models/room/room_post_detail.dart';
 
 class RoomService {
   final AuthHttpClient _client;

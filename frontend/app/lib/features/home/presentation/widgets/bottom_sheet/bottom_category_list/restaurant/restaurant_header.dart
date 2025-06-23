@@ -1,29 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../providers/room/room_post_category_provider.dart';
+import '../../../../../providers/restaurant/restaurant_post_category_provider.dart';
 
-/// RoomHeaderWidget은 사용자 이름을 표시하고 카테고리 선택 드롭다운을 제공합니다.
-class RoomHeaderWidget extends ConsumerWidget {
+class RestaurantHeaderWidget extends ConsumerWidget {
   final String userName;
 
-  const RoomHeaderWidget({
+  const RestaurantHeaderWidget({
     super.key,
     required this.userName,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // 사용자 이름이 4글자 초과 시 생략 처리
     final displayUserName = userName.length > 4
         ? '${userName.substring(0, 4)}...'
         : userName;
 
-    // 현재 선택된 카테고리 구독
-    final selectedCategory = ref.watch(roomPostCategoryProvider);
-
-    // 원하는 색상 코드
-    const Color highlightColor = Color(0xFFE72410); // #E72410
+    final selectedCategory = ref.watch(restaurantCategoryProvider);
+    const Color highlightColor = Color(0xFFE72410); // 강조 색상
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,7 +56,7 @@ class RoomHeaderWidget extends ConsumerWidget {
                         ),
                       ),
                       const TextSpan(
-                        text: '자취방',
+                        text: '맛집',
                         style: TextStyle(
                           fontSize: 21,
                           fontWeight: FontWeight.w600,
@@ -90,13 +85,13 @@ class RoomHeaderWidget extends ConsumerWidget {
                 ],
               ),
               child: DropdownButtonHideUnderline(
-                child: DropdownButton<RoomPostCategory>(
+                child: DropdownButton<RestaurantCategory>(
                   dropdownColor: Colors.white,
                   value: selectedCategory,
                   isDense: true,
                   menuMaxHeight: 200,
-                  items: RoomPostCategory.values.map((category) {
-                    return DropdownMenuItem<RoomPostCategory>(
+                  items: RestaurantCategory.values.map((category) {
+                    return DropdownMenuItem<RestaurantCategory>(
                       value: category,
                       child: Padding(
                         padding: const EdgeInsets.all(8),
@@ -110,9 +105,9 @@ class RoomHeaderWidget extends ConsumerWidget {
                       ),
                     );
                   }).toList(),
-                  onChanged: (RoomPostCategory? value) {
+                  onChanged: (RestaurantCategory? value) {
                     if (value != null) {
-                      ref.read(roomPostCategoryProvider.notifier).state = value;
+                      ref.read(restaurantCategoryProvider.notifier).state = value;
                     }
                   },
                   style: const TextStyle(color: Color(0xFF5F5F5F), fontSize: 14),
@@ -122,7 +117,7 @@ class RoomHeaderWidget extends ConsumerWidget {
                     color: Color(0xFF5F5F5F),
                   ),
                   selectedItemBuilder: (BuildContext context) {
-                    return RoomPostCategory.values.map((category) {
+                    return RestaurantCategory.values.map((category) {
                       return Text(
                         _categoryToString(category),
                         style: const TextStyle(
@@ -142,17 +137,17 @@ class RoomHeaderWidget extends ConsumerWidget {
     );
   }
 
-  /// RoomPostCategory를 문자열로 변환합니다.
-  String _categoryToString(RoomPostCategory category) {
+  /// RestaurantCategory를 한글 문자열로 변환
+  String _categoryToString(RestaurantCategory category) {
     switch (category) {
-      case RoomPostCategory.distance:
+      case RestaurantCategory.distance:
         return '거리순';
-      case RoomPostCategory.rating:
+      case RestaurantCategory.rating:
         return '별점순';
-      case RoomPostCategory.reviews:
+      case RestaurantCategory.reviews:
         return '리뷰순';
-      case RoomPostCategory.heart:
+      case RestaurantCategory.heart:
         return '찜목록';
-      }
+    }
   }
 }

@@ -1,8 +1,8 @@
 import 'package:campusmeet/features/home/providers/room/room_post_notifier.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../commons/network/auth_http_client_provider.dart';
-import '../../data/models/room_post.dart';
-import '../../data/services/room_post_service.dart';
+import '../../data/models/room/room_post.dart';
+import '../../data/services/room/room_post_service.dart';
 
 final roomServiceProvider = Provider<RoomService>((ref) {
   final client = ref.watch(authHttpClientProvider);

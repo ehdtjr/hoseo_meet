@@ -1,3 +1,5 @@
+import 'package:campusmeet/features/home/presentation/widgets/bottom_sheet/bottom_category_list/restaurant/restaurant_container.dart';
+import 'package:campusmeet/features/home/presentation/widgets/bottom_sheet/bottom_category_list/restaurant/restaurant_header.dart';
 import 'package:flutter/material.dart';
 import '../../../data/models/category.dart';
 import 'bottom_category_list/meet/meet_container.dart';
@@ -76,9 +78,11 @@ class BottomSheetContainer extends StatelessWidget {
   /// 선택된 카테고리에 따라 적절한 헤더 위젯을 반환합니다.
   Widget _buildHeaderWidget() {
     switch (selectedCategory?.name) {
-      case '자취방':
-        return RoomHeaderWidget(userName: userName);
-      default:
+        case '자취방':
+          return RoomHeaderWidget(userName: userName);
+        case  '음식점':
+          return RestaurantHeaderWidget(userName: userName);
+     default:
         return MeetHeaderWidget(userName: userName); // 기본값은 MeetHeaderWidget
     }
   }
@@ -88,6 +92,8 @@ class BottomSheetContainer extends StatelessWidget {
     switch (selectedCategory?.name) {
       case '자취방':
         return const RoomContainerWidget(); // 자취방용 컨테이너
+      case '음식점':
+        return const RestaurantContainerWidget(); // 모임용 컨테이너
       default:
         return const MeetContainerWidget(); // 기본값은 MeetContainerWidget
     }

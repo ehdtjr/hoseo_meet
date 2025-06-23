@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../../data/models/room_post_detail.dart';
+import '../../../data/models/room/room_post_detail.dart';
+
 
 class RoomInfoSection extends StatelessWidget {
   final RoomDetail roomDetail;

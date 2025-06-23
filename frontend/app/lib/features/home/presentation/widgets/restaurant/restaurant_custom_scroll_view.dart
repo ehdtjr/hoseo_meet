@@ -1,24 +1,25 @@
-import 'package:campusmeet/features/home/presentation/widgets/room_page/photo_section.dart';
-import 'package:campusmeet/features/home/presentation/widgets/room_page/review/review_section.dart';
-import 'package:campusmeet/features/home/presentation/widgets/room_page/room_info_section.dart';
-import 'package:campusmeet/features/home/presentation/widgets/room_page/tab_bar_delegate.dart';
+import 'package:campusmeet/features/home/presentation/widgets/restaurant/restaurant_info_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../data/models/room/room_post_detail.dart';
+import '../../../data/models/restaurant/restaurant_post_detail.dart';
+import '../../../providers/restaurant/restaurant_post_provider.dart';
+import '../room_page/tab_bar_delegate.dart';
 
-class RoomCustomScrollView extends StatefulWidget {
-  final RoomDetail roomDetail;
-  const RoomCustomScrollView({
+class RestaurantCustomScrollView extends StatefulWidget {
+  final RestaurantPostDetail restaurant;
+
+  const RestaurantCustomScrollView({
     super.key,
-    required this.roomDetail,
+    required this.restaurant,
   });
 
   @override
-  _RoomCustomScrollViewState createState() => _RoomCustomScrollViewState();
+  State<RestaurantCustomScrollView> createState() => _RestaurantCustomScrollViewState();
 }
 
-class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
+class _RestaurantCustomScrollViewState extends State<RestaurantCustomScrollView>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final ScrollController _scrollController = ScrollController();
@@ -26,17 +27,15 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
   DateTime _lastUpdateTime = DateTime.now();
   List<double>? _cachedPositions;
 
-  // 각 섹션의 GlobalKey를 부여하여 올바른 위치 계산이 가능하도록 함.
-  final GlobalKey _roomInfoKey = GlobalKey();
+  final GlobalKey _infoKey = GlobalKey();
   final GlobalKey _reviewKey = GlobalKey();
   final GlobalKey _photoKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_handleTabChange);
-    // 첫 프레임 이후 캐시 무효화
     WidgetsBinding.instance.addPostFrameCallback((_) => _invalidateCache());
   }
 
@@ -77,7 +76,7 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
   BuildContext? _getSectionContext(int index) {
     switch (index) {
       case 0:
-        return _roomInfoKey.currentContext;
+        return _infoKey.currentContext;
       case 1:
         return _reviewKey.currentContext;
       case 2:
@@ -104,7 +103,7 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
 
   List<double> _calculateSectionPositions() {
     return _cachedPositions ??= [
-      _getSectionOffset(_roomInfoKey),
+      _getSectionOffset(_infoKey),
       _getSectionOffset(_reviewKey),
       _getSectionOffset(_photoKey),
     ];
@@ -116,9 +115,7 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
     final renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null || !renderBox.attached) return 0;
     final viewport = RenderAbstractViewport.of(renderBox);
-    // getOffsetToReveal()를 사용하여 스크롤뷰 내에서 해당 위젯이 보이도록 하는 오프셋 계산
-    final offset = viewport.getOffsetToReveal(renderBox, 0.0).offset;
-    return offset;
+    return viewport.getOffsetToReveal(renderBox, 0.0).offset;
   }
 
   int _findClosestIndex(double offset, List<double> positions) {
@@ -136,7 +133,6 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
 
   @override
   Widget build(BuildContext context) {
-    // 매 프레임마다 캐시 무효화하여 레이아웃 변경 시 최신 위치를 계산하도록 함.
     WidgetsBinding.instance.addPostFrameCallback((_) => _invalidateCache());
 
     return NotificationListener<ScrollNotification>(
@@ -163,56 +159,49 @@ class _RoomCustomScrollViewState extends State<RoomCustomScrollView>
                 ),
                 tabs: const [
                   Tab(text: "정보"),
+                  Tab(text: "메뉴"),
                   Tab(text: "리뷰"),
                   Tab(text: "사진"),
                 ],
               ),
             ),
           ),
-          // Room Info 섹션
+
+          /// ✅ 정보 섹션
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(25.0),
+              padding: const EdgeInsets.all(10.0),
               child: Container(
-                key: _roomInfoKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    RoomInfoSection(roomDetail: widget.roomDetail),
-                    const SizedBox(height: 20),
-                    const Divider(
-                      color: Color(0xFFF0B4AD),
-                      thickness: 1.0,
-                    ),
-                  ],
+                key: _infoKey,
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final restaurantNotifier = ref.read(restaurantPostProvider.notifier);
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        RestaurantInfoSection(
+                          restaurant: widget.restaurant,
+                          onUpdate: (updated) async {
+                            await restaurantNotifier.updateRestaurant(updated);
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('맛집 정보가 저장되었습니다')),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        const Divider(color: Color(0xFFF0B4AD), thickness: 1.0),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
           ),
-          // Review 섹션
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 25.0),
-              child: Container(
-                key: _reviewKey,
-                child: ReviewSection(roomDetail: widget.roomDetail),
-              ),
-            ),
-          ),
-          // Photo 섹션
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 25.0),
-              child: Container(
-                key: _photoKey,
-                child: PhotoSection(postId: widget.roomDetail.id),
-              ),
-            ),
-          ),
-          // 마지막 여백
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 20),
-          ),
+
+          // ✅ 여기에 리뷰, 사진 등 필요한 Sliver 추가 예정
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
       ),
     );
