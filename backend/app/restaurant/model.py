@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy import Integer, String, Text, DateTime, ForeignKey, UniqueConstraint
@@ -17,8 +17,10 @@ class RestaurantPost(Base):
     editor_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
 
     name: Mapped[str] = mapped_column(Text, nullable=False)
-    address: Mapped[str] = mapped_column(Text, nullable=False)
+    address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     comment: Mapped[str] = mapped_column(Text, nullable=True)
+    contact: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    business_hours: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     location: Mapped[WKBElement] = mapped_column(
         Geography(geometry_type="POINT", srid=4326, spatial_index=True),
         nullable=False
@@ -60,9 +62,11 @@ class RestaurantPostVersion(Base):
     editor_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     post_id: Mapped[int] = mapped_column(ForeignKey("restaurant_post.id", ondelete="CASCADE"))
     version: Mapped[int] = mapped_column(Integer, nullable=False)
+    contact: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    business_hours: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     name: Mapped[str] = mapped_column(Text, nullable=False)
-    address: Mapped[str] = mapped_column(Text, nullable=False)
+    address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     location: Mapped[WKBElement] = mapped_column(
         Geography(geometry_type="POINT", srid=4326), nullable=False
     )
@@ -70,7 +74,6 @@ class RestaurantPostVersion(Base):
 
     editor: Mapped["User"] = relationship("User", lazy="selectin")
     post: Mapped["RestaurantPost"] = relationship("RestaurantPost", back_populates="versions")
-
 
 class RestaurantMenu(Base):
     __tablename__ = "restaurant_menu"
@@ -80,36 +83,23 @@ class RestaurantMenu(Base):
     post_id: Mapped[int] = mapped_column(ForeignKey("restaurant_post.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(Text, nullable=False)
     price: Mapped[int] = mapped_column(Integer, nullable=False)
-
+    image: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)  # ✅ 이미지 1장 추가
 
     editor: Mapped["User"] = relationship("User", lazy="selectin")
     post: Mapped["RestaurantPost"] = relationship("RestaurantPost", back_populates="menus")
-    versions: Mapped[List["RestaurantMenuVersion"]] = relationship(
-        "RestaurantMenuVersion",
-        back_populates="menu",
-        cascade="all, delete-orphan",
-        order_by="desc(RestaurantMenuVersion.version)"
-    )
 
-
-class RestaurantMenuVersion(Base):
-    __tablename__ = "restaurant_menu_version"
+class RestaurantMenuSetVersion(Base):
+    __tablename__ = "restaurant_menu_set_version"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
-    editor_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
-    menu_id: Mapped[int] = mapped_column(ForeignKey("restaurant_menu.id", ondelete="CASCADE"))
+    post_id: Mapped[int] = mapped_column(ForeignKey("restaurant_post.id", ondelete="CASCADE"), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
-
-    name: Mapped[str] = mapped_column(Text, nullable=False)
-    price: Mapped[int] = mapped_column(Integer, nullable=False)
-
-    editor: Mapped["User"] = relationship("User", lazy="selectin")
-
+    menus: Mapped[List[dict]] = mapped_column(JSON, nullable=False)  # 메뉴판 전체
+    editor_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    menu: Mapped["RestaurantMenu"] = relationship("RestaurantMenu", back_populates="versions")
-
+    post: Mapped["RestaurantPost"] = relationship("RestaurantPost", lazy="selectin")
+    editor: Mapped["User"] = relationship("User", lazy="selectin")
 
 class RestaurantPostImage(Base):
     __tablename__ = "restaurant_post_image"
@@ -122,6 +112,7 @@ class RestaurantPostImage(Base):
 
     post: Mapped["RestaurantPost"] = relationship("RestaurantPost", back_populates="images")
     editor: Mapped["User"] = relationship("User", lazy="selectin")
+
 
 class RestaurantPostImageSetVersion(Base):
     __tablename__ = "restaurant_post_image_set_version"

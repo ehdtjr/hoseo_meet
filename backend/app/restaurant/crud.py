@@ -10,6 +10,8 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.sql.elements import and_
 from sqlalchemy.sql.expression import bindparam, cast, delete
 from sqlalchemy.sql.sqltypes import Boolean
+from shapely import wkb
+
 
 from app.crud.base import CRUDBase
 from app.restaurant.model import RestaurantPost, RestaurantPostVersion, \
@@ -23,7 +25,7 @@ from app.restaurant.schemas import (
     RestaurantPostUpdate, RestaurantListItem,
     Location, RestaurantPostImageBase, RestaurantPostImageCreate,
     RestaurantPostVersionCreate, RestaurantPostImageSetVersionBase,
-    RestaurantPostImageSetVersionCreate
+    RestaurantPostImageSetVersionCreate, RestaurantPostDetail
 )
 
 
@@ -42,20 +44,39 @@ class RestaurantPostCRUDProtocol(Protocol):
             hearted_only: bool = False
     ) -> Optional[List[RestaurantListItem]]:
         ...
+    async def get_detail(
+            self,
+            db: AsyncSession,
+            post_id: int,
+            user_id: int,
+            user_lat: Optional[float] = None,
+            user_lon: Optional[float] = None
+    ) -> Optional[RestaurantPostDetail]:
+        ...
 
 class RestaurantPostCRUD(CRUDBase[RestaurantPost, RestaurantPostBase], RestaurantPostCRUDProtocol):
     def __init__(self):
         super().__init__(RestaurantPost, RestaurantPostBase)
 
-    async def create(self, db: AsyncSession, obj_in: RestaurantPostCreate) -> RestaurantPostBase:
-        point = from_shape(
-            Point(obj_in.location.longitude, obj_in.location.latitude),
-            srid=4326)
+    async def create(self, db: AsyncSession,
+                     obj_in: RestaurantPostCreate) -> RestaurantPostBase:
+        if hasattr(obj_in.location, "longitude") and hasattr(obj_in.location,
+                                                             "latitude"):
+            # Pydantic Location 객체인 경우
+            lon = obj_in.location.longitude
+            lat = obj_in.location.latitude
+        else:
+            # WKBElement인 경우
+            point = wkb.loads(bytes(obj_in.location.data))
+            lon = point.x
+            lat = point.y
+
+        location_geom = from_shape(Point(lon, lat), srid=4326)
 
         post = RestaurantPost(
             name=obj_in.name,
             address=obj_in.address,
-            location=point,
+            location=location_geom,
             editor_id=obj_in.editor_id,
         )
         db.add(post)
@@ -76,19 +97,11 @@ class RestaurantPostCRUD(CRUDBase[RestaurantPost, RestaurantPostBase], Restauran
 
         for field, value in update_data.items():
             if field == "location":
-                if isinstance(value, dict):
-                    longitude = value["longitude"]
-                    latitude = value["latitude"]
-                else:  # Pydantic 객체인 경우
-                    longitude = value.longitude
-                    latitude = value.latitude
-
-                value = from_shape(Point(longitude, latitude), srid=4326)
-
+                value = from_shape(Point(value["longitude"], value["latitude"]), srid=4326)
             setattr(db_obj, field, value)
-
         await db.commit()
         await db.refresh(db_obj)
+
         return self.schema.model_validate(db_obj, from_attributes=True)
 
     async def list(
@@ -169,6 +182,95 @@ class RestaurantPostCRUD(CRUDBase[RestaurantPost, RestaurantPostBase], Restauran
         ]
         return restaurants
 
+    async def get_detail(
+            self,
+            db: AsyncSession,
+            post_id: int,
+            user_id: int,
+            user_lat: Optional[float] = None,
+            user_lon: Optional[float] = None
+    ) -> Optional[RestaurantPostDetail]:
+        longitude_expr = func.ST_X(
+            RestaurantPost.location.cast(Geometry)).label("longitude")
+        latitude_expr = func.ST_Y(RestaurantPost.location.cast(Geometry)).label(
+            "latitude")
+
+        distance_expr = func.ST_Distance(
+            RestaurantPost.location,
+            func.ST_SetSRID(func.ST_MakePoint(user_lon, user_lat), 4326)
+        ).label("distance") if user_lat and user_lon else func.cast(0,
+                                                                    Geometry).label(
+            "distance")
+
+        # 하트 여부 확인용
+        heart_alias = aliased(RestaurantHeart)
+        is_hearted_expr = cast(
+            func.count(heart_alias.id).filter(
+                heart_alias.user_id == user_id) > 0,
+            Boolean
+        ).label("is_hearted")
+
+        rating_counts = [
+            func.count(
+                func.nullif(func.floor(RestaurantReview.rating) == i, False)
+            ).label(f"rating_{i}") for i in range(1, 6)
+        ]
+
+        stmt = (
+            select(
+                RestaurantPost,
+                longitude_expr,
+                latitude_expr,
+                distance_expr,
+                func.coalesce(func.avg(RestaurantReview.rating), 0).label(
+                    "avg_rating"),
+                func.count(RestaurantReview.id).label("review_count"),
+                is_hearted_expr,
+                *rating_counts
+            )
+            .outerjoin(RestaurantReview,
+                       RestaurantReview.post_id == RestaurantPost.id)
+            .outerjoin(heart_alias, and_(
+                RestaurantPost.id == heart_alias.post_id,
+                heart_alias.user_id == user_id
+            ))
+            .where(RestaurantPost.id == post_id)
+            .group_by(RestaurantPost.id, longitude_expr, latitude_expr)
+        )
+
+        result = await db.execute(stmt)
+        row = result.first()
+        if not row:
+            return None
+
+        post = row[0]
+        longitude = row[1]
+        latitude = row[2]
+        distance = float(row[3])
+        avg_rating = float(row[4])
+        review_count = row[5]
+        is_hearted = row[6]
+
+        review_rating_counts = {
+            i: row[6 + i] for i in range(1, 6)
+        }
+
+        return RestaurantPostDetail(
+            id=post.id,
+            name=post.name,
+            address=post.address,
+            comment=post.comment,
+            contact=post.contact,
+            business_hours=post.business_hours,
+            distance=distance,
+            location=Location(latitude=latitude, longitude=longitude),
+            avg_rating=avg_rating,
+            review_count=review_count,
+            is_hearted=is_hearted,
+            images=[],  # 서비스 레이어에서 이미지 주입 추천
+            review_rating_counts=review_rating_counts
+        )
+
 def get_restaurant_post_crud() -> RestaurantPostCRUDProtocol:
     return RestaurantPostCRUD()
 
@@ -202,17 +304,12 @@ class RestaurantPostVersionCRUD(
         latest_version = result.scalar_one_or_none()
         next_version = (latest_version.version + 1) if latest_version else 1
 
-        point = from_shape(
-            Point(obj_in.location.longitude, obj_in.location.latitude),
-            srid=4326
-        )
-
         version_obj = RestaurantPostVersion(
             post_id=obj_in.post_id,
             version=next_version,
             name=obj_in.name,
             address=obj_in.address,
-            location=point,
+            location=obj_in.location,
             editor_id=obj_in.editor_id
         )
 
@@ -223,7 +320,7 @@ class RestaurantPostVersionCRUD(
 
     async def get(self, db: AsyncSession, id: int) -> Optional[
         RestaurantPostVersionBase]:
-        return await super().get(db, id)
+        return await super().get(db, id)\
 
     async def get_latest_by_post_id(
             self, db: AsyncSession, post_id: int

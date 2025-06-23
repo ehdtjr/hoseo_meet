@@ -20,8 +20,10 @@ class RestaurantPostBase(BaseModel):
     id: int
     editor_id: int
     name: str
-    address: str
-    comment: Optional[str]
+    address: Optional[str] = None
+    comment: Optional[str] = None
+    contact: Optional[str] = None
+    business_hours: Optional[str] = None
     location: WKBElement
 
     @field_serializer("location", when_used="always")
@@ -38,13 +40,18 @@ class RestaurantPostCreate(BaseModel):
 
     editor_id: int
     name: str
-    address: str
+    address: Optional[str] = None
+    comment: Optional[str] = None
+    contact: Optional[str] = None
+    business_hours: Optional[str] = None
     location: Location
 
 
 class RestaurantPostRequest(BaseModel):
     name: str
-    address: str
+    address: Optional[str] = None
+    contact: Optional[str] = None
+    business_hours: Optional[str] = None
     location: Location
 
 class RestaurantListItem(BaseModel):
@@ -52,7 +59,7 @@ class RestaurantListItem(BaseModel):
 
     id: int
     name: str
-    address: str
+    address: Optional[str] = None
     comment: Optional[str] = None
     distance: float
     location: Location
@@ -62,15 +69,20 @@ class RestaurantListItem(BaseModel):
     images: Optional[List[str]] = []
 
 class RestaurantPostDetail(RestaurantListItem):
+    contact: Optional[str] = None
+    business_hours: Optional[str] = None
     review_rating_counts: Dict[int, int] = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
 
 class RestaurantPostUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    editor_id: Optional[int]
+    editor_id: Optional[int] =None
     name: str
-    address: str
+    address: Optional[str] = None
+    comment: Optional[str] = None
+    contact: Optional[str] = None
+    business_hours: Optional[str] = None
     location: Location
 
 
@@ -105,7 +117,7 @@ class RestaurantPostVersionCreate(BaseModel):
 
     editor_id: int
     post_id: int
-    version: Optional[int]
+    version: Optional[int] = None
     name: str
     address: str
     location: WKBElement

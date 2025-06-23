@@ -12,7 +12,8 @@ from app.restaurant.crud import RestaurantPostVersionCRUD, \
     get_restaurant_post_image_crud, get_restaurant_post_image_set_version_crud
 from app.restaurant.schemas import RestaurantPostCreate, RestaurantPostRequest, \
     RestaurantPostUpdate, RestaurantListItem, RestaurantPostVersionBase, \
-    RestaurantPostImageBase, RestaurantPostImageSetVersionBase
+    RestaurantPostImageBase, RestaurantPostImageSetVersionBase, \
+    RestaurantPostDetail
 from app.restaurant.service import RestaurantPostServiceProtocol, \
     get_restaurant_post_service, RestaurantPostService, \
     get_restaurant_post_image_service, RestaurantPostImageServiceProtocol
@@ -58,6 +59,23 @@ async def get_restaurants_list(
         user_lon=user_lon,
         hearted_only=hearted_only
     )
+@router.get("/detail/{post_id}", response_model=RestaurantPostDetail)
+async def get_restaurant_post_detail(
+    post_id: int,
+    user_lat: float,
+    user_lon: float,
+    user: User = Depends(current_active_user),
+    db:AsyncSession = Depends(get_async_session),
+    restaurant_service: RestaurantPostServiceProtocol=Depends(get_restaurant_post_service),
+):
+    return await restaurant_service.detail(
+        db=db,
+        post_id=post_id,
+        user_lat=user_lat,
+        user_lon=user_lon,
+        user_id=user.id,
+    )
+
 
 @router.post("/update")
 async def update_restaurant(

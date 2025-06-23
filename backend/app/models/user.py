@@ -58,8 +58,6 @@ class User(SQLAlchemyBaseUserTable, Base):
         "UserTermAgreement", back_populates="user",
         cascade="all, delete-orphan"
     )
-
-
     reviews: Mapped[List["RoomReview"]] = relationship(
         "RoomReview", back_populates="author", lazy="selectin"  # 또는 joined 등
     )
@@ -104,11 +102,6 @@ class User(SQLAlchemyBaseUserTable, Base):
     )
     restaurant_menus: Mapped[List["RestaurantMenu"]] = relationship(
         "RestaurantMenu",
-        back_populates="editor",
-        cascade="all, delete-orphan"
-    )
-    restaurant_menu_versions: Mapped[List["RestaurantMenuVersion"]] = relationship(
-        "RestaurantMenuVersion",
         back_populates="editor",
         cascade="all, delete-orphan"
     )

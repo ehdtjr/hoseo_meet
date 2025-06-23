@@ -3,6 +3,7 @@ from typing import Protocol, Optional, List
 from fastapi import Depends, UploadFile
 from shapely import wkb
 from shapely.geometry.point import Point
+from geoalchemy2.shape import from_shape
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.core.exceptions import NotFoundException, InvalidImageFormatException
@@ -23,6 +24,7 @@ from app.restaurant.schemas import (
     RestaurantPostVersionBase,
     Location, RestaurantPostImageCreate, RestaurantPostImageBase,
     RestaurantListItem, RestaurantPostImageSetVersionCreate,
+    RestaurantPostDetail,
 )
 from app.utils.s3 import generate_s3_key
 
@@ -31,7 +33,6 @@ class RestaurantPostServiceProtocol(Protocol):
     async def create(self, db: AsyncSession, obj_in: RestaurantPostCreate) -> RestaurantPostBase: ...
     async def update(self, db: AsyncSession, obj_in: RestaurantPostUpdate) -> RestaurantPostBase: ...
     async def rollback(self, db: AsyncSession, version_id: int) -> Optional[RestaurantPostBase]: ...
-    async def detail(self, db: AsyncSession, id: int) -> Optional[RestaurantPostBase]: ...
     async def list(
         self,
         db: AsyncSession,
@@ -43,7 +44,15 @@ class RestaurantPostServiceProtocol(Protocol):
         hearted_only: bool = False
     ) -> Optional[List[RestaurantListItem]]:
         ...
-
+    async def detail(
+        self,
+        db: AsyncSession,
+        post_id: int,
+        user_id: int,
+        user_lat: Optional[float] = None,
+        user_lon: Optional[float] = None,
+    ) -> Optional[RestaurantPostDetail]:
+        ...
 
 class RestaurantPostService(RestaurantPostServiceProtocol):
     def __init__(
@@ -57,19 +66,17 @@ class RestaurantPostService(RestaurantPostServiceProtocol):
         self.restaurant_post_image_crud = restaurant_post_image_crud
 
     async def _create_version(
-        self, db: AsyncSession, post: RestaurantPostBase
+            self, db: AsyncSession, post: RestaurantPostBase
     ) -> None:
-        point: Point = wkb.loads(bytes(post.location.data))
-        location = Location(latitude=point.y, longitude=point.x)
-
         version_data = RestaurantPostVersionCreate(
             post_id=post.id,
             editor_id=post.editor_id,
             name=post.name,
             address=post.address,
-            location=location
+            location=post.location,
         )
-        await self.restaurant_post_version_crud.create(db=db, obj_in=version_data)
+        await self.restaurant_post_version_crud.create(db=db,
+                                                       obj_in=version_data)
 
     @staticmethod
     def _is_modified(
@@ -185,6 +192,33 @@ class RestaurantPostService(RestaurantPostServiceProtocol):
                 )
             )
         return result
+
+    async def detail(
+        self,
+        db: AsyncSession,
+        post_id: int,
+        user_id: int,
+        user_lat: Optional[float] = None,
+        user_lon: Optional[float] = None,
+    ) -> Optional[RestaurantPostDetail]:
+        post_detail = await self.restaurant_post_crud.get_detail(
+            db=db,
+            post_id=post_id,
+            user_id=user_id,
+            user_lat=user_lat,
+            user_lon=user_lon,
+        )
+
+        if not post_detail:
+            raise NotFoundException()
+
+        # 이미지 조회 후 주입
+        images = await self.restaurant_post_image_crud.list_by_restaurant_id(
+            db=db, restaurant_id=post_id, limit=5
+        )
+        post_detail.images = [img.image for img in images]
+
+        return post_detail
 
 
 def get_restaurant_post_service(
