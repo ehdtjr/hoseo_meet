@@ -98,6 +98,8 @@ class RestaurantPostVersionBase(BaseModel):
     version: int
     name: str
     address: str
+    contact: Optional[str] = None
+    business_hours: Optional[str] = None
     location: WKBElement
     created_at: datetime
 
@@ -120,7 +122,10 @@ class RestaurantPostVersionCreate(BaseModel):
     version: Optional[int] = None
     name: str
     address: str
+    contact: Optional[str] = None
+    business_hours: Optional[str] = None
     location: WKBElement
+
 
     @field_serializer("location", when_used="always")
     def serialize_location(self, location: WKBElement) -> dict:

@@ -74,6 +74,8 @@ class RestaurantPostService(RestaurantPostServiceProtocol):
             name=post.name,
             address=post.address,
             location=post.location,
+            contact=post.contact,
+            business_hours=post.business_hours,
         )
         await self.restaurant_post_version_crud.create(db=db,
                                                        obj_in=version_data)
@@ -137,6 +139,8 @@ class RestaurantPostService(RestaurantPostServiceProtocol):
             name=version.name,
             address=version.address,
             location=location,
+            contact=version.contact,
+            business_hours=version.business_hours,
         )
         post = await self.restaurant_post_crud.update(db=db, obj_in=update_data)
         await self._create_version(db, post)

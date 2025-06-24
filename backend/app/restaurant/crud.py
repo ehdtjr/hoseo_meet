@@ -310,7 +310,9 @@ class RestaurantPostVersionCRUD(
             name=obj_in.name,
             address=obj_in.address,
             location=obj_in.location,
-            editor_id=obj_in.editor_id
+            editor_id=obj_in.editor_id,
+            contact=obj_in.contact,
+            business_hours=obj_in.business_hours,
         )
 
         db.add(version_obj)
