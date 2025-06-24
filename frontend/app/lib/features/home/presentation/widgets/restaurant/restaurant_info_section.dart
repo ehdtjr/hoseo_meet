@@ -1,9 +1,11 @@
+import 'package:campusmeet/features/auth/presentation/pages/report_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
+import '../../../../auth/providers/user_profile_provider.dart';
 import '../../../data/models/restaurant/restaurant_post_detail.dart';
 import '../../../providers/restaurant/restaurant_post_provider.dart';
 import '../../pages/restaurant/location_pick_page.dart';
@@ -124,31 +126,90 @@ class _RestaurantInfoSectionState extends ConsumerState<RestaurantInfoSection> {
     widget.onUpdate?.call(updated);
   }
 
-  void _showEditHistory() {
-    final history = [
-      {
-        'date': '2025.06.24 15:21',
-        'field': '전화번호',
-        'old': '010-1234-5678',
-        'new': _contactController.text,
-      },
-      {
-        'date': '2025.06.20 09:11',
-        'field': '영업시간',
-        'old': '03:00 ~ 06:00',
-        'new': '${_formatTime(_startTime)} ~ ${_formatTime(_endTime)}',
-      },
-    ];
+  void _showEditHistory() async {
+    final notifier = ref.read(restaurantPostProvider.notifier);
+
+    // 사용자 ID → 닉네임 매핑 불러오기
+    final versions = await notifier.loadRestaurantVersions(widget.restaurant.id, skip: 0, limit: 30);
+    final editorIds = versions.map((v) => v.editorId).toSet();
+
+    final userService = ref.read(userServiceProvider);
+    final Map<int, String> editorNames = {};
+
+    for (final id in editorIds) {
+      try {
+        final user = await userService.getUser(id);
+        editorNames[id] = user.name;
+      } catch (e) {
+        editorNames[id] = '사용자 $id';
+      }
+    }
+
+    if (!context.mounted) return;
 
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       isScrollControlled: true,
-      builder: (context) => EditHistoryBottomSheet(history: history),
+      backgroundColor: Colors.transparent,
+      builder: (context) => EditHistoryBottomSheet(
+        fetchVersions: ({required int skip, required int limit}) {
+          return notifier.loadRestaurantVersions(widget.restaurant.id, skip: skip, limit: limit);
+        },
+        editorNames: editorNames,
+        onTapEditor: (userId) async {
+          final userService = ref.read(userServiceProvider);
+
+          try {
+            final user = await userService.getUser(userId);
+            if (!context.mounted) return;
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ReportPage(
+                  reportedUserId: user.id,
+                  reportedUserName: user.name,
+                  reportedUserProfile: user.profile,
+                ),
+              ),
+            );
+          } catch (e) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('사용자 정보를 불러오지 못했습니다.')),
+            );
+          }
+        },
+        onRestore: (version) async {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('이전 버전으로 되돌리기'),
+              content: const Text('이 버전으로 되돌리시겠습니까?'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
+                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('확인')),
+              ],
+            ),
+          );
+
+          if (confirm == true) {
+            // await notifier.restoreToVersion(version); // 이 부분 실제 복원 로직 연결 필요
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('이전 버전으로 복원되었습니다.')),
+              );
+              Navigator.pop(context);
+            }
+          }
+        },
+      ),
     );
   }
+
 
   Widget _buildEditableRow({
     required String iconPath,

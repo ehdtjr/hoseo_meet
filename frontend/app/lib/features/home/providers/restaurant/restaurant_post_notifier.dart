@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 
 import '../../data/models/restaurant/restaurant_post.dart';
 import '../../data/models/restaurant/restaurant_post_detail.dart';
+import '../../data/models/restaurant/restaurant_version.dart';
 import '../../data/services/restaurant/restaurant_post_service.dart';
 
 final restaurantSearchKeywordProvider = StateProvider<String>((ref) => '');
@@ -163,6 +164,23 @@ class RestaurantNotifier extends StateNotifier<List<Restaurant>> {
     } catch (e) {
       debugPrint('❌ 맛집 정보 업데이트 실패: $e');
       rethrow;
+    }
+  }
+
+  Future<List<RestaurantVersion>> loadRestaurantVersions(
+      int restaurantId, {
+        int skip = 0,
+        int limit = 10,
+      }) async {
+    try {
+      return await _service.loadRestaurantVersions(
+        restaurantId: restaurantId,
+        skip: skip,
+        limit: limit,
+      );
+    } catch (e) {
+      debugPrint('❌ 맛집 버전 목록 조회 실패: $e');
+      return [];
     }
   }
 
