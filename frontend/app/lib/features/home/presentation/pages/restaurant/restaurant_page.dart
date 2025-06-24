@@ -16,6 +16,7 @@ class RestaurantPage extends ConsumerStatefulWidget {
 }
 
 class _RestaurantPageState extends ConsumerState<RestaurantPage> {
+
   late Future<RestaurantPostDetail?> futureRestaurantDetail = Future.value(null);
 
   @override
@@ -34,6 +35,8 @@ class _RestaurantPageState extends ConsumerState<RestaurantPage> {
 
   @override
   Widget build(BuildContext context) {
+    final restaurant = ref.watch(restaurantPostProvider);
+
     return Scaffold(
       body: FutureBuilder<RestaurantPostDetail?>(
         future: futureRestaurantDetail,
@@ -53,8 +56,15 @@ class _RestaurantPageState extends ConsumerState<RestaurantPage> {
                   expandedHeight: 300,
                   imageUrls: restaurant.images,
                 ),
-                RestaurantSummarySection(restaurant: restaurant),
-                // 상세 본문 스크롤
+                RestaurantSummarySection(
+                  restaurant: restaurant,
+                  onUpdate: (updated) async {
+                    await ref.read(restaurantPostProvider.notifier).updateRestaurant(updated);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('맛집 정보가 저장되었습니다')),
+                    );
+                  },
+                ),                // 상세 본문 스크롤
                 Expanded(
                    child: RestaurantCustomScrollView(restaurant: restaurant),
                 ),
