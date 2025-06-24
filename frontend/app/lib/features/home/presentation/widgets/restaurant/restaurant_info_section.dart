@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../../data/models/restaurant/restaurant_post_detail.dart';
+import '../../../providers/restaurant/restaurant_post_provider.dart';
 import '../../pages/restaurant/location_pick_page.dart';
 import 'bottom/edit_history_bottom_sheet.dart';
 
@@ -30,7 +32,7 @@ class PhoneNumberFormatter extends TextInputFormatter {
   }
 }
 
-class RestaurantInfoSection extends StatefulWidget {
+class RestaurantInfoSection extends ConsumerStatefulWidget {
   final RestaurantPostDetail restaurant;
   final void Function(RestaurantPostDetail updated)? onUpdate;
 
@@ -41,10 +43,10 @@ class RestaurantInfoSection extends StatefulWidget {
   });
 
   @override
-  State<RestaurantInfoSection> createState() => _RestaurantInfoSectionState();
+  ConsumerState<RestaurantInfoSection> createState() => _RestaurantInfoSectionState();
 }
 
-class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
+class _RestaurantInfoSectionState extends ConsumerState<RestaurantInfoSection> {
   late TextEditingController _addressController;
   late TextEditingController _contactController;
   late TextEditingController _latController;
@@ -54,8 +56,6 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
   bool _editingContact = false;
   bool _editingLocation = false;
   bool _editingHours = false;
-
-  bool _isEditMode = false;
 
   TimeOfDay? _startTime;
   TimeOfDay? _endTime;
@@ -158,8 +158,9 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
     required VoidCallback onSave,
     required VoidCallback onCancel,
   }) {
+    final isEditMode = ref.watch(restaurantEditModeProvider);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6), // 👈 여기를 고정값 8로 변경
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -174,7 +175,7 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
               IconButton(icon: const Icon(Icons.close, size: 16), onPressed: onCancel),
             ],
           )
-              : _isEditMode
+              : isEditMode
               ? IconButton(icon: const Icon(Icons.edit, size: 16), onPressed: onEdit)
               : const SizedBox.shrink(),
         ],
@@ -184,13 +185,14 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
 
   @override
   Widget build(BuildContext context) {
+    final isEditMode = ref.watch(restaurantEditModeProvider);
+    final editModeNotifier = ref.read(restaurantEditModeProvider.notifier);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
-
           // 주소
           _buildEditableRow(
             iconPath: 'assets/icons/fi-rr-marker.svg',
@@ -251,9 +253,8 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
             ),
           ),
 
-          // 영업시간
           _buildEditableRow(
-            iconPath: 'assets/icons/time.svg',
+            iconPath: 'assets/icons/fi-rr-time-oclock.svg',
             isEditing: _editingHours,
             onEdit: () => setState(() => _editingHours = true),
             onSave: () {
@@ -266,14 +267,20 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
               children: [
                 GestureDetector(
                   onTap: () => _selectTime(true),
-                  child: Text(_formatTime(_startTime)),
+                  child: Text(
+                    _formatTime(_startTime),
+                    style: const TextStyle(fontSize: 13, color: Colors.black),
+                  ),
                 ),
                 const SizedBox(width: 4),
-                const Text('~'),
+                const Text('~', style: TextStyle(fontSize: 13)),
                 const SizedBox(width: 4),
                 GestureDetector(
                   onTap: () => _selectTime(false),
-                  child: Text(_formatTime(_endTime)),
+                  child: Text(
+                    _formatTime(_endTime),
+                    style: const TextStyle(fontSize: 13, color: Colors.black),
+                  ),
                 ),
               ],
             )
@@ -285,9 +292,10 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
             ),
           ),
 
+
           // 위치
           _buildEditableRow(
-            iconPath: 'assets/icons/fi-rr-marker.svg',
+            iconPath: 'assets/icons/fi-rr-globe.svg',
             isEditing: _editingLocation,
             onEdit: () => setState(() => _editingLocation = true),
             onSave: () {
@@ -332,30 +340,30 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
             ),
           ),
 
+          // 편집 모드 / 이력 버튼
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // 왼쪽: 편집 버튼
               TextButton.icon(
-                onPressed: () => setState(() {
-                  _isEditMode = !_isEditMode;
-                  _editingAddress = false;
-                  _editingContact = false;
-                  _editingLocation = false;
-                  _editingHours = false;
-                }),
+                onPressed: () {
+                  editModeNotifier.state = !isEditMode;
+                  setState(() {
+                    _editingAddress = false;
+                    _editingContact = false;
+                    _editingLocation = false;
+                    _editingHours = false;
+                  });
+                },
                 icon: Icon(
-                  _isEditMode ? Icons.close : Icons.edit,
+                  isEditMode ? Icons.close : Icons.edit,
                   size: 13,
                   color: Colors.grey,
                 ),
                 label: Text(
-                  _isEditMode ? '편집 취소' : '편집',
+                  isEditMode ? '편집 취소' : '편집',
                   style: const TextStyle(fontSize: 13, color: Colors.grey),
                 ),
               ),
-
-              // 오른쪽: 수정 이력 버튼
               TextButton.icon(
                 onPressed: _showEditHistory,
                 icon: const Icon(Icons.history, size: 13, color: Colors.grey),
@@ -366,7 +374,6 @@ class _RestaurantInfoSectionState extends State<RestaurantInfoSection> {
               ),
             ],
           ),
-
         ],
       ),
     );

@@ -17,3 +17,5 @@ StateNotifierProvider<RestaurantNotifier, List<Restaurant>>((ref) {
 });
 
 final restaurantSearchKeywordProvider = StateProvider<String>((ref) => '');
+
+final restaurantEditModeProvider = StateProvider<bool>((ref) => false);
