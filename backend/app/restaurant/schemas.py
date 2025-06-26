@@ -168,3 +168,49 @@ class RestaurantPostImageSetVersionCreate(BaseModel):
     image_urls: List[str]
     version: Optional[int] = None  # 새로 생성 시 자동 증가를 위해 생략 가능
     editor_id: int
+
+class MenuItem(BaseModel):
+    name: str
+    price: int
+    image: Optional[str] = None
+
+
+class RestaurantMenuBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    editor_id: int
+    post_id: int
+    name: str
+    price: int
+    image: Optional[str] = None
+
+
+class RestaurantMenuCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    editor_id: int
+    post_id: int
+    name: str
+    price: int
+    image: Optional[str] = None
+
+
+class RestaurantMenuSetVersionBase(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    post_id: int
+    version: int
+    menus: List[MenuItem]
+    editor_id: int
+    created_at: datetime
+
+
+class RestaurantMenuSetVersionCreate(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    post_id: int
+    menus: List[MenuItem]
+    editor_id: int
+    version: Optional[int] = None  # 자동 증가 고려

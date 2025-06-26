@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 from mypy.binder import Optional
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
@@ -9,14 +9,16 @@ from app.core.security import current_active_user
 from app.models import User
 from app.restaurant.crud import RestaurantPostVersionCRUD, \
     get_restaurant_post_version_crud, RestaurantPostImageCRUDProtocol, \
-    get_restaurant_post_image_crud, get_restaurant_post_image_set_version_crud
+    get_restaurant_post_image_crud, get_restaurant_post_image_set_version_crud, \
+    RestaurantMenuSetVersionCRUDProtocol, get_restaurant_menu_set_version_crud
 from app.restaurant.schemas import RestaurantPostCreate, RestaurantPostRequest, \
     RestaurantPostUpdate, RestaurantListItem, RestaurantPostVersionBase, \
     RestaurantPostImageBase, RestaurantPostImageSetVersionBase, \
-    RestaurantPostDetail
+    RestaurantPostDetail, RestaurantMenuSetVersionBase, RestaurantMenuBase
 from app.restaurant.service import RestaurantPostServiceProtocol, \
     get_restaurant_post_service, RestaurantPostService, \
-    get_restaurant_post_image_service, RestaurantPostImageServiceProtocol
+    get_restaurant_post_image_service, RestaurantPostImageServiceProtocol, \
+    RestaurantMenuServiceProtocol, get_restaurant_menu_service
 
 router = APIRouter()
 
@@ -183,3 +185,81 @@ async def rollback_restaurant_post_image(
         version_id=version_id,
         editor_id=user.id,
     )
+
+@router.post("/menu/create", response_model=RestaurantMenuBase)
+async def create_menu(
+    name: str = Form(...),
+    price: int = Form(...),
+    post_id: int = Form(...),
+    image: Optional[UploadFile] = File(None),
+    db: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+    menu_service: RestaurantMenuServiceProtocol = Depends(get_restaurant_menu_service),
+):
+    return await menu_service.create(
+        db=db,
+        name=name,
+        price=price,
+        post_id=post_id,
+        image=image,
+        editor_id=user.id,
+    )
+
+@router.get("/menu/list/{post_id}", response_model=List[RestaurantMenuBase])
+async def get_menus_by_post(
+    post_id: int,
+    db: AsyncSession = Depends(get_async_session),
+    _: User = Depends(current_active_user),
+    menu_service: RestaurantMenuServiceProtocol = Depends(get_restaurant_menu_service),
+):
+    return await menu_service.get_by_post_id(db=db, post_id=post_id)
+
+@router.post("/menu/{menu_id}/update", response_model=RestaurantMenuBase)
+async def update_menu(
+    menu_id: int,
+    name: Optional[str] = Form(None),
+    price: Optional[int] = Form(None),
+    image: Optional[UploadFile] = File(None),
+    db: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+    menu_service: RestaurantMenuServiceProtocol = Depends(get_restaurant_menu_service),
+):
+    return await menu_service.update(
+        db=db,
+        menu_id=menu_id,
+        name=name,
+        price=price,
+        editor_id=user.id,
+        image=image,
+    )
+
+@router.delete("/menu/{menu_id}/delete")
+async def delete_menu(
+    menu_id: int,
+    db: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+    menu_service: RestaurantMenuServiceProtocol = Depends(get_restaurant_menu_service),
+):
+    ...
+
+@router.get("/menu/versions/{post_id}", response_model=List[RestaurantMenuSetVersionBase])
+async def get_menu_versions(
+    post_id: int,
+    skip: int = 0,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_async_session),
+    _: User = Depends(current_active_user),
+    version_crud: RestaurantMenuSetVersionCRUDProtocol= Depends(get_restaurant_menu_set_version_crud),
+):
+    return await version_crud.get_versions_by_post_id(db, post_id, skip, limit)
+
+
+@router.post("/menu/rollback/{version_id}")
+async def rollback_menu(
+    version_id: int,
+    db: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+    menu_service: RestaurantMenuServiceProtocol = Depends(get_restaurant_menu_service),
+):
+    await menu_service.rollback(db=db, version_id=version_id, editor_id=user.id)
+    return {"success": True}

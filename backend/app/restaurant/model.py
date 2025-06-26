@@ -79,7 +79,7 @@ class RestaurantMenu(Base):
     __tablename__ = "restaurant_menu"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    editor_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    editor_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=False)
     post_id: Mapped[int] = mapped_column(ForeignKey("restaurant_post.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(Text, nullable=False)
     price: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -95,7 +95,7 @@ class RestaurantMenuSetVersion(Base):
     post_id: Mapped[int] = mapped_column(ForeignKey("restaurant_post.id", ondelete="CASCADE"), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     menus: Mapped[List[dict]] = mapped_column(JSON, nullable=False)  # 메뉴판 전체
-    editor_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    editor_id: Mapped[int] = mapped_column(ForeignKey("user.id", ondelete="SET NULL"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     post: Mapped["RestaurantPost"] = relationship("RestaurantPost", lazy="selectin")

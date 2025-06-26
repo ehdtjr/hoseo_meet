@@ -16,7 +16,7 @@ from shapely import wkb
 from app.crud.base import CRUDBase
 from app.restaurant.model import RestaurantPost, RestaurantPostVersion, \
     RestaurantReview, RestaurantHeart, RestaurantPostImage, \
-    RestaurantPostImageSetVersion
+    RestaurantPostImageSetVersion, RestaurantMenu, RestaurantMenuSetVersion
 
 from app.restaurant.schemas import (
     RestaurantPostBase,
@@ -25,7 +25,9 @@ from app.restaurant.schemas import (
     RestaurantPostUpdate, RestaurantListItem,
     Location, RestaurantPostImageBase, RestaurantPostImageCreate,
     RestaurantPostVersionCreate, RestaurantPostImageSetVersionBase,
-    RestaurantPostImageSetVersionCreate, RestaurantPostDetail
+    RestaurantPostImageSetVersionCreate, RestaurantPostDetail,
+    RestaurantMenuCreate, RestaurantMenuBase, RestaurantMenuSetVersionCreate,
+    RestaurantMenuSetVersionBase
 )
 
 
@@ -541,3 +543,121 @@ class RestaurantPostImageSetVersionCRUD(
 
 def get_restaurant_post_image_set_version_crud() -> RestaurantPostImageSetVersionCRUD:
     return RestaurantPostImageSetVersionCRUD()
+
+
+class RestaurantMenuCRUDProtocol(Protocol):
+    async def create(
+        self, db: AsyncSession, obj_in: RestaurantMenuCreate
+    ) -> RestaurantMenuBase: ...
+
+    async def get(
+        self, db: AsyncSession, menu_id: int
+    ) -> Optional[RestaurantMenuBase]:
+        ...
+
+    async def update(self, db: AsyncSession,  obj_in: RestaurantMenuBase) -> RestaurantMenuBase:
+        ...
+
+    async def delete(self, db: AsyncSession, menu_id: int) -> None:
+        ...
+
+    async def get_by_post_id(
+        self, db: AsyncSession, post_id: int
+    ) -> List[RestaurantMenuBase]: ...
+
+
+class RestaurantMenuSetVersionCRUDProtocol(Protocol):
+    async def create_version(
+        self, db: AsyncSession, obj_in: RestaurantMenuSetVersionCreate
+    ) -> RestaurantMenuSetVersionBase: ...
+
+    async def get_latest_by_post_id(
+        self, db: AsyncSession, post_id: int
+    ) -> Optional[RestaurantMenuSetVersionBase]: ...
+
+    async def get_versions_by_post_id(
+        self, db: AsyncSession, post_id: int, skip: int = 0, limit: int = 10
+    ) -> List[RestaurantMenuSetVersionBase]: ...
+
+
+class RestaurantMenuCRUD(CRUDBase[RestaurantMenu, RestaurantMenuBase], RestaurantMenuCRUDProtocol):
+    def __init__(self):
+        super().__init__(RestaurantMenu, RestaurantMenuBase)
+
+    async def create(self, db: AsyncSession, obj_in: RestaurantMenuCreate) -> RestaurantMenuBase:
+        return await super().create(db, obj_in)
+    
+    async def get(self, db: AsyncSession, menu_id: int) -> RestaurantMenuBase:
+        return await super().get(db, menu_id)
+
+    async def update(self, db: AsyncSession,  obj_in: RestaurantMenuBase) -> RestaurantMenuBase:
+        return await super().update(db, obj_in)
+
+    async def delete(self, db: AsyncSession, menu_id: int) -> None:
+        return await super().delete(db, menu_id)
+
+    async def get_by_post_id(self, db: AsyncSession, post_id: int) -> List[RestaurantMenuBase]:
+        stmt = select(self.model).where(self.model.post_id == post_id)
+        result = await db.execute(stmt)
+        menus = result.scalars().all()
+        return [self.schema.model_validate(menu, from_attributes=True) for menu in menus]
+
+
+class RestaurantMenuSetVersionCRUD(
+    CRUDBase[RestaurantMenuSetVersion, RestaurantMenuSetVersionBase],
+    RestaurantMenuSetVersionCRUDProtocol
+):
+    def __init__(self):
+        super().__init__(RestaurantMenuSetVersion, RestaurantMenuSetVersionBase)
+
+    async def create_version(self, db: AsyncSession, obj_in: RestaurantMenuSetVersionCreate) -> RestaurantMenuSetVersionBase:
+        result = await db.execute(
+            select(self.model)
+            .where(self.model.post_id == obj_in.post_id)
+            .order_by(self.model.version.desc())
+            .limit(1)
+        )
+        latest = result.scalar_one_or_none()
+        next_version = (latest.version + 1) if latest else 1
+
+        version_obj = self.model(
+            post_id=obj_in.post_id,
+            version=next_version,
+            menus=[menu.model_dump() for menu in obj_in.menus],
+            editor_id=obj_in.editor_id,
+        )
+        db.add(version_obj)
+        await db.commit()
+        await db.refresh(version_obj)
+        return self.schema.model_validate(version_obj, from_attributes=True)
+
+    async def get_latest_by_post_id(
+        self, db: AsyncSession, post_id: int
+    ) -> Optional[RestaurantMenuSetVersionBase]:
+        result = await db.execute(
+            select(self.model)
+            .where(self.model.post_id == post_id)
+            .order_by(self.model.version.desc())
+            .limit(1)
+        )
+        latest = result.scalar_one_or_none()
+        return self.schema.model_validate(latest, from_attributes=True) if latest else None
+
+    async def get_versions_by_post_id(
+        self, db: AsyncSession, post_id: int, skip: int = 0, limit: int = 10
+    ) -> List[RestaurantMenuSetVersionBase]:
+        result = await db.execute(
+            select(self.model)
+            .where(self.model.post_id == post_id)
+            .order_by(self.model.version.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        versions = result.scalars().all()
+        return [self.schema.model_validate(v, from_attributes=True) for v in versions]
+
+def get_restaurant_menu_crud() -> RestaurantMenuCRUDProtocol:
+    return RestaurantMenuCRUD()
+
+def get_restaurant_menu_set_version_crud() -> RestaurantMenuSetVersionCRUDProtocol:
+    return RestaurantMenuSetVersionCRUD()

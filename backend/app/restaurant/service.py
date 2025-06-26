@@ -2,8 +2,6 @@ from typing import Protocol, Optional, List
 
 from fastapi import Depends, UploadFile
 from shapely import wkb
-from shapely.geometry.point import Point
-from geoalchemy2.shape import from_shape
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.core.exceptions import NotFoundException, InvalidImageFormatException
@@ -14,7 +12,9 @@ from app.restaurant.crud import (
     get_restaurant_post_crud,
     get_restaurant_post_version_crud, RestaurantPostImageCRUDProtocol,
     get_restaurant_post_image_crud, RestaurantPostImageSetVersionCRUD,
-    get_restaurant_post_image_set_version_crud,
+    get_restaurant_post_image_set_version_crud, get_restaurant_menu_crud,
+    get_restaurant_menu_set_version_crud, RestaurantMenuCRUDProtocol,
+    RestaurantMenuSetVersionCRUDProtocol,
 )
 from app.restaurant.schemas import (
     RestaurantPostCreate,
@@ -24,7 +24,8 @@ from app.restaurant.schemas import (
     RestaurantPostVersionBase,
     Location, RestaurantPostImageCreate, RestaurantPostImageBase,
     RestaurantListItem, RestaurantPostImageSetVersionCreate,
-    RestaurantPostDetail,
+    RestaurantPostDetail, RestaurantMenuBase, RestaurantMenuCreate,
+    RestaurantMenuSetVersionBase, RestaurantMenuSetVersionCreate,
 )
 from app.utils.s3 import generate_s3_key
 
@@ -344,4 +345,180 @@ def get_restaurant_post_image_service(
         image_crud=image_crud,
         image_set_version_crud=image_set_version_crud,
         s3_manager=s3_manager
+    )
+
+class RestaurantMenuServiceProtocol(Protocol):
+    async def create(
+            self,
+            db: AsyncSession,
+            name: str,
+            price: int,
+            post_id: int,
+            editor_id: int,
+            image: Optional[UploadFile] = None,
+    ) -> RestaurantMenuBase: ...
+    async def get_by_post_id(self, db: AsyncSession, post_id: int) -> List[RestaurantMenuBase]: ...
+    async def save_version(self, db: AsyncSession, post_id: int, editor_id: int) -> RestaurantMenuSetVersionBase: ...
+    async def update(
+        self,
+        db: AsyncSession,
+        menu_id: int,
+        name: Optional[str],
+        price: Optional[int],
+        editor_id: int,
+        image: Optional[UploadFile] = None,
+    ) -> RestaurantMenuBase: ...
+
+    async def delete(self, db: AsyncSession, menu_id: int,
+                     editor_id: int) -> None: ...
+
+    async def rollback(self, db: AsyncSession, version_id: int, editor_id: int) -> None: ...
+
+
+class RestaurantMenuService(RestaurantMenuServiceProtocol):
+    def __init__(
+        self,
+        menu_crud: RestaurantMenuCRUDProtocol,
+        restaurant_crud: RestaurantPostCRUDProtocol,
+        version_crud: RestaurantMenuSetVersionCRUDProtocol,
+        s3_manager: S3Manager
+            # post 유효성 검증
+    ):
+        self.menu_crud = menu_crud
+        self.restaurant_crud = restaurant_crud
+        self.version_crud = version_crud
+        self.s3_manager = s3_manager
+
+    async def _upload_image(self, upload_image: UploadFile) -> str:
+        allowed_types = {"image/jpeg", "image/png", "image/webp"}
+        if upload_image.content_type not in allowed_types:
+            raise InvalidImageFormatException()
+
+        unique_url = generate_s3_key(
+            f"restaurant_menu/{upload_image.filename}", "menu.webp"
+        )
+        return await self.s3_manager.upload_file(file=upload_image, destination_path=unique_url)
+
+
+    async def create(
+            self,
+            db: AsyncSession,
+            name: str,
+            price: int,
+            post_id: int,
+            editor_id: int,
+            image: Optional[UploadFile] = None,
+    ) -> RestaurantMenuBase:
+        if not post_id:
+            raise NotFoundException(detail="post_id가 제공되지 않았습니다.")
+
+        restaurant = await self.restaurant_crud.get(db=db, id=post_id)
+        if not restaurant:
+            raise NotFoundException(detail=f"해당 레스토랑(post_id={post_id})이 존재하지 않습니다.")
+
+        image_url = None
+        if image:
+            image_url = await self._upload_image(upload_image=image)
+
+        obj_in = RestaurantMenuCreate(
+            name=name,
+            price=price,
+            post_id=post_id,
+            editor_id=editor_id,
+            image=image_url,
+        )
+
+        menu = await self.menu_crud.create(db=db, obj_in=obj_in)
+        await self.save_version(db=db, post_id=menu.post_id, editor_id=menu.editor_id)
+        return menu
+
+
+    async def get_by_post_id(self, db: AsyncSession, post_id: int) -> List[RestaurantMenuBase]:
+        return await self.menu_crud.get_by_post_id(db, post_id)
+
+    async def save_version(self, db: AsyncSession, post_id: int, editor_id: int) -> RestaurantMenuSetVersionBase:
+        menus = await self.menu_crud.get_by_post_id(db, post_id)
+        menu_items = [
+            {"name": m.name, "price": m.price, "image": m.image} for m in menus
+        ]
+        version_data = RestaurantMenuSetVersionCreate(
+            post_id=post_id,
+            editor_id=editor_id,
+            menus=menu_items
+        )
+        return await self.version_crud.create_version(db, version_data)
+
+    async def update(
+        self,
+        db: AsyncSession,
+        menu_id: int,
+        name: Optional[str],
+        price: Optional[int],
+        editor_id: int,
+        image: Optional[UploadFile] = None,
+    ) -> RestaurantMenuBase:
+        menu = await self.menu_crud.get(db, menu_id=menu_id)
+        if not menu:
+            raise NotFoundException(detail=f"메뉴(menu_id={menu_id})가 존재하지 않습니다.")
+
+        image_url = menu.image
+        if image:
+            image_url = await self._upload_image(upload_image=image)
+
+        update_data = {
+            "id": menu_id,
+            "editor_id": editor_id,
+            "post_id": menu.post_id,
+            "name": name or menu.name,
+            "price": price if price is not None else menu.price,
+            "image": image_url
+        }
+
+        updated = await self.menu_crud.update(db, obj_in=RestaurantMenuBase(**update_data))
+        await self.save_version(db, post_id=updated.post_id, editor_id=editor_id)
+        return updated
+
+    async def delete(self, db: AsyncSession, menu_id: int, editor_id: int) -> None:
+        menu = await self.menu_crud.get(db=db, menu_id=menu_id)
+        if not menu:
+            raise NotFoundException(detail=f"메뉴(menu_id={menu_id})가 존재하지 않습니다.")
+
+        await self.menu_crud.delete(db=db, menu_id=menu_id)
+        await self.save_version(db=db, post_id=menu.post_id, editor_id=editor_id)
+
+
+    async def rollback(self, db: AsyncSession, version_id: int, editor_id: int) -> None:
+        version = await self.version_crud.get(db, id=version_id)
+        if not version:
+            raise NotFoundException()
+
+        post_id = version.post_id
+        await self.menu_crud.delete_by_post_id(db, post_id)
+
+        new_menus = [
+            RestaurantMenuCreate(
+                post_id=post_id,
+                editor_id=editor_id,
+                name=menu["name"],
+                price=menu["price"],
+                image=menu.get("image")
+            )
+            for menu in version.menus
+        ]
+        for menu in new_menus:
+            await self.menu_crud.create(db, menu)
+
+        await self.save_version(db, post_id, editor_id)
+
+def get_restaurant_menu_service(
+    menu_crud: RestaurantMenuCRUDProtocol = Depends(get_restaurant_menu_crud),
+    restaurant_post_crud: RestaurantPostCRUDProtocol = Depends(get_restaurant_post_crud),
+    version_crud: RestaurantMenuSetVersionCRUDProtocol = Depends(get_restaurant_menu_set_version_crud),
+    s3_manager: S3Manager = Depends(get_s3_manager),
+) -> RestaurantMenuServiceProtocol:
+    return RestaurantMenuService(
+        menu_crud=menu_crud,
+        restaurant_crud=restaurant_post_crud,
+        version_crud=version_crud,
+        s3_manager=s3_manager,
     )
