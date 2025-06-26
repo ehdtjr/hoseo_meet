@@ -9,9 +9,9 @@ class Restaurant {
   final int reviewCount;
   final bool isHearted;
   final List<String> images;
-  final String? comment;         // ✅ 선택적 설명
-  final String? contact;         // ✅ 전화번호 (nullable)
-  final String? businessHours;   // ✅ 영업시간 (nullable)
+  final String? comment;
+  final String? contact;
+  final String? businessHours;
 
   Restaurant({
     required this.id,

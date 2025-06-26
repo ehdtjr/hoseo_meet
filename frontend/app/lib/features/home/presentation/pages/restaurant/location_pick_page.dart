@@ -28,7 +28,10 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("위치 선택")),
+      appBar: AppBar(
+        title: const Text("위치 선택"),
+        backgroundColor: Colors.white, // AppBar 배경색
+      ),
       body: Stack(
         children: [
           NaverMap(
@@ -82,6 +85,14 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
             left: 16,
             right: 16,
             child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red, // 배경색을 빨간색으로
+                foregroundColor: Colors.white, // 텍스트 색상은 흰색
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
               onPressed: () {
                 Navigator.pop(context, _selectedPosition);
               },

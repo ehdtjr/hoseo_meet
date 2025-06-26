@@ -159,7 +159,6 @@ class RestaurantNotifier extends StateNotifier<List<Restaurant>> {
           ...state.sublist(index + 1),
         ];
       }
-
       debugPrint('✅ 맛집 정보 업데이트 성공: id=${updated.id}');
     } catch (e) {
       debugPrint('❌ 맛집 정보 업데이트 실패: $e');
@@ -181,6 +180,17 @@ class RestaurantNotifier extends StateNotifier<List<Restaurant>> {
     } catch (e) {
       debugPrint('❌ 맛집 버전 목록 조회 실패: $e');
       return [];
+    }
+  }
+
+  Future<void> rollbackRestaurantVersion(int versionId, int restaurantId) async {
+    try {
+      await _service.rollbackRestaurantVersion(versionId: versionId);
+      await resetAndLoad();
+      debugPrint('✅ 맛집 롤백 성공: versionId=$versionId');
+    } catch (e) {
+      debugPrint('❌ 맛집 롤백 실패: $e');
+      rethrow;
     }
   }
 

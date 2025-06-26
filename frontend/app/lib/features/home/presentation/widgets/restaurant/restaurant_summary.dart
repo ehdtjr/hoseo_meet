@@ -23,13 +23,20 @@ class _RestaurantSummarySectionState
     extends ConsumerState<RestaurantSummarySection> {
   bool _isEditingName = false;
   late TextEditingController _nameController;
-  late RestaurantPostDetail _restaurant;
 
   @override
   void initState() {
     super.initState();
-    _restaurant = widget.restaurant;
-    _nameController = TextEditingController(text: _restaurant.name);
+    _nameController = TextEditingController(text: widget.restaurant.name);
+  }
+
+  @override
+  void didUpdateWidget(covariant RestaurantSummarySection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 외부에서 name이 바뀌었을 때 컨트롤러 업데이트
+    if (oldWidget.restaurant.name != widget.restaurant.name) {
+      _nameController.text = widget.restaurant.name;
+    }
   }
 
   @override
@@ -40,13 +47,9 @@ class _RestaurantSummarySectionState
 
   void _saveName() {
     final newName = _nameController.text.trim();
-    if (newName.isNotEmpty && newName != _restaurant.name) {
-      final updated = _restaurant.copyWith(name: newName);
+    if (newName.isNotEmpty && newName != widget.restaurant.name) {
+      final updated = widget.restaurant.copyWith(name: newName);
       widget.onUpdate?.call(updated);
-
-      setState(() {
-        _restaurant = updated;
-      });
     }
     setState(() => _isEditingName = false);
   }
@@ -54,8 +57,10 @@ class _RestaurantSummarySectionState
   @override
   Widget build(BuildContext context) {
     final isEditMode = ref.watch(restaurantEditModeProvider);
-    final fakeComment = _restaurant.comment?.trim().isNotEmpty == true
-        ? _restaurant.comment!
+    final restaurant = widget.restaurant;
+
+    final fakeComment = restaurant.comment?.trim().isNotEmpty == true
+        ? restaurant.comment!
         : '신선한 재료로 만든 건강한 맛, 최고의 맛집!';
 
     return Container(
@@ -64,13 +69,12 @@ class _RestaurantSummarySectionState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ⛳ 가게 이름 (중앙 고정 + 우측에 아이콘 분리 배치)
+          // ⛳ 가게 이름
           SizedBox(
             height: 40,
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // 중앙 텍스트 또는 TextField
                 Center(
                   child: _isEditingName
                       ? ConstrainedBox(
@@ -82,14 +86,13 @@ class _RestaurantSummarySectionState
                           fontSize: 20, fontWeight: FontWeight.bold),
                       decoration: const InputDecoration(
                         isDense: true,
-                        contentPadding:
-                        EdgeInsets.symmetric(vertical: 4),
+                        contentPadding: EdgeInsets.symmetric(vertical: 4),
                         border: OutlineInputBorder(),
                       ),
                     ),
                   )
                       : Text(
-                    _restaurant.name,
+                    restaurant.name,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
@@ -98,7 +101,6 @@ class _RestaurantSummarySectionState
                     ),
                   ),
                 ),
-                // 우측 아이콘 (수정/확인/취소)
                 if (isEditMode)
                   Positioned(
                     right: 0,
@@ -118,7 +120,7 @@ class _RestaurantSummarySectionState
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: () {
-                            _nameController.text = _restaurant.name;
+                            _nameController.text = restaurant.name;
                             setState(() => _isEditingName = false);
                           },
                         ),
@@ -148,9 +150,9 @@ class _RestaurantSummarySectionState
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ...List.generate(5, (index) {
-                final isFilled = index < _restaurant.avgRating.floor();
-                final isHalf = index < _restaurant.avgRating &&
-                    index >= _restaurant.avgRating.floor();
+                final isFilled = index < restaurant.avgRating.floor();
+                final isHalf = index < restaurant.avgRating &&
+                    index >= restaurant.avgRating.floor();
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 1),
@@ -167,9 +169,8 @@ class _RestaurantSummarySectionState
               }),
               const SizedBox(width: 4),
               Text(
-                '(${_restaurant.reviewCount})',
-                style:
-                const TextStyle(fontSize: 13, color: Color(0xFF555555)),
+                '(${restaurant.reviewCount})',
+                style: const TextStyle(fontSize: 13, color: Color(0xFF555555)),
               ),
             ],
           ),

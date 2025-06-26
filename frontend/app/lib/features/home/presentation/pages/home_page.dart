@@ -75,7 +75,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                   if (categoryName == '자취방') {
                     ref.read(roomPostSearchQueryProvider.notifier).state = query;
                     ref.read(roomPostProvider.notifier).resetAndLoad();
-                  } else {
+
+                  }
+
+                  else {
                     ref.read(meetPostSearchQueryProvider.notifier).state = query;
                     ref.read(meetPostProvider.notifier).resetAndLoad();
                   }

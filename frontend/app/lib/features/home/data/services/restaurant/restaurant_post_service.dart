@@ -128,4 +128,23 @@ class RestaurantService {
     }
   }
 
+  Future<void> rollbackRestaurantVersion({
+    required int versionId,
+  }) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/restaurant/rollback')
+        .replace(queryParameters: {
+      'version_id': versionId.toString(),
+    });
+
+    try {
+      final response = await _client.postRequest(url.toString(), {});
+
+      if (response.statusCode != 200) {
+        throw Exception('맛집 롤백 실패: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('맛집 롤백 중 오류 발생: $e');
+    }
+  }
+
 }

@@ -35,7 +35,7 @@ class _RestaurantPageState extends ConsumerState<RestaurantPage> {
 
   @override
   Widget build(BuildContext context) {
-    final restaurant = ref.watch(restaurantPostProvider);
+    ref.watch(restaurantPostProvider);
 
     return Scaffold(
       body: FutureBuilder<RestaurantPostDetail?>(
@@ -60,6 +60,9 @@ class _RestaurantPageState extends ConsumerState<RestaurantPage> {
                   restaurant: restaurant,
                   onUpdate: (updated) async {
                     await ref.read(restaurantPostProvider.notifier).updateRestaurant(updated);
+                    await ref.read(restaurantPostProvider.notifier).loadRestaurantDetail(int.parse(widget.postId));
+                    await ref.read(restaurantPostProvider.notifier).resetAndLoad();
+
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('맛집 정보가 저장되었습니다')),
                     );

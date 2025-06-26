@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
+import '../../../../../widgets/showConfirmDialog.dart';
 import '../../../../auth/providers/user_profile_provider.dart';
 import '../../../data/models/restaurant/restaurant_post_detail.dart';
 import '../../../providers/restaurant/restaurant_post_provider.dart';
@@ -183,32 +184,31 @@ class _RestaurantInfoSectionState extends ConsumerState<RestaurantInfoSection> {
             );
           }
         },
-        onRestore: (version) async {
-          final confirm = await showDialog<bool>(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('이전 버전으로 되돌리기'),
-              content: const Text('이 버전으로 되돌리시겠습니까?'),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('취소')),
-                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('확인')),
-              ],
-            ),
-          );
+          onRestore: (version) async {
+            await showConfirmDialog(
+              context: context,
+              title: '이전 버전으로 되돌리기',
+              description: '이 버전으로 되돌리시겠습니까?',
+              confirmText: '확인',
+              onConfirm: () async {
+                await notifier.rollbackRestaurantVersion(version.id, widget.restaurant.id);
 
-          if (confirm == true) {
-            // await notifier.restoreToVersion(version); // 이 부분 실제 복원 로직 연결 필요
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('이전 버전으로 복원되었습니다.')),
-              );
-              Navigator.pop(context);
-            }
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('이전 버전으로 복원되었습니다.')),
+                  );
+
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                }
+              },
+            );
           }
-        },
+
       ),
+
     );
   }
+
 
 
   Widget _buildEditableRow({
@@ -401,7 +401,6 @@ class _RestaurantInfoSectionState extends ConsumerState<RestaurantInfoSection> {
             ),
           ),
 
-          // 편집 모드 / 이력 버튼
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

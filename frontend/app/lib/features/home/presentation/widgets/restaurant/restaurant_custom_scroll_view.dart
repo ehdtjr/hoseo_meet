@@ -1,3 +1,4 @@
+import 'package:campusmeet/features/home/presentation/widgets/restaurant/menu/menu_section.dart';
 import 'package:campusmeet/features/home/presentation/widgets/restaurant/restaurant_info_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -199,8 +200,19 @@ class _RestaurantCustomScrollViewState extends State<RestaurantCustomScrollView>
             ),
           ),
 
-          // ✅ 여기에 리뷰, 사진 등 필요한 Sliver 추가 예정
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 25.0),
+              child: Container(
+                key: _reviewKey,
+                child: MenuSection(
+                  postId: widget.restaurant.id,
+                ),
+              ),
+            ),
+          ),
+
         ],
       ),
     );
