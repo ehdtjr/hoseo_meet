@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../../providers/restaurant/menu/restaurant_menu_provider.dart';
 import 'menu_add_showbutton.dart';
 import 'menu_item.dart';
@@ -16,14 +15,13 @@ class MenuSection extends ConsumerStatefulWidget {
 
 class _MenuSectionState extends ConsumerState<MenuSection> {
   bool _didLoad = false;
-  int visibleCount = 1;
+  int visibleCount = 5;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_didLoad) {
       _didLoad = true;
-
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(restaurantMenuProvider.notifier).loadMenus(widget.postId);
       });
@@ -45,7 +43,9 @@ class _MenuSectionState extends ConsumerState<MenuSection> {
         menuState.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => Text('에러 발생: $error'),
-          data: (menus) {
+          data: (state) {
+            final menus = state.menus;
+
             if (menus.isEmpty) {
               return const Text("등록된 메뉴가 없습니다.");
             }
@@ -62,7 +62,7 @@ class _MenuSectionState extends ConsumerState<MenuSection> {
                   separatorBuilder: (_, __) => const Divider(height: 20),
                   itemBuilder: (context, index) {
                     final menu = visibleMenus[index];
-                    return MenuItemCard(menu: menu);
+                    return MenuItemCard(menu: menu); // IconButton 제거됨
                   },
                 ),
                 const SizedBox(height: 16),

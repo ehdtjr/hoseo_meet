@@ -55,3 +55,27 @@ class RestaurantMenu {
     );
   }
 }
+
+class RestaurantMenuState {
+  final List<RestaurantMenu> menus;
+  final RestaurantMenu? selectedMenuForEdit;
+  final bool editMode; // ✅ 추가됨
+
+  RestaurantMenuState({
+    required this.menus,
+    this.selectedMenuForEdit,
+    this.editMode = false, // ✅ 기본값 false
+  });
+
+  RestaurantMenuState copyWith({
+    List<RestaurantMenu>? menus,
+    RestaurantMenu? selectedMenuForEdit,
+    bool? editMode, // ✅ copyWith에도 추가
+  }) {
+    return RestaurantMenuState(
+      menus: menus ?? this.menus,
+      selectedMenuForEdit: selectedMenuForEdit ?? this.selectedMenuForEdit,
+      editMode: editMode ?? this.editMode,
+    );
+  }
+}
