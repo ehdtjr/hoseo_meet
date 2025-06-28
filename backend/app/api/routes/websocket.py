@@ -22,7 +22,6 @@ async def connect_event(
         websocket: WebSocket,
         user: User = Depends(get_authenticated_user),
 ):
-    # 인증을 통해 사용자 정보 확인
     disconnect_event = asyncio.Event()
 
     try:

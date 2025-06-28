@@ -9,6 +9,7 @@ from fastapi_users_db_sqlalchemy import (
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql.sqltypes import Boolean
 
 from app.core.db import Base
 
@@ -18,7 +19,7 @@ class User(SQLAlchemyBaseUserTable, Base):
     __tablename__ = "user"  # 테이블 이름 지정
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    name: Mapped[str] = mapped_column(String(length=255), nullable=False, unique=True)
     gender: Mapped[str] = mapped_column(String(length=20), nullable=False)
     profile: Mapped[str] = mapped_column(String(length=1024), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -57,8 +58,6 @@ class User(SQLAlchemyBaseUserTable, Base):
         "UserTermAgreement", back_populates="user",
         cascade="all, delete-orphan"
     )
-
-
     reviews: Mapped[List["RoomReview"]] = relationship(
         "RoomReview", back_populates="author", lazy="selectin"  # 또는 joined 등
     )
@@ -74,6 +73,40 @@ class User(SQLAlchemyBaseUserTable, Base):
         cascade="all, delete-orphan"
     )
 
+
+    # tag
+    user_tags: Mapped[List["UserTag"]] = relationship(
+        "UserTag", back_populates="user", cascade="all, delete-orphan"
+    )
+
+    #Restaurant 관련 역참조 추가
+    restaurant_posts: Mapped[List["RestaurantPost"]] = relationship(
+        "RestaurantPost",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
+    restaurant_post_versions: Mapped[List["RestaurantPostVersion"]] = relationship(
+        "RestaurantPostVersion",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
+    restaurant_post_images: Mapped[List["RestaurantPostImage"]] = relationship(
+        "RestaurantPostImage",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
+    restaurant_post_image_set_versions: Mapped[List["RestaurantPostImageSetVersion"]] = relationship(
+        "RestaurantPostImageSetVersion",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
+    restaurant_menus: Mapped[List["RestaurantMenu"]] = relationship(
+        "RestaurantMenu",
+        back_populates="editor",
+        cascade="all, delete-orphan"
+    )
+
+
 class UserReport(Base):
     __tablename__ = "user_report"
 
@@ -85,6 +118,7 @@ class UserReport(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    is_resolved: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     reporter: Mapped["User"] = relationship(
         "User", foreign_keys=[reporter_id], back_populates="reports_made"
@@ -118,4 +152,3 @@ class OAuthAccount(SQLAlchemyBaseOAuthAccountTable[int], Base):
         return mapped_column(
             Integer, ForeignKey("user.id", ondelete="cascade"), nullable=False
         )
-

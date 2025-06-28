@@ -60,11 +60,11 @@ async def login(
 
     # access_token, refresh_token 생성
     tokens = await jwt_strategy.write_token(user)
-
     return {
         "message": "login successful",
         "access_token": tokens["access_token"],
         "refresh_token": tokens["refresh_token"],
+        "is_admin": user.is_superuser,
     }
 
 
@@ -128,6 +128,17 @@ async def delete_user(
             status_code=500,
             detail=f"회원 탈퇴 처리 중 오류가 발생했습니다: {str(e)}"
         )
+
+@router.get("/reset-password-form", response_class=HTMLResponse)
+async def reset_password_form(request: Request, token: str):
+    return templates.TemplateResponse(
+        "reset_password.html",
+        {
+            "request": request,
+            "token": token
+        }
+    )
+
 
 # 인증 및 사용자 관련 라우터 추가
 router.include_router(

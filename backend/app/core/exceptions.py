@@ -18,6 +18,15 @@ class ConflictException(HTTPException):
     def __init__(self, detail="이미 존재합니다."):
         super().__init__(status_code=409, detail=detail)
 
+class InvalidImageFormatException(HTTPException):
+    def __init__(self, detail="지원하지 않는 이미지 형식입니다."):
+        super().__init__(status_code=400, detail=detail)
+
+
+class ImageUploadFailedException(HTTPException):
+    def __init__(self, detail="이미지 업로드에 실패했습니다."):
+        super().__init__(status_code=500, detail=detail)
+
 
 # 예외 핸들러 등록
 @app.exception_handler(NotFoundException)
@@ -41,4 +50,19 @@ async def conflict_exception_handler(exc: ConflictException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail, "code": "CONFLICT"},
+    )
+
+@app.exception_handler(InvalidImageFormatException)
+async def invalid_image_format_handler(exc: InvalidImageFormatException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "code": "INVALID_IMAGE_FORMAT"},
+    )
+
+
+@app.exception_handler(ImageUploadFailedException)
+async def image_upload_failed_handler(exc: ImageUploadFailedException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "code": "IMAGE_UPLOAD_FAILED"},
     )

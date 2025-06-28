@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import APIRouter, UploadFile
 from fastapi import HTTPException
 from fastapi.params import Depends, File
@@ -7,11 +9,13 @@ from starlette.responses import JSONResponse
 from app.core.db import get_async_session
 from app.core.s3 import S3Manager
 from app.core.security import current_active_user
+from app.crud.tag import get_tag_crud
 from app.crud.user import UserFCMTokenCRUDProtocol, \
     get_user_fcm_token_crud, UserCRUDProtocol, get_user_crud, \
     UserReportCRUDProtocol, get_user_report_crud
 from app.models import User
 from app.schemas.stream import SubscriptionRequest
+from app.schemas.tag import TagRead, TagBase
 from app.schemas.user import (UserFCMTokenCreate, UserFCMTokenRequest,
                               UserRead, UserPublicRead, UserUpdate,
                               UserReportRequest,
@@ -190,6 +194,16 @@ async def get_user_profile(
     except Exception as e:
         raise (HTTPException(status_code=500,
                              detail=f"Failed to fetch user profile: {str(e)}"))
+
+
+@router.get("/tags", response_model=List[TagBase])
+async def get_user_tags(
+    user: User = Depends(current_active_user),
+    db: AsyncSession = Depends(get_async_session),
+    tag_crud = Depends(get_tag_crud)
+):
+    tags = await tag_crud.get_tags_by_user_id(db, user.id)
+    return tags or []  # 없으면 빈 리스트 반환
 
 @router.post("/change-password", response_model=UserPublicRead)
 async def change_password(
