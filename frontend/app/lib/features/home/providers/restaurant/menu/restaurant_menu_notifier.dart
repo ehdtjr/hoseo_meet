@@ -152,6 +152,17 @@ class RestaurantMenuNotifier extends StateNotifier<AsyncValue<RestaurantMenuStat
     }
   }
 
+  Future<void> deleteMenuInState({
+    required int menuId,
+    required int postId,
+  }) async {
+    try {
+      await _service.deleteMenu(menuId: menuId);
+      await loadMenus(postId); // 삭제 후 최신 메뉴 목록 로딩
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
 
   // ✅ 현재 편집 중인 메뉴 가져오기
   RestaurantMenu? get selectedMenuForEdit {

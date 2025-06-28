@@ -126,7 +126,7 @@ class _BottomActionButtonState extends ConsumerState<BottomActionButton> {
                   confirmText: '되돌리기',
                   onConfirm: () async {
                     await ref.read(restaurantMenuProvider.notifier).rollbackMenuInState(
-                      menuVersionId: version.version,
+                      menuVersionId: version.id,
                       postId: widget.postId,
                     );
 

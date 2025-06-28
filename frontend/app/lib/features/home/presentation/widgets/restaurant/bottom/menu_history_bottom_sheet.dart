@@ -8,10 +8,7 @@ class MenuHistoryBottomSheet extends StatefulWidget {
   }) fetchVersions;
 
   final void Function(RestaurantMenuVersion version)? onRestore;
-
-  /// ✅ 이름도 같이 받도록 타입
   final void Function(int userId, String userName)? onTapEditor;
-
   final Map<int, String> editorNames;
 
   const MenuHistoryBottomSheet({
@@ -29,88 +26,108 @@ class MenuHistoryBottomSheet extends StatefulWidget {
 
 class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
   final List<RestaurantMenuVersion> _versions = [];
+  final List<Map<String, dynamic>> _history = [];
   bool _isLoading = false;
-  bool _hasMore = true;
-  final int _limit = 10;
 
   @override
   void initState() {
     super.initState();
-    _loadMoreVersions();
+    _loadAllVersions();
   }
 
-  Future<void> _loadMoreVersions() async {
-    if (_isLoading) return;
+  Future<void> _loadAllVersions() async {
     setState(() => _isLoading = true);
-    final fetched = await widget.fetchVersions(
-      skip: _versions.length,
-      limit: _limit,
-    );
-    setState(() {
-      _versions.addAll(fetched);
-      _isLoading = false;
-      if (fetched.length < _limit) _hasMore = false;
-    });
-  }
 
-  List<Map<String, String>> _extractMenuHistory() {
-    final List<Map<String, String>> history = [];
+    // 모든 버전을 한 번에 불러옴
+    final allVersions = await widget.fetchVersions(skip: 0, limit: 9999);
 
-    for (int i = 0; i < _versions.length - 1; i++) {
-      final current = _versions[i];
-      final previous = _versions[i + 1];
+    // 최신 → 과거 순으로 정렬
+    allVersions.sort((a, b) => b.version.compareTo(a.version));
 
-      for (int j = 0; j < current.menus.length; j++) {
-        final currentMenu = current.menus[j];
-        final previousMenu =
-        j < previous.menus.length ? previous.menus[j] : null;
-
-        void compareField(String label, String? oldVal, String? newVal) {
-          if ((oldVal ?? '').trim() != (newVal ?? '').trim()) {
-            history.add({
-              'date': current.createdAt.toString(),
-              'editorId': current.editorId.toString(),
-              'editor': widget.editorNames[current.editorId] ??
-                  '사용자 ${current.editorId}',
-              'field': label,
-              'old': oldVal ?? '',
-              'new': newVal ?? '',
-              'version': current.version.toString(),
-              'menuName': currentMenu.name,
-              'type': label == '이미지' ? 'image' : 'text',
-            });
-          }
-        }
-
-        if (previousMenu != null) {
-          compareField('이름', previousMenu.name, currentMenu.name);
-          compareField('가격', previousMenu.price.toString(),
-              currentMenu.price.toString());
-          compareField('이미지', previousMenu.image, currentMenu.image);
-        } else {
-          history.add({
-            'date': current.createdAt.toString(),
-            'editorId': current.editorId.toString(),
-            'editor': widget.editorNames[current.editorId] ??
-                '사용자 ${current.editorId}',
-            'field': '메뉴 추가됨',
-            'old': '',
-            'new': currentMenu.name,
-            'version': current.version.toString(),
-            'menuName': currentMenu.name,
-            'type': 'text',
-          });
-        }
+    final List<Map<String, dynamic>> newHistory = [];
+    for (int i = 0; i < allVersions.length - 1; i++) {
+      final diffs = _getDiffs(allVersions[i], allVersions[i + 1]);
+      if (diffs.isNotEmpty) {
+        newHistory.add({
+          'date': allVersions[i].createdAt.toString(),
+          'editorId': allVersions[i].editorId.toString(),
+          'editor': widget.editorNames[allVersions[i].editorId] ?? '사용자 ${allVersions[i].editorId}',
+          'version': allVersions[i].version.toString(),
+          'diffs': diffs,
+        });
       }
     }
 
-    return history;
+    setState(() {
+      _versions.clear();
+      _versions.addAll(allVersions);
+      _history.clear();
+      _history.addAll(newHistory);
+      _isLoading = false;
+    });
+  }
+
+  /// 버전쌍의 diff만 묶어서 반환 (각 diff는 map)
+  List<Map<String, String>> _getDiffs(
+      RestaurantMenuVersion curr, RestaurantMenuVersion prev) {
+    final List<Map<String, String>> diffs = [];
+
+    final currIds = curr.menus.map((m) => m.id).toSet();
+    final prevIds = prev.menus.map((m) => m.id).toSet();
+
+    // 변경/추가
+    for (final currMenu in curr.menus) {
+      final prevMenu = prev.menus
+          .where((m) => m.id == currMenu.id)
+          .isNotEmpty
+          ? prev.menus.firstWhere((m) => m.id == currMenu.id)
+          : null;
+
+      void compareField(String label, String? oldVal, String? newVal) {
+        if ((oldVal ?? '').trim() != (newVal ?? '').trim()) {
+          diffs.add({
+            'field': label,
+            'old': oldVal ?? '',
+            'new': newVal ?? '',
+            'menuName': currMenu.name,
+            'type': label == '이미지' ? 'image' : 'text',
+          });
+        }
+      }
+
+      if (prevMenu != null) {
+        compareField('이름', prevMenu.name, currMenu.name);
+        compareField('가격', prevMenu.price.toString(), currMenu.price.toString());
+        compareField('이미지', prevMenu.image, currMenu.image);
+      } else {
+        diffs.add({
+          'field': '메뉴 추가됨',
+          'old': '',
+          'new': currMenu.name,
+          'menuName': currMenu.name,
+          'type': 'text',
+        });
+      }
+    }
+
+    // 삭제
+    final deletedIds = prevIds.difference(currIds);
+    for (final deletedId in deletedIds) {
+      final deletedMenu = prev.menus.firstWhere((m) => m.id == deletedId);
+      diffs.add({
+        'field': '메뉴 삭제됨',
+        'old': deletedMenu.name,
+        'new': '',
+        'menuName': deletedMenu.name,
+        'type': 'text',
+      });
+    }
+
+    return diffs;
   }
 
   @override
   Widget build(BuildContext context) {
-    final history = _extractMenuHistory();
-
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       child: Container(
@@ -121,22 +138,15 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
           minChildSize: 0.3,
           maxChildSize: 0.95,
           builder: (context, scrollController) {
-            scrollController.addListener(() {
-              if (scrollController.position.pixels >=
-                  scrollController.position.maxScrollExtent - 100 &&
-                  !_isLoading &&
-                  _hasMore) {
-                _loadMoreVersions();
-              }
-            });
-
             return Padding(
               padding: const EdgeInsets.all(16),
-              child: history.isEmpty
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+                  : _history.isEmpty
                   ? const Center(child: Text('메뉴 변경 이력이 없습니다.'))
                   : ListView.builder(
                 controller: scrollController,
-                itemCount: history.length + (_isLoading ? 2 : 1),
+                itemCount: _history.length + 1,
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return const Padding(
@@ -149,18 +159,7 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
                     );
                   }
 
-                  final realIndex = index - 1;
-
-                  if (realIndex >= history.length) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    );
-                  }
-
-                  final item = history[realIndex];
+                  final item = _history[index - 1];
                   final version = _versions.firstWhere(
                         (v) => v.version.toString() == item['version'],
                     orElse: () => _versions.first,
@@ -168,163 +167,216 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
 
                   final editorId = int.tryParse(item['editorId'] ?? '');
                   final editorName = item['editor'] ?? '';
+                  final diffs = item['diffs'] as List<dynamic>;
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        GestureDetector(
-                          onTap: editorId != null &&
-                              widget.onTapEditor != null
-                              ? () => widget.onTapEditor!(
-                              editorId, editorName)
-                              : null,
-                          child: RichText(
-                            text: TextSpan(
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
-                              children: [
-                                TextSpan(
-                                  text: editorName,
-                                  style: const TextStyle(
-                                      decoration:
-                                      TextDecoration.underline),
-                                ),
-                                TextSpan(text: ' • ${item['date']}'),
-                              ],
-                            ),
-                          ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 1.1,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '메뉴: ${item['menuName']}',
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.black87),
-                        ),
-                        const SizedBox(height: 4),
-
-                        /// ✅ 이미지 비교인 경우
-                        if (item['type'] == 'image') ...[
-                          const Text(
-                            '이미지 변경',
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    const Text('이전 이미지',
-                                        style: TextStyle(fontSize: 11)),
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      height: 140,
-                                      decoration: BoxDecoration(
-                                        borderRadius:
-                                        BorderRadius.circular(8),
-                                        border: Border.all(
-                                            color:
-                                            Colors.grey.shade300),
-                                      ),
-                                      clipBehavior: Clip.hardEdge,
-                                      child: item['old']!.isNotEmpty
-                                          ? Image.network(
-                                        item['old']!,
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
-                                        errorBuilder:
-                                            (_, __, ___) =>
-                                        const Icon(
-                                            Icons
-                                                .broken_image,
-                                            size: 40),
-                                      )
-                                          : Container(
-                                        color: Colors.grey[200],
-                                        child: const Center(
-                                          child: Icon(
-                                              Icons.broken_image,
-                                              size: 40),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  children: [
-                                    const Text('변경된 이미지',
-                                        style: TextStyle(fontSize: 11)),
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      height: 140,
-                                      decoration: BoxDecoration(
-                                        borderRadius:
-                                        BorderRadius.circular(8),
-                                        border: Border.all(
-                                            color:
-                                            Colors.grey.shade300),
-                                      ),
-                                      clipBehavior: Clip.hardEdge,
-                                      child: Image.network(
-                                        item['new']!,
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
-                                        errorBuilder: (_, __, ___) =>
-                                        const Icon(
-                                            Icons.broken_image,
-                                            size: 40),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ] else ...[
-                          /// ✅ 텍스트 변경은 그대로
-                          RichText(
-                            text: TextSpan(
-                              style: const TextStyle(
-                                  fontSize: 13, color: Colors.black),
-                              children: [
-                                TextSpan(text: '${item['field']}: '),
-                                if (item['old']!.isNotEmpty)
-                                  TextSpan(
-                                    text: '${item['old']} → ',
-                                    style: const TextStyle(
-                                      decoration:
-                                      TextDecoration.lineThrough,
-                                      color: Colors.red,
-                                    ),
-                                  ),
-                                TextSpan(
-                                  text: item['new'] ?? '',
-                                  style: const TextStyle(
-                                      color: Colors.green),
-                                ),
-                              ],
-                            ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.07),
+                            offset: const Offset(0, 2),
+                            blurRadius: 16,
                           ),
                         ],
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () =>
-                                widget.onRestore?.call(version),
-                            child: const Text(
-                              '이전 버전으로 되돌리기',
-                              style: TextStyle(fontSize: 12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 에디터 정보
+                            GestureDetector(
+                              onTap: editorId != null &&
+                                  widget.onTapEditor != null
+                                  ? () => widget.onTapEditor!(
+                                  editorId, editorName)
+                                  : null,
+                              child: RichText(
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.grey),
+                                  children: [
+                                    TextSpan(
+                                      text: editorName,
+                                      style: const TextStyle(
+                                          decoration:
+                                          TextDecoration.underline),
+                                    ),
+                                    TextSpan(text: ' • ${item['date']}'),
+                                    TextSpan(
+                                        text:
+                                        ' • 버전 ${item['version']}')
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 6),
+                            // 변경내역 리스트
+                            ...diffs.map((diff) {
+                              if (diff['type'] == 'image') {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${diff['menuName']} - 이미지 변경',
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              children: [
+                                                const Text('이전 이미지',
+                                                    style: TextStyle(fontSize: 11)),
+                                                const SizedBox(height: 4),
+                                                Container(
+                                                  height: 100,
+                                                  decoration: BoxDecoration(
+                                                    borderRadius:
+                                                    BorderRadius.circular(8),
+                                                    border: Border.all(
+                                                        color: Colors.grey.shade300),
+                                                  ),
+                                                  clipBehavior: Clip.hardEdge,
+                                                  child: diff['old']!.isNotEmpty
+                                                      ? Image.network(
+                                                    diff['old']!,
+                                                    fit: BoxFit.cover,
+                                                    width: double.infinity,
+                                                    errorBuilder:
+                                                        (_, __, ___) =>
+                                                    const Icon(Icons
+                                                        .broken_image,
+                                                        size: 40),
+                                                  )
+                                                      : Container(
+                                                    color: Colors.grey[200],
+                                                    child: const Center(
+                                                      child: Icon(
+                                                          Icons.broken_image,
+                                                          size: 40),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              children: [
+                                                const Text('변경된 이미지',
+                                                    style: TextStyle(fontSize: 11)),
+                                                const SizedBox(height: 4),
+                                                Container(
+                                                  height: 100,
+                                                  decoration: BoxDecoration(
+                                                    borderRadius:
+                                                    BorderRadius.circular(8),
+                                                    border: Border.all(
+                                                        color: Colors.grey.shade300),
+                                                  ),
+                                                  clipBehavior: Clip.hardEdge,
+                                                  child: Image.network(
+                                                    diff['new']!,
+                                                    fit: BoxFit.cover,
+                                                    width: double.infinity,
+                                                    errorBuilder:
+                                                        (_, __, ___) =>
+                                                    const Icon(Icons
+                                                        .broken_image,
+                                                        size: 40),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              } else {
+                                // 텍스트 변경
+                                if (diff['field'] == '메뉴 추가됨') {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      '메뉴 추가됨: ${diff['menuName']}',
+                                      style: const TextStyle(
+                                          color: Colors.green, fontSize: 13),
+                                    ),
+                                  );
+                                } else if (diff['field'] == '메뉴 삭제됨') {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      '메뉴 삭제됨: ${diff['menuName']}',
+                                      style: const TextStyle(
+                                          color: Colors.red, fontSize: 13),
+                                    ),
+                                  );
+                                } else {
+                                  // 필드 변경 (예: 이름, 가격)
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: RichText(
+                                      text: TextSpan(
+                                        style: const TextStyle(
+                                            fontSize: 13, color: Colors.black),
+                                        children: [
+                                          TextSpan(
+                                              text:
+                                              '${diff['menuName']} ${diff['field']}: '),
+                                          if (diff['old']!.isNotEmpty)
+                                            TextSpan(
+                                              text: '${diff['old']} → ',
+                                              style: const TextStyle(
+                                                decoration: TextDecoration
+                                                    .lineThrough,
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                          TextSpan(
+                                            text: diff['new'] ?? '',
+                                            style: const TextStyle(
+                                                color: Colors.green),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            }).toList(),
+                            // 이전 버전으로 되돌리기
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () =>
+                                    widget.onRestore?.call(version),
+                                child: const Text(
+                                  '이전 버전으로 되돌리기',
+                                  style: TextStyle(fontSize: 12),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   );
                 },

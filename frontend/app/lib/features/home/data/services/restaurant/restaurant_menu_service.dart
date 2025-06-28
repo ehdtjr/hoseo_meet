@@ -143,6 +143,19 @@ class RestaurantMenuService {
     }
   }
 
+  Future<void> deleteMenu({
+    required int menuId,
+  }) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/restaurant/menu/$menuId/delete');
 
+    try {
+      final response = await _client.deleteRequest(url.toString());
 
+      if (response.statusCode != 200) {
+        throw Exception('메뉴 삭제 실패: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('메뉴 삭제 중 오류 발생: $e');
+    }
+  }
 }
