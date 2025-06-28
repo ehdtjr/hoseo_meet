@@ -255,7 +255,7 @@ class _RestaurantCustomScrollViewState
             ],
           ),
         ),
-        BottomActionButton(tabIndex: _activeTabIndex),
+        BottomActionButton(tabIndex: _activeTabIndex, postId: widget.restaurant.id),
       ],
     );
   }

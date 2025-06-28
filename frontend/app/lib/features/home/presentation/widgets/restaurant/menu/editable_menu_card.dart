@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -19,6 +20,7 @@ class _EditableMenuCardState extends ConsumerState<EditableMenuCard> {
   late TextEditingController _nameController;
   late TextEditingController _priceController;
   File? _selectedImage;
+  bool _isSaving = false; // ✅ 로딩 상태
 
   @override
   void initState() {
@@ -108,7 +110,9 @@ class _EditableMenuCardState extends ConsumerState<EditableMenuCard> {
                           foregroundColor: Colors.red,
                           side: const BorderSide(color: Colors.red),
                         ),
-                        onPressed: () {
+                        onPressed: _isSaving
+                            ? null
+                            : () {
                           ref.read(restaurantMenuProvider.notifier).exitEditMode();
                         },
                         child: const Text("취소"),
@@ -119,19 +123,17 @@ class _EditableMenuCardState extends ConsumerState<EditableMenuCard> {
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () {
-                          final updated = widget.menu.copyWith(
-                            name: _nameController.text,
-                            price: int.tryParse(_priceController.text) ?? widget.menu.price,
-                            image: _selectedImage?.path ?? widget.menu.image,
-                          );
-
-                          ref.read(restaurantMenuProvider.notifier).updateMenuInState(
-                            updated,
-                            imageFile: _selectedImage, // ← File 객체 전달
-                          );
-                        },
-                        child: const Text("저장"),
+                        onPressed: _isSaving ? null : _saveMenu,
+                        child: _isSaving
+                            ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                            : const Text("저장"),
                       ),
                     ],
                   )
@@ -165,6 +167,29 @@ class _EditableMenuCardState extends ConsumerState<EditableMenuCard> {
     if (selectedPath != null) {
       setState(() {
         _selectedImage = File(selectedPath);
+      });
+    }
+  }
+
+  Future<void> _saveMenu() async {
+    setState(() {
+      _isSaving = true;
+    });
+
+    final updated = widget.menu.copyWith(
+      name: _nameController.text,
+      price: int.tryParse(_priceController.text) ?? widget.menu.price,
+      image: _selectedImage?.path ?? widget.menu.image,
+    );
+
+    await ref.read(restaurantMenuProvider.notifier).updateMenuInState(
+      updated,
+      imageFile: _selectedImage,
+    );
+
+    if (mounted) {
+      setState(() {
+        _isSaving = false;
       });
     }
   }

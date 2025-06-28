@@ -15,7 +15,7 @@ class MenuSection extends ConsumerStatefulWidget {
 
 class _MenuSectionState extends ConsumerState<MenuSection> {
   bool _didLoad = false;
-  int visibleCount = 5;
+  int visibleCount = 2;
 
   @override
   void didChangeDependencies() {

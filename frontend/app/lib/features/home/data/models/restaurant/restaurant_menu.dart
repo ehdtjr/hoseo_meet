@@ -15,17 +15,27 @@ class RestaurantMenu {
     required this.image,
   });
 
+  /// ✅ Null-safe fromJson
   factory RestaurantMenu.fromJson(Map<String, dynamic> json) {
     return RestaurantMenu(
-      id: json['id'] as int,
-      editorId: json['editor_id'] as int,
-      postId: json['post_id'] as int,
-      name: json['name'] as String,
-      price: json['price'] as int,
-      image: json['image'] as String,
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse(json['id']?.toString() ?? '') ?? -1,
+      editorId: json['editor_id'] is int
+          ? json['editor_id'] as int
+          : int.tryParse(json['editor_id']?.toString() ?? '') ?? -1,
+      postId: json['post_id'] is int
+          ? json['post_id'] as int
+          : int.tryParse(json['post_id']?.toString() ?? '') ?? -1,
+      name: json['name']?.toString() ?? '',
+      price: json['price'] is int
+          ? json['price'] as int
+          : int.tryParse(json['price']?.toString() ?? '') ?? 0,
+      image: json['image']?.toString() ?? '',
     );
   }
 
+  /// ✅ toJson
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -37,6 +47,7 @@ class RestaurantMenu {
     };
   }
 
+  /// ✅ 안전한 copyWith
   RestaurantMenu copyWith({
     int? id,
     int? editorId,
@@ -59,18 +70,18 @@ class RestaurantMenu {
 class RestaurantMenuState {
   final List<RestaurantMenu> menus;
   final RestaurantMenu? selectedMenuForEdit;
-  final bool editMode; // ✅ 추가됨
+  final bool editMode;
 
   RestaurantMenuState({
     required this.menus,
     this.selectedMenuForEdit,
-    this.editMode = false, // ✅ 기본값 false
+    this.editMode = false,
   });
 
   RestaurantMenuState copyWith({
     List<RestaurantMenu>? menus,
     RestaurantMenu? selectedMenuForEdit,
-    bool? editMode, // ✅ copyWith에도 추가
+    bool? editMode,
   }) {
     return RestaurantMenuState(
       menus: menus ?? this.menus,
