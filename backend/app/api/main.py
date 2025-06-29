@@ -13,9 +13,9 @@ from app.api.routes import (
     chat_bot,
     info
 )
-from app.admin import router as admin_router
-from app.restaurant import routes as restaurant_routes
-
+from app.domains.admin import router as admin_router
+from app.domains.restaurant import routes as restaurant_routes
+from app.domains.randomchat import routes as randomchat_routes
 
 api_router = APIRouter()
 
@@ -45,4 +45,7 @@ api_router.include_router(
 )
 api_router.include_router(
     restaurant_routes.router, prefix="/restaurant", tags=["restaurant"]
+)
+api_router.include_router(
+    randomchat_routes.router, prefix="/random", tags=["random"]
 )

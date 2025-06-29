@@ -1,4 +1,4 @@
-from typing import Protocol, Optional, List, Dict, Any, Callable, Coroutine
+from typing import Protocol, Optional, List, Dict, Callable
 from collections import defaultdict
 
 from geoalchemy2.shape import from_shape
@@ -14,11 +14,11 @@ from shapely import wkb
 
 
 from app.crud.base import CRUDBase
-from app.restaurant.model import RestaurantPost, RestaurantPostVersion, \
+from app.domains.restaurant.model import RestaurantPost, RestaurantPostVersion, \
     RestaurantReview, RestaurantHeart, RestaurantPostImage, \
     RestaurantPostImageSetVersion, RestaurantMenu, RestaurantMenuSetVersion
 
-from app.restaurant.schemas import (
+from app.domains.restaurant.schemas import (
     RestaurantPostBase,
     RestaurantPostCreate,
     RestaurantPostVersionBase,

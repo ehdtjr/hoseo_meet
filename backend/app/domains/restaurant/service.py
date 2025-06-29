@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 
 from app.core.exceptions import NotFoundException, InvalidImageFormatException
 from app.core.s3 import S3Manager, get_s3_manager
-from app.restaurant.crud import (
+from app.domains.restaurant.crud import (
     RestaurantPostCRUDProtocol,
     RestaurantPostVersionCRUDProtocol,
     get_restaurant_post_crud,
@@ -16,7 +16,7 @@ from app.restaurant.crud import (
     get_restaurant_menu_set_version_crud, RestaurantMenuCRUDProtocol,
     RestaurantMenuSetVersionCRUDProtocol,
 )
-from app.restaurant.schemas import (
+from app.domains.restaurant.schemas import (
     RestaurantPostCreate,
     RestaurantPostBase,
     RestaurantPostVersionCreate,

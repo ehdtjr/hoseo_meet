@@ -7,15 +7,15 @@ from sqlalchemy.ext.asyncio.session import AsyncSession
 from app.core.db import get_async_session
 from app.core.security import current_active_user
 from app.models import User
-from app.restaurant.crud import RestaurantPostVersionCRUD, \
+from app.domains.restaurant.crud import RestaurantPostVersionCRUD, \
     get_restaurant_post_version_crud, RestaurantPostImageCRUDProtocol, \
     get_restaurant_post_image_crud, get_restaurant_post_image_set_version_crud, \
     RestaurantMenuSetVersionCRUDProtocol, get_restaurant_menu_set_version_crud
-from app.restaurant.schemas import RestaurantPostCreate, RestaurantPostRequest, \
+from app.domains.restaurant.schemas import RestaurantPostCreate, RestaurantPostRequest, \
     RestaurantPostUpdate, RestaurantListItem, RestaurantPostVersionBase, \
     RestaurantPostImageBase, RestaurantPostImageSetVersionBase, \
     RestaurantPostDetail, RestaurantMenuSetVersionBase, RestaurantMenuBase
-from app.restaurant.service import RestaurantPostServiceProtocol, \
+from app.domains.restaurant.service import RestaurantPostServiceProtocol, \
     get_restaurant_post_service, RestaurantPostService, \
     get_restaurant_post_image_service, RestaurantPostImageServiceProtocol, \
     RestaurantMenuServiceProtocol, get_restaurant_menu_service

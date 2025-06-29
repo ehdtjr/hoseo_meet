@@ -29,7 +29,7 @@ class WebSocketEventSender(EventSenderProtocol):
     EventBase):
         if not event_data:
             raise ValueError("이벤트 데이터가 비어 있거나 유효하지 않습니다")
-        await redis_client.redis.xadd(f"queue:{user_id}", event_data.model_dump())
+            await redis_client.redis.xadd(f"queue:{user_id}", event_data.model_dump())
 
     async def send_events(self, db:AsyncSession,
                           user_ids: list[int], event_data: EventBase):

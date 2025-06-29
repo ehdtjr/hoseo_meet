@@ -59,7 +59,8 @@ class StreamService(StreamServiceProtocol):
             logger.error(f"Unexpected error while creating stream: {e}")
             return None
 
-async def get_stream_service() -> StreamServiceProtocol:
+async def get_stream_service(
+) -> StreamServiceProtocol:
     return StreamService(get_stream_crud(), get_recipient_crud())
 
 
