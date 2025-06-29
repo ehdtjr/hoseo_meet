@@ -565,8 +565,17 @@ class RestaurantMenuCRUDProtocol(Protocol):
         self, db: AsyncSession, post_id: int
     ) -> List[RestaurantMenuBase]: ...
 
+    async def delete_by_ids(self, db: AsyncSession, ids: list[int]) -> None:
+        ...
+
+    async def bulk_create(self, db: AsyncSession, objs_in: list[RestaurantMenuCreate]) -> None:
+        ...
+
 
 class RestaurantMenuSetVersionCRUDProtocol(Protocol):
+    async def get(self, db: AsyncSession, menu_id: int) -> Optional[RestaurantMenuSetVersionBase]:
+        ...
+
     async def create_version(
         self, db: AsyncSession, obj_in: RestaurantMenuSetVersionCreate
     ) -> RestaurantMenuSetVersionBase: ...
@@ -602,6 +611,16 @@ class RestaurantMenuCRUD(CRUDBase[RestaurantMenu, RestaurantMenuBase], Restauran
         menus = result.scalars().all()
         return [self.schema.model_validate(menu, from_attributes=True) for menu in menus]
 
+    async def delete_by_ids(self, db: AsyncSession, ids: list[int]) -> None:
+        stmt = delete(self.model).where(self.model.id.in_(ids))
+        await db.execute(stmt)
+        await db.commit()
+
+    async def bulk_create(self, db: AsyncSession, objs_in: list[RestaurantMenuCreate]) -> None:
+        db_objs = [self.model(**obj.model_dump()) for obj in objs_in]
+        db.add_all(db_objs)
+        await db.commit()
+
 
 class RestaurantMenuSetVersionCRUD(
     CRUDBase[RestaurantMenuSetVersion, RestaurantMenuSetVersionBase],
@@ -609,6 +628,9 @@ class RestaurantMenuSetVersionCRUD(
 ):
     def __init__(self):
         super().__init__(RestaurantMenuSetVersion, RestaurantMenuSetVersionBase)
+
+    async def get(self, db: AsyncSession, menu_id: int) -> Optional[RestaurantMenuSetVersionBase]:
+        return await super().get(db, menu_id)
 
     async def create_version(self, db: AsyncSession, obj_in: RestaurantMenuSetVersionCreate) -> RestaurantMenuSetVersionBase:
         result = await db.execute(
@@ -649,7 +671,7 @@ class RestaurantMenuSetVersionCRUD(
         result = await db.execute(
             select(self.model)
             .where(self.model.post_id == post_id)
-            .order_by(self.model.version.desc())
+            .order_by(self.model.id.desc())
             .offset(skip)
             .limit(limit)
         )

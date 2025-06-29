@@ -25,7 +25,7 @@ from app.restaurant.schemas import (
     Location, RestaurantPostImageCreate, RestaurantPostImageBase,
     RestaurantListItem, RestaurantPostImageSetVersionCreate,
     RestaurantPostDetail, RestaurantMenuBase, RestaurantMenuCreate,
-    RestaurantMenuSetVersionBase, RestaurantMenuSetVersionCreate,
+    RestaurantMenuSetVersionBase, RestaurantMenuSetVersionCreate, MenuItem,
 )
 from app.utils.s3 import generate_s3_key
 
@@ -439,7 +439,13 @@ class RestaurantMenuService(RestaurantMenuServiceProtocol):
     async def save_version(self, db: AsyncSession, post_id: int, editor_id: int) -> RestaurantMenuSetVersionBase:
         menus = await self.menu_crud.get_by_post_id(db, post_id)
         menu_items = [
-            {"name": m.name, "price": m.price, "image": m.image} for m in menus
+            MenuItem(
+                id=m.id,
+                name=m.name,
+                price=m.price,
+                image=m.image
+            )
+            for m in menus
         ]
         version_data = RestaurantMenuSetVersionCreate(
             post_id=post_id,
@@ -486,29 +492,32 @@ class RestaurantMenuService(RestaurantMenuServiceProtocol):
         await self.menu_crud.delete(db=db, menu_id=menu_id)
         await self.save_version(db=db, post_id=menu.post_id, editor_id=editor_id)
 
-
-    async def rollback(self, db: AsyncSession, version_id: int, editor_id: int) -> None:
-        version = await self.version_crud.get(db, id=version_id)
+    async def rollback(self, db: AsyncSession, version_id: int,
+                       editor_id: int) -> None:
+        version = await self.version_crud.get(db, menu_id=version_id)
         if not version:
             raise NotFoundException()
 
         post_id = version.post_id
-        await self.menu_crud.delete_by_post_id(db, post_id)
+
+        current_menus = await self.menu_crud.get_by_post_id(db, post_id)
+        current_ids = [m.id for m in current_menus]
+        if current_ids:
+            await self.menu_crud.delete_by_ids(db, current_ids)
 
         new_menus = [
             RestaurantMenuCreate(
                 post_id=post_id,
                 editor_id=editor_id,
-                name=menu["name"],
-                price=menu["price"],
-                image=menu.get("image")
+                name=menu.name,
+                price=menu.price,
+                image=menu.image
             )
             for menu in version.menus
         ]
-        for menu in new_menus:
-            await self.menu_crud.create(db, menu)
-
+        await self.menu_crud.bulk_create(db, new_menus)
         await self.save_version(db, post_id, editor_id)
+
 
 def get_restaurant_menu_service(
     menu_crud: RestaurantMenuCRUDProtocol = Depends(get_restaurant_menu_crud),

@@ -170,6 +170,7 @@ class RestaurantPostImageSetVersionCreate(BaseModel):
     editor_id: int
 
 class MenuItem(BaseModel):
+    id: int
     name: str
     price: int
     image: Optional[str] = None

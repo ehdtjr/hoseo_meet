@@ -240,7 +240,7 @@ async def delete_menu(
     user: User = Depends(current_active_user),
     menu_service: RestaurantMenuServiceProtocol = Depends(get_restaurant_menu_service),
 ):
-    ...
+    return await menu_service.delete(db, menu_id=menu_id, editor_id=user.id)
 
 @router.get("/menu/versions/{post_id}", response_model=List[RestaurantMenuSetVersionBase])
 async def get_menu_versions(
