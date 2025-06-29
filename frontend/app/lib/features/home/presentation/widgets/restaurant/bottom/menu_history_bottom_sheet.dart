@@ -25,49 +25,80 @@ class MenuHistoryBottomSheet extends StatefulWidget {
 }
 
 class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
+  final ScrollController _scrollController = ScrollController();
+
   final List<RestaurantMenuVersion> _versions = [];
   final List<Map<String, dynamic>> _history = [];
+
   bool _isLoading = false;
+  bool _hasMore = true;
+  int _skip = 0;
+  final int _limit = 20;
 
   @override
   void initState() {
     super.initState();
-    _loadAllVersions();
+    _scrollController.addListener(_onScroll);
+    _loadMoreVersions();
   }
 
-  Future<void> _loadAllVersions() async {
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// 스크롤이 끝에 가까워지면 더 불러오기
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoading &&
+        _hasMore) {
+      _loadMoreVersions();
+    }
+  }
+
+  /// 버전 추가 로딩
+  Future<void> _loadMoreVersions() async {
     setState(() => _isLoading = true);
 
-    // 모든 버전을 한 번에 불러옴
-    final allVersions = await widget.fetchVersions(skip: 0, limit: 9999);
+    final newVersions = await widget.fetchVersions(
+      skip: _skip,
+      limit: _limit,
+    );
 
-    // 최신 → 과거 순으로 정렬
-    allVersions.sort((a, b) => b.version.compareTo(a.version));
+    if (newVersions.isEmpty) {
+      _hasMore = false;
+    } else {
+      // 최신순 정렬
+      newVersions.sort((a, b) => b.version.compareTo(a.version));
 
-    final List<Map<String, dynamic>> newHistory = [];
-    for (int i = 0; i < allVersions.length - 1; i++) {
-      final diffs = _getDiffs(allVersions[i], allVersions[i + 1]);
-      if (diffs.isNotEmpty) {
-        newHistory.add({
-          'date': allVersions[i].createdAt.toString(),
-          'editorId': allVersions[i].editorId.toString(),
-          'editor': widget.editorNames[allVersions[i].editorId] ?? '사용자 ${allVersions[i].editorId}',
-          'version': allVersions[i].version.toString(),
-          'diffs': diffs,
-        });
+      final List<Map<String, dynamic>> newHistory = [];
+      for (int i = 0; i < newVersions.length - 1; i++) {
+        final diffs = _getDiffs(newVersions[i], newVersions[i + 1]);
+        if (diffs.isNotEmpty) {
+          newHistory.add({
+            'date': newVersions[i].createdAt.toString(),
+            'editorId': newVersions[i].editorId.toString(),
+            'editor': widget.editorNames[newVersions[i].editorId] ??
+                '사용자 ${newVersions[i].editorId}',
+            'version': newVersions[i].version.toString(),
+            'diffs': diffs,
+          });
+        }
       }
+
+      setState(() {
+        _versions.addAll(newVersions);
+        _history.addAll(newHistory);
+        _skip += newVersions.length;
+      });
     }
 
-    setState(() {
-      _versions.clear();
-      _versions.addAll(allVersions);
-      _history.clear();
-      _history.addAll(newHistory);
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
   }
 
-  /// 버전쌍의 diff만 묶어서 반환 (각 diff는 map)
+  /// 버전 간 diff 계산
   List<Map<String, String>> _getDiffs(
       RestaurantMenuVersion curr, RestaurantMenuVersion prev) {
     final List<Map<String, String>> diffs = [];
@@ -75,7 +106,6 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
     final currIds = curr.menus.map((m) => m.id).toSet();
     final prevIds = prev.menus.map((m) => m.id).toSet();
 
-    // 변경/추가
     for (final currMenu in curr.menus) {
       final prevMenu = prev.menus
           .where((m) => m.id == currMenu.id)
@@ -110,7 +140,6 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
       }
     }
 
-    // 삭제
     final deletedIds = prevIds.difference(currIds);
     for (final deletedId in deletedIds) {
       final deletedMenu = prev.menus.firstWhere((m) => m.id == deletedId);
@@ -137,16 +166,16 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
           initialChildSize: 0.6,
           minChildSize: 0.3,
           maxChildSize: 0.95,
-          builder: (context, scrollController) {
+          builder: (context, _) {
             return Padding(
               padding: const EdgeInsets.all(16),
-              child: _isLoading
+              child: _history.isEmpty && _isLoading
                   ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
                   : _history.isEmpty
                   ? const Center(child: Text('메뉴 변경 이력이 없습니다.'))
                   : ListView.builder(
-                controller: scrollController,
-                itemCount: _history.length + 1,
+                controller: _scrollController,
+                itemCount: _history.length + (_hasMore ? 2 : 1),
                 itemBuilder: (context, index) {
                   if (index == 0) {
                     return const Padding(
@@ -154,7 +183,18 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
                       child: Text(
                         '메뉴 수정 이력',
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    );
+                  }
+
+                  if (index == _history.length + 1 && _hasMore) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(
+                        child:
+                        CircularProgressIndicator(strokeWidth: 2),
                       ),
                     );
                   }
@@ -190,9 +230,9 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
                       child: Padding(
                         padding: const EdgeInsets.all(14),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
                           children: [
-                            // 에디터 정보
                             GestureDetector(
                               onTap: editorId != null &&
                                   widget.onTapEditor != null
@@ -202,15 +242,17 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
                               child: RichText(
                                 text: TextSpan(
                                   style: const TextStyle(
-                                      fontSize: 12, color: Colors.grey),
+                                      fontSize: 12,
+                                      color: Colors.grey),
                                   children: [
                                     TextSpan(
                                       text: editorName,
                                       style: const TextStyle(
-                                          decoration:
-                                          TextDecoration.underline),
+                                          decoration: TextDecoration
+                                              .underline),
                                     ),
-                                    TextSpan(text: ' • ${item['date']}'),
+                                    TextSpan(
+                                        text: ' • ${item['date']}'),
                                     TextSpan(
                                         text:
                                         ' • 버전 ${item['version']}')
@@ -219,18 +261,20 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
                               ),
                             ),
                             const SizedBox(height: 6),
-                            // 변경내역 리스트
                             ...diffs.map((diff) {
                               if (diff['type'] == 'image') {
                                 return Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.only(
+                                      bottom: 10),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '${diff['menuName']} - 이미지 변경',
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
+                                            fontWeight:
+                                            FontWeight.bold,
                                             fontSize: 13),
                                       ),
                                       const SizedBox(height: 6),
@@ -240,34 +284,53 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
                                             child: Column(
                                               children: [
                                                 const Text('이전 이미지',
-                                                    style: TextStyle(fontSize: 11)),
-                                                const SizedBox(height: 4),
+                                                    style: TextStyle(
+                                                        fontSize:
+                                                        11)),
+                                                const SizedBox(
+                                                    height: 4),
                                                 Container(
                                                   height: 100,
-                                                  decoration: BoxDecoration(
+                                                  decoration:
+                                                  BoxDecoration(
                                                     borderRadius:
-                                                    BorderRadius.circular(8),
+                                                    BorderRadius
+                                                        .circular(
+                                                        8),
                                                     border: Border.all(
-                                                        color: Colors.grey.shade300),
+                                                        color: Colors
+                                                            .grey
+                                                            .shade300),
                                                   ),
-                                                  clipBehavior: Clip.hardEdge,
-                                                  child: diff['old']!.isNotEmpty
+                                                  clipBehavior:
+                                                  Clip.hardEdge,
+                                                  child: diff['old']!
+                                                      .isNotEmpty
                                                       ? Image.network(
                                                     diff['old']!,
-                                                    fit: BoxFit.cover,
-                                                    width: double.infinity,
-                                                    errorBuilder:
-                                                        (_, __, ___) =>
-                                                    const Icon(Icons
-                                                        .broken_image,
-                                                        size: 40),
+                                                    fit: BoxFit
+                                                        .cover,
+                                                    width: double
+                                                        .infinity,
+                                                    errorBuilder: (_,
+                                                        __,
+                                                        ___) =>
+                                                    const Icon(
+                                                        Icons
+                                                            .broken_image,
+                                                        size:
+                                                        40),
                                                   )
                                                       : Container(
-                                                    color: Colors.grey[200],
-                                                    child: const Center(
+                                                    color: Colors
+                                                        .grey[200],
+                                                    child:
+                                                    const Center(
                                                       child: Icon(
-                                                          Icons.broken_image,
-                                                          size: 40),
+                                                          Icons
+                                                              .broken_image,
+                                                          size:
+                                                          40),
                                                     ),
                                                   ),
                                                 ),
@@ -279,23 +342,33 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
                                             child: Column(
                                               children: [
                                                 const Text('변경된 이미지',
-                                                    style: TextStyle(fontSize: 11)),
-                                                const SizedBox(height: 4),
+                                                    style: TextStyle(
+                                                        fontSize:
+                                                        11)),
+                                                const SizedBox(
+                                                    height: 4),
                                                 Container(
                                                   height: 100,
-                                                  decoration: BoxDecoration(
+                                                  decoration:
+                                                  BoxDecoration(
                                                     borderRadius:
-                                                    BorderRadius.circular(8),
+                                                    BorderRadius
+                                                        .circular(
+                                                        8),
                                                     border: Border.all(
-                                                        color: Colors.grey.shade300),
+                                                        color: Colors
+                                                            .grey
+                                                            .shade300),
                                                   ),
-                                                  clipBehavior: Clip.hardEdge,
+                                                  clipBehavior:
+                                                  Clip.hardEdge,
                                                   child: Image.network(
                                                     diff['new']!,
                                                     fit: BoxFit.cover,
-                                                    width: double.infinity,
-                                                    errorBuilder:
-                                                        (_, __, ___) =>
+                                                    width:
+                                                    double.infinity,
+                                                    errorBuilder: (_,
+                                                        __, ___) =>
                                                     const Icon(Icons
                                                         .broken_image,
                                                         size: 40),
@@ -310,42 +383,49 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
                                   ),
                                 );
                               } else {
-                                // 텍스트 변경
                                 if (diff['field'] == '메뉴 추가됨') {
                                   return Padding(
-                                    padding: const EdgeInsets.only(bottom: 4),
+                                    padding: const EdgeInsets.only(
+                                        bottom: 4),
                                     child: Text(
                                       '메뉴 추가됨: ${diff['menuName']}',
                                       style: const TextStyle(
-                                          color: Colors.green, fontSize: 13),
+                                          color: Colors.green,
+                                          fontSize: 13),
                                     ),
                                   );
-                                } else if (diff['field'] == '메뉴 삭제됨') {
+                                } else if (diff['field'] ==
+                                    '메뉴 삭제됨') {
                                   return Padding(
-                                    padding: const EdgeInsets.only(bottom: 4),
+                                    padding: const EdgeInsets.only(
+                                        bottom: 4),
                                     child: Text(
                                       '메뉴 삭제됨: ${diff['menuName']}',
                                       style: const TextStyle(
-                                          color: Colors.red, fontSize: 13),
+                                          color: Colors.red,
+                                          fontSize: 13),
                                     ),
                                   );
                                 } else {
-                                  // 필드 변경 (예: 이름, 가격)
                                   return Padding(
-                                    padding: const EdgeInsets.only(bottom: 4),
+                                    padding: const EdgeInsets.only(
+                                        bottom: 4),
                                     child: RichText(
                                       text: TextSpan(
                                         style: const TextStyle(
-                                            fontSize: 13, color: Colors.black),
+                                            fontSize: 13,
+                                            color: Colors.black),
                                         children: [
                                           TextSpan(
                                               text:
                                               '${diff['menuName']} ${diff['field']}: '),
                                           if (diff['old']!.isNotEmpty)
                                             TextSpan(
-                                              text: '${diff['old']} → ',
+                                              text:
+                                              '${diff['old']} → ',
                                               style: const TextStyle(
-                                                decoration: TextDecoration
+                                                decoration:
+                                                TextDecoration
                                                     .lineThrough,
                                                 color: Colors.red,
                                               ),
@@ -362,7 +442,6 @@ class _MenuHistoryBottomSheetState extends State<MenuHistoryBottomSheet> {
                                 }
                               }
                             }).toList(),
-                            // 이전 버전으로 되돌리기
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButton(
