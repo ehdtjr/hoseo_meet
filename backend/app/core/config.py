@@ -1,21 +1,20 @@
 import secrets
 import warnings
 from pathlib import Path
-from typing import Annotated, Any, Literal, ClassVar
+from typing import Annotated, Any, ClassVar, Literal
 
+from dotenv import load_dotenv
 from pydantic import (
     AnyUrl,
     BeforeValidator,
+    Field,
     HttpUrl,
-    PostgresDsn,
     computed_field,
     model_validator,
 )
 from pydantic_core import MultiHostUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
-
-from dotenv import load_dotenv
 
 # .env 파일 로드
 load_dotenv()
@@ -49,9 +48,9 @@ class Settings(BaseSettings):
             return f"http://{self.DOMAIN}"
         return f"https://{self.DOMAIN}"
 
-    BACKEND_CORS_ORIGINS: Annotated[
-        list[AnyUrl] | str, BeforeValidator(parse_cors)
-    ] = []
+    BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = (
+        []
+    )
 
     PROJECT_NAME: str
     SENTRY_DSN: HttpUrl | None = None
@@ -60,6 +59,13 @@ class Settings(BaseSettings):
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = ""
+
+    # AWS S3 설정
+    AWS_ACCESS_KEY_ID: str = Field(..., env="AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
+    AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")
+    S3_BUCKET_NAME: str = Field(..., env="S3_BUCKET_NAME")
+    CLOUD_FRONT_DOMAIN_URL:str = Field(..., env="CLOUD_FRONT_DOMAIN_URL")
 
     # eamil settings
     SMTP_PORT: int
@@ -72,11 +78,23 @@ class Settings(BaseSettings):
     UNIVERSITY_EMAIL_DOMAIN: str
     EMAIL_TEMPLATE_DIR: ClassVar[Path] = BASE_DIR / "email-templates"
 
+    #  redis settings
+    REDIS_HOST: str
+    REDIS_PORT: int = 6379
+
+    RUNPOD_SENTIMENT_API_URL:str
+    RUNPOD_API_KEY:str
+    RUNPOD_ENDPOINT_ID:str
+
+    @property
+    def redis_url(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
+
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
+    def SQLALCHEMY_DATABASE_URI(self) -> MultiHostUrl:
         return MultiHostUrl.build(
-            scheme="postgresql+psycopg",
+            scheme="postgresql+asyncpg",
             username=self.POSTGRES_USER,
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_SERVER,
@@ -86,6 +104,7 @@ class Settings(BaseSettings):
 
     FIRST_SUPERUSER: str
     FIRST_SUPERUSER_PASSWORD: str
+    OPENAI_API_KEY:str
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
@@ -110,29 +129,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
-from pydantic import (
-    PostgresDsn
-)
-from pydantic_core import MultiHostUrl
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_ignore_empty=True,
-        extra="ignore",
-    )
-
-    @computed_field  # type: ignore[misc]
-    @property
-    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
-        return MultiHostUrl.build(
-            scheme="postgresql+psycopg",
-            username=self.POSTGRES_USER,
-            password=self.POSTGRES_PASSWORD,
-            host=self.POSTGRES_SERVER,
-            port=self.POSTGRES_PORT,
-            path=self.POSTGRES_DB,
-        )
-
-settings = Settings()

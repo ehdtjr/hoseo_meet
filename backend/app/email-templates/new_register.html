@@ -1,13 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Hoseo meet 계정 인증</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Meet - 이메일 인증</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #333;
+        }
+        p {
+            line-height: 1.6;
+            color: #555;
+        }
+        a {
+            display: inline-block;
+            background-color: #007bff;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        a:hover {
+            background-color: #0056b3;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
 </head>
 <body>
-    <h2>Hello,</h2>
-    <p>Please verify your email address by clicking on the link below:</p>
-    <a href="{{ verification_link }}">Verify Email</a>
-    <p>If you did not create an account, please ignore this email.</p>
+    <div class="container">
+        <h2>안녕하세요,</h2>
+        <p>Campus Meet에 가입해 주셔서 감사합니다. 아래 버튼을 클릭하여 이메일 주소를 인증해주세요.</p>
+        <a href="{{ verification_link }}">이메일 인증하기</a>
+        <p>만약 회원가입을 요청하지 않으셨다면, 이 이메일을 무시하셔도 됩니다.</p>
+        <div class="footer">
+            <p>© 2025 Campus Meet. All rights reserved.</p>
+        </div>
+    </div>
 </body>
 </html>

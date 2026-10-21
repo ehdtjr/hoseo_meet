@@ -1,9 +1,51 @@
 from fastapi import APIRouter
 
-
-from app.api.routes import auth
+from app.api.routes import (
+    auth,
+    meet_post,
+    messages,
+    stream,
+    users,
+    oauth,
+    websocket,
+    room_post,
+    story_post,
+    chat_bot,
+    info
+)
+from app.domains.admin import router as admin_router
+from app.domains.restaurant import routes as restaurant_routes
+from app.domains.randomchat import routes as randomchat_routes
 
 api_router = APIRouter()
 
-
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+api_router.include_router(oauth.router, prefix="/oauth", tags=["oauth"])
+api_router.include_router(stream.router, prefix="/stream", tags=["stream"])
+api_router.include_router(websocket.router, prefix="/events", tags=["events"])
+api_router.include_router(users.router, prefix="/users", tags=["users"])
+api_router.include_router(messages.router, prefix="/messages", tags=["messages"])
+api_router.include_router(
+    meet_post.router, prefix="/meet_post", tags=["meet_post"]
+)
+api_router.include_router(
+    room_post.router, prefix="/room_post", tags=["room_post"]
+)
+api_router.include_router(
+    story_post.router, prefix="/story_post", tags=["story_post"]
+)
+api_router.include_router(
+    chat_bot.router, prefix="/chat_bot", tags=["chat_bot"]
+)
+api_router.include_router(
+    info.router, prefix="/info", tags=["info"]
+)
+api_router.include_router(
+    admin_router.admin_router, prefix="/admin", tags=["admin"]
+)
+api_router.include_router(
+    restaurant_routes.router, prefix="/restaurant", tags=["restaurant"]
+)
+api_router.include_router(
+    randomchat_routes.router, prefix="/random", tags=["random"]
+)
