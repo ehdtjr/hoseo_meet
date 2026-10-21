@@ -1,0 +1,128 @@
+import 'dart:convert';
+import 'dart:io';
+import '../../../../commons/network/auth_http_client.dart';
+import '../../../../config.dart';
+import '../models/story_post.dart';
+
+class StoryPostService {
+  final AuthHttpClient _client;
+
+  StoryPostService(this._client);
+
+  /// ✅ 스토리 리스트 불러오기
+  Future<List<StoryPost>> loadListStoryPost() async {
+    final url = Uri.parse('${AppConfig.baseUrl}/story_post/list');
+    try {
+      final response = await _client.getRequest(url.toString());
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData =
+        json.decode(utf8.decode(response.bodyBytes));
+        return jsonData.map((data) => StoryPost.fromJson(data)).toList();
+      } else {
+        throw Exception('Failed to load story posts: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error loading story posts: $e');
+    }
+  }
+
+  /// ✅ 특정 스토리 게시글 상세 조회
+  Future<StoryPost> loadDetailStoryPost(int postId) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/story_post/$postId');
+
+    try {
+      final response = await _client.getRequest(url.toString());
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonData =
+        json.decode(utf8.decode(response.bodyBytes));
+        return StoryPost.fromJson(jsonData);
+      } else {
+        throw Exception(
+            'Failed to load story post detail: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Error loading story post detail: $e');
+    }
+  }
+
+  /// ✅ (NEW) 이미지 업로드 (multipart/form-data)
+  Future<String> uploadStoryImage(File imageFile) async {
+    const url = '${AppConfig.baseUrl}/story_post/upload_image';
+
+    try {
+      final response = await _client.postSingleMultipartRequest(url, "file", imageFile);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonData = json.decode(response.body);
+        return jsonData['url']; // ✅ 서버에서 반환하는 업로드된 이미지 URL
+      } else {
+        throw Exception(
+            'Failed to upload image: ${response.statusCode}, Response: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error uploading image: $e');
+    }
+  }
+
+  Future<StoryPost> createStoryPost(CreateStoryPost post) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/story_post/create');
+
+    try {
+      final response = await _client.postRequest(
+        url.toString(),
+        post.toJson(), // ✅ JSON 변환 없이 Map 그대로 전달
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonData =
+        json.decode(utf8.decode(response.bodyBytes));
+        return StoryPost.fromJson(jsonData);
+      } else {
+        throw Exception('Failed to create story post: ${response.statusCode}, Response: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error creating story post: $e');
+    }
+  }
+
+  /// ✅ 스토리 구독하기
+  Future<bool> subscribeToStoryPost(int postId) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/story_post/subscribe/$postId');
+
+    try {
+      final response = await _client.postRequest(
+        url.toString(),
+        {}, // 빈 body로 POST 요청
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonData =
+        json.decode(utf8.decode(response.bodyBytes));
+        return jsonData['success']; // 서버에서 반환하는 성공 여부
+      } else {
+        throw Exception('Failed to subscribe to story: ${response.statusCode}, Response: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error subscribing to story: $e');
+    }
+  }
+
+  Future<bool> deleteStoryPost(int postId) async {
+    final url = Uri.parse('${AppConfig.baseUrl}/story_post/delete/$postId');
+
+    try {
+      final response = await _client.deleteRequest(url.toString());
+
+      if (response.statusCode == 204) {
+        return true;
+      } else {
+        throw Exception('Failed to delete story post: ${response.statusCode}, Response: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Error deleting story post: $e');
+    }
+  }
+
+}

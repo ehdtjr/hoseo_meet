@@ -1,0 +1,22 @@
+import 'package:campusmeet/features/story/providers/story_post_notifier.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../commons/network/auth_http_client_provider.dart';
+import '../../auth/providers/user_profile_provider.dart';
+import '../data/models/story_post.dart';
+import '../data/services/story_post_service.dart';
+
+final storyPostServiceProvider = Provider<StoryPostService>((ref) {
+  final client = ref.watch(authHttpClientProvider);
+  return StoryPostService(client);
+});
+
+final storyPostProvider =
+StateNotifierProvider<StoryPostNotifier, List<StoryPost>>((ref) {
+  final service = ref.watch(storyPostServiceProvider);
+  final userService = ref.watch(userServiceProvider); // ✅ 추가된 부분
+
+  return StoryPostNotifier(service, userService);
+});
+
+final uploadedImageUrlProvider = StateProvider<String?>((ref) => null);

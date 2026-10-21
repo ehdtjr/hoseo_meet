@@ -18,3 +18,16 @@ hoseo-meet-firebase.json
 .env
 .DS_Store
 /backend/app/celery/ai_moel
+
+# Local environments and generated artifacts must not enter integration commits.
+__pycache__/
+*.pyo
+.coverage
+htmlcov/
+.pytest_cache/
+**/build/
+**/.dart_tool/
+**/node_modules/
+**/dist/
+*.log
+/frontend/app/firepit-log.txt

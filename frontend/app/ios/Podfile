@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-# platform :ios, '12.0'
+platform :ios, '13.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -25,20 +25,40 @@ end
 
 require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
 
+# Flutter iOS 설정
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
-  use_modular_headers!
+  # 모듈 사용 설정(Static linkage)
+  use_frameworks! :linkage => :static
 
+  # use_modular_headers! <- 필요하지 않으므로 주석 처리 또는 제거
+  # use_modular_headers!
+
+  # Flutter가 iOS Pods을 설치하도록 설정
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
   target 'RunnerTests' do
     inherit! :search_paths
+    # Pods for testing
   end
 end
 
+# Firebase 등 모듈 빌드 시, 충돌 방지를 위한 추가 설정
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # 모듈화 관련 Build Settings
+    target.build_configurations.each do |config|
+      config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
+      config.build_settings['DEFINES_MODULE'] = 'YES'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+              '$(inherited)',
+              'PERMISSION_LOCATION=1', # 👈 위치 권한 활성화
+              'PERMISSION_PHOTOS=1',   # 선택: 이미지 접근
+              'PERMISSION_NOTIFICATIONS=1' # 선택: 알림 권한
+            ]
+    end
   end
 end

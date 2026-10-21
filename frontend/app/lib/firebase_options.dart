@@ -17,7 +17,10 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      return web;
+      throw UnsupportedError(
+        'DefaultFirebaseOptions have not been configured for web - '
+        'you can reconfigure this by running the FlutterFire CLI again.',
+      );
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -25,9 +28,15 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        return macos;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for macos - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.windows:
-        return windows;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -40,49 +49,21 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyA0M3B_1cPTeZ7QKZUGXWKapLFiRamrULA',
-    appId: '1:870430773319:web:3be5dd6c3efa95ff21e162',
-    messagingSenderId: '870430773319',
-    projectId: 'hoseo-meet-7918f',
-    authDomain: 'hoseo-meet-7918f.firebaseapp.com',
-    storageBucket: 'hoseo-meet-7918f.appspot.com',
-    measurementId: 'G-KJFXNG2RZ3',
-  );
-
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBngyzB0A_C-jYN7pptuoblJCgAw7-Zqag',
-    appId: '1:870430773319:android:6e968ac313e809b421e162',
+    appId: '1:870430773319:android:73f26678c04e447f21e162',
     messagingSenderId: '870430773319',
     projectId: 'hoseo-meet-7918f',
-    storageBucket: 'hoseo-meet-7918f.appspot.com',
+    storageBucket: 'hoseo-meet-7918f.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyC8DPybQS4F9F8sPVG6wOmgo0PR4cLJJZE',
-    appId: '1:870430773319:ios:08f2aa9a67371c7721e162',
+    appId: '1:870430773319:ios:08dbcfac046e417e21e162',
     messagingSenderId: '870430773319',
     projectId: 'hoseo-meet-7918f',
-    storageBucket: 'hoseo-meet-7918f.appspot.com',
-    iosBundleId: 'com.example.hoseomeet',
+    storageBucket: 'hoseo-meet-7918f.firebasestorage.app',
+    iosBundleId: 'com.company.hoseomeet',
   );
 
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyC8DPybQS4F9F8sPVG6wOmgo0PR4cLJJZE',
-    appId: '1:870430773319:ios:08f2aa9a67371c7721e162',
-    messagingSenderId: '870430773319',
-    projectId: 'hoseo-meet-7918f',
-    storageBucket: 'hoseo-meet-7918f.appspot.com',
-    iosBundleId: 'com.example.hoseomeet',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyA0M3B_1cPTeZ7QKZUGXWKapLFiRamrULA',
-    appId: '1:870430773319:web:8dd2a21a50acdc3d21e162',
-    messagingSenderId: '870430773319',
-    projectId: 'hoseo-meet-7918f',
-    authDomain: 'hoseo-meet-7918f.firebaseapp.com',
-    storageBucket: 'hoseo-meet-7918f.appspot.com',
-    measurementId: 'G-4MH45G9ERS',
-  );
 }

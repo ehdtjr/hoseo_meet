@@ -1,40 +1,132 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:intl/date_symbol_data_local.dart'; // initializeDateFormatting을 위한 import
-import 'screens/splash_screen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'firebase_options.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'features/auth/presentation/pages/login_page.dart';
+import 'firebase/fcm_service.dart';
 
-void main() async {
-  // Flutter 엔진이 준비되기 전에 비동기 작업을 처리하기 위해 추가
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+FlutterLocalNotificationsPlugin();
+
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  debugPrint('[백그라운드] 메시지 수신: ${message.notification?.title}');
+}
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase 초기화
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 한국어 로케일 데이터를 초기화합니다.
+  await dotenv.load(fileName: ".env");
   await initializeDateFormatting('ko_KR', null);
 
-  runApp(MyApp());
+  // 권한 초기화
+  await _initPermissions();
+
+  await NaverMapSdk.instance.initialize(
+    clientId: dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '',
+  );
+
+  await _initLocalNotifications();
+
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
-class MyApp extends StatelessWidget {
+Future<void> _initPermissions() async {
+  try {
+    Map<Permission, PermissionStatus> statuses = await [
+      Permission.locationWhenInUse,
+      Permission.notification,
+    ].request();
+    debugPrint('위치/알림 권한 상태: $statuses');
+
+    final PermissionState permissionState = await PhotoManager.requestPermissionExtend(
+      requestOption: const PermissionRequestOption(
+        androidPermission: AndroidPermission(
+          type: RequestType.image,  // 이미지 타입만 접근
+          mediaLocation: false,      // 미디어 위치 정보 접근 허용
+        ),
+      ),
+    );
+    if (permissionState.isAuth || permissionState == PermissionState.limited) {
+      debugPrint('PhotoManager 권한 허용됨');
+    }
+    debugPrint('✅ 모든 권한 초기화 완료');
+  } catch (e) {
+    debugPrint('권한 초기화 오류: $e');
+  }
+}
+
+Future<void> _initLocalNotifications() async {
+  const androidInitSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const iosInitSettings = DarwinInitializationSettings(
+    requestAlertPermission: true,
+    requestBadgePermission: true,
+    requestSoundPermission: true,
+  );
+
+  const initSettings = InitializationSettings(
+    android: androidInitSettings,
+    iOS: iosInitSettings,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    initSettings,
+    onDidReceiveNotificationResponse: (resp) {
+      debugPrint('알림 클릭됨: payload=${resp.payload}');
+    },
+  );
+}
+
+class MyApp extends ConsumerStatefulWidget {
+  const MyApp({super.key});
+
+  @override
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> {
+  late final FcmService fcmService;
+
+  @override
+  void initState() {
+    super.initState();
+    fcmService = FcmService(
+      localNotificationsPlugin: flutterLocalNotificationsPlugin,
+      ref: ref,
+    );
+    _initFCM();
+  }
+
+  Future<void> _initFCM() async {
+    await fcmService.requestIOSPermissions();
+    fcmService.setupForegroundListener();
+    fcmService.setupBackgroundHandler(firebaseMessagingBackgroundHandler);
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
+      title: 'Flutter Demo (with FCM)',
       theme: ThemeData(
-        fontFamily: "Pretendard",
-        primarySwatch: Colors.blue, // 기본 테마 색상을 파랑으로 설정
-        scaffoldBackgroundColor: Colors.white, // 모든 Scaffold의 배경색을 흰색으로 설정
-        splashFactory: NoSplash.splashFactory, // 물방울 효과 제거
-        appBarTheme: AppBarTheme(
-          color: Colors.white, // AppBar의 배경색을 흰색으로 설정
-          iconTheme: IconThemeData(color: Colors.black), // AppBar 아이콘 색상 설정
-        ),
+        primarySwatch: Colors.blue,
+        scaffoldBackgroundColor: Colors.white,
       ),
-      home: SplashScreen(), // 앱 시작 시 스플래시 화면을 표시
+      home: const LoginPage(),
     );
   }
 }
