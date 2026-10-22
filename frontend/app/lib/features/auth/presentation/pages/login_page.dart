@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../config.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -55,7 +56,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     if (authState.isLoggedIn && !_navigated) {
       _navigated = true;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        final token = await FirebaseMessaging.instance.getToken();
+        final token = AppConfig.fcmEnabled
+            ? await FirebaseMessaging.instance.getToken()
+            : null;
         if (token != null && token.isNotEmpty) {
           final authClient = ref.read(authHttpClientProvider);
           final sendTokenService = SendTokenService(authClient);

@@ -61,11 +61,17 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = ""
 
     # AWS S3 설정
-    AWS_ACCESS_KEY_ID: str = Field(..., env="AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY: str = Field(..., env="AWS_SECRET_ACCESS_KEY")
+    STORAGE_BACKEND: Literal["local", "s3"] = "local"
+    LOCAL_MEDIA_ROOT: Path = Path("/data/media")
+    MEDIA_BASE_URL: str = "http://localhost:8000/api/v1/media"
+    FCM_ENABLED: bool = False
+    AI_ENABLED: bool = False
+    SMTP_USE_CREDENTIALS: bool = True
+    AWS_ACCESS_KEY_ID: str = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
     AWS_REGION: str = Field(default="ap-northeast-2", env="AWS_REGION")
-    S3_BUCKET_NAME: str = Field(..., env="S3_BUCKET_NAME")
-    CLOUD_FRONT_DOMAIN_URL:str = Field(..., env="CLOUD_FRONT_DOMAIN_URL")
+    S3_BUCKET_NAME: str = ""
+    CLOUD_FRONT_DOMAIN_URL: str = ""
 
     # eamil settings
     SMTP_PORT: int
@@ -82,9 +88,9 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int = 6379
 
-    RUNPOD_SENTIMENT_API_URL:str
-    RUNPOD_API_KEY:str
-    RUNPOD_ENDPOINT_ID:str
+    RUNPOD_SENTIMENT_API_URL: str = ""
+    RUNPOD_API_KEY: str = ""
+    RUNPOD_ENDPOINT_ID: str = ""
 
     @property
     def redis_url(self) -> str:
@@ -104,7 +110,7 @@ class Settings(BaseSettings):
 
     FIRST_SUPERUSER: str
     FIRST_SUPERUSER_PASSWORD: str
-    OPENAI_API_KEY:str
+    OPENAI_API_KEY: str = ""
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
@@ -119,6 +125,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Self:
+        if self.STORAGE_BACKEND == "s3" and not all((self.AWS_ACCESS_KEY_ID, self.AWS_SECRET_ACCESS_KEY, self.S3_BUCKET_NAME, self.CLOUD_FRONT_DOMAIN_URL)):
+            raise ValueError("S3 storage requires AWS credentials, bucket and media domain")
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
         self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
         self._check_default_secret(

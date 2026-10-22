@@ -1,4 +1,4 @@
-from tkinter import EventType
+from app.schemas.event import EventType
 
 STRATEGY_FCM_EVENT_REGISTRY = {}
 

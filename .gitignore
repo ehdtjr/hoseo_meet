@@ -31,3 +31,7 @@ htmlcov/
 **/dist/
 *.log
 /frontend/app/firepit-log.txt
+# Local snapshot bundles contain credentials and data.
+/backups/
+*.dump
+local.env

@@ -1,5 +1,5 @@
 # event_registry.py
-from tkinter import EventType
+from app.schemas.event import EventType
 
 STRATEGY_EVENT_REGISTRY = {}
 

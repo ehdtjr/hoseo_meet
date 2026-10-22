@@ -1,11 +1,13 @@
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock
+from types import SimpleNamespace
 
 from fastapi import HTTPException
 
 from app.core.exceptions import PermissionDeniedException
 from app.models import Recipient, Stream, User
 from app.schemas.message import MessageBase, UserMessageBase
+from app.models.message import MessageType
 from app.schemas.recipient import RecipientType
 from app.tests.conftest import BaseTest
 
@@ -22,13 +24,21 @@ class TestMessageService(BaseTest):
         self.user_crud = AsyncMock()
 
 
-        from app.service.message import MessageService
+        from app.service.message import MessageService, MessageSendService
+        self.event_dispatcher = AsyncMock()
+        self.user_message_crud.get_unread_counts_for_messages.return_value = {}
         self.service = MessageService(
             message_crud=self.message_crud,
             user_message_crud=self.user_message_crud,
-            user_crud=self.user_crud,
+            subscription_crud=self.subscription_crud,
+            event_dispatcher=self.event_dispatcher,
+        )
+        self.send_service = MessageSendService(
+            message_crud=self.message_crud,
+            user_message_crud=self.user_message_crud,
             recipient_crud=self.recipient_crud,
             subscription_crud=self.subscription_crud,
+            event_dispatcher=self.event_dispatcher,
         )
 
         # Redis 모의 객체 생성
@@ -79,14 +89,17 @@ class TestMessageService(BaseTest):
         mock_message.content = "Test message"
         mock_message.date_sent = datetime.now()  # 현재 시간을 사용하여 date_sent 설정
 
-        self.message_crud.create.return_value = mock_message  # 메시지 생성 모의 설정
+        self.message_crud.send_message_create.return_value = mock_message
+        self.recipient_crud.get_by_type_id.return_value = SimpleNamespace(id=stream.recipient_id)
+        mock_message.type = MessageType.NORMAL
+        mock_message.rendered_content = None  # 메시지 생성 모의 설정
 
         # 모의 구독자 리스트 설정
         self.subscription_crud.get_subscribers.return_value = [user_id]
 
         # when: 메시지 전송
         message_content = "Test message"
-        await self.service.send_message_stream(
+        await self.send_service.send_message_stream(
             db=self.db,
             sender_id=user_id,
             stream_id=stream_id,
@@ -96,7 +109,8 @@ class TestMessageService(BaseTest):
         # then: 메시지 전송이 성공적으로 되었는지 검증
         self.recipient_crud.get_by_type_id.assert_called_once_with(self.db,
                                                                    stream.id)
-        self.message_crud.create.assert_called_once()
+        self.message_crud.send_message_create.assert_awaited_once()
+        self.event_dispatcher.dispatch.assert_awaited_once()
 
     async def test_send_message_stream_not_subscript(self):
         # given: 사용자 및 스트림 설정
@@ -143,7 +157,10 @@ class TestMessageService(BaseTest):
         mock_message.content = "Test message"
         mock_message.date_sent = datetime.now()
 
-        self.message_crud.create.return_value = mock_message  # 메시지 생성 모의 설정
+        self.message_crud.send_message_create.return_value = mock_message
+        self.recipient_crud.get_by_type_id.return_value = SimpleNamespace(id=stream.recipient_id)
+        mock_message.type = MessageType.NORMAL
+        mock_message.rendered_content = None  # 메시지 생성 모의 설정
 
         # 모의 구독자 리스트 설정 (구독자 없음)
         self.subscription_crud.get_subscribers.return_value = []
@@ -151,7 +168,7 @@ class TestMessageService(BaseTest):
         # when & then: PermissionDeniedException 발생 확인
         try:
             message_content = "Test message"
-            await self.service.send_message_stream(
+            await self.send_service.send_message_stream(
                 db=self.db,
                 sender_id=user_id,
                 stream_id=stream_id,
@@ -161,11 +178,11 @@ class TestMessageService(BaseTest):
             self.fail("PermissionDeniedException이 발생해야 합니다.")
         except PermissionDeniedException as e:
             # 발생한 예외 메시지가 정확한지 확인
-            self.assertEqual(str(e),
+            self.assertEqual(e.detail,
                              "You are not permitted to send messages to this "
                              "stream")
 
-        self.message_crud.create.assert_not_called()
+        self.message_crud.send_message_create.assert_not_awaited()
 
     async def test__convert_anchor_to_id_newest(self):
         # given
@@ -325,7 +342,7 @@ class TestMessageService(BaseTest):
             )
 
         self.assertEqual(
-            str(context.exception),
+            context.exception.detail,
             "You are not permitted to read messages from this stream"
         )
 

@@ -1,0 +1,147 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: web}
+  template:
+    metadata:
+      labels: {app: web}
+    spec:
+      initContainers:
+        - name: init
+          image: hoseo-local-backend
+          imagePullPolicy: IfNotPresent
+          command: [python, -m, app.scripts.local_init]
+          envFrom:
+            - secretRef: {name: local-env}
+      containers:
+        - name: api
+          image: hoseo-local-backend
+          imagePullPolicy: IfNotPresent
+          ports: [{containerPort: 8000}]
+          envFrom:
+            - secretRef: {name: local-env}
+          readinessProbe:
+            httpGet: {path: /api/v1/info/health, port: 8000}
+          volumeMounts:
+            - {name: media, mountPath: /data/media}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: '1', memory: 1Gi}
+        - name: worker
+          image: hoseo-local-backend
+          imagePullPolicy: IfNotPresent
+          command: [celery, -A, app.celery.worker, worker, --loglevel=info, --concurrency=1]
+          envFrom:
+            - secretRef: {name: local-env}
+          volumeMounts:
+            - {name: media, mountPath: /data/media}
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: '1', memory: 1Gi}
+        - name: beat
+          image: hoseo-local-backend
+          imagePullPolicy: IfNotPresent
+          command: [celery, -A, app.celery.worker, beat, --loglevel=info, --schedule=/tmp/celerybeat-schedule]
+          envFrom:
+            - secretRef: {name: local-env}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+      volumes:
+        - name: media
+          persistentVolumeClaim: {claimName: media-data}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: db}
+  template:
+    metadata:
+      labels: {app: db}
+    spec:
+      containers:
+        - name: db
+          image: postgis/postgis:16-3.5
+          envFrom:
+            - secretRef: {name: local-env}
+          env:
+            - {name: PGDATA, value: /var/lib/postgresql/data/pgdata}
+          readinessProbe:
+            exec:
+              command: [sh, -c, 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+          volumeMounts:
+            - {name: db, mountPath: /var/lib/postgresql/data}
+      volumes:
+        - name: db
+          persistentVolumeClaim: {claimName: db-data}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: redis}
+  template:
+    metadata:
+      labels: {app: redis}
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: [redis-server, --appendonly, 'yes']
+          readinessProbe:
+            exec:
+              command: [redis-cli, ping]
+          volumeMounts:
+            - {name: redis, mountPath: /data}
+      volumes:
+        - name: redis
+          persistentVolumeClaim: {claimName: redis-data}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: admin}
+  template:
+    metadata:
+      labels: {app: admin}
+    spec:
+      containers:
+        - name: admin
+          image: hoseo-local-admin
+          imagePullPolicy: IfNotPresent
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: mailpit}
+  template:
+    metadata:
+      labels: {app: mailpit}
+    spec:
+      containers:
+        - name: mailpit
+          image: axllent/mailpit:v1.27
+          imagePullPolicy: IfNotPresent

@@ -1,5 +1,6 @@
 from app.schemas.event import EventBase
-from app.service.event.events import WebSocketEventSender
+import json
+from app.service.event.event_sender import WebSocketEventSender
 from app.tests.conftest import BaseTest
 
 class TestWebSocketEventSender(BaseTest):
@@ -10,14 +11,14 @@ class TestWebSocketEventSender(BaseTest):
         # EventBase 인스턴스를 생성하여 이벤트 데이터로 사용
         event_data = EventBase(
             type="stream",
-            data={
+            data=json.dumps({
                 "event": "message",
                 "content": "Hello, World!"
-            }
+            })
         )
 
         # 이벤트 전송
-        await sender.send_event(user_id, event_data)
+        await sender.send_event(self.db, user_id, event_data)
 
         # Redis에서 데이터 확인
         events = await self.redis_client.xrange(f"queue:{user_id}")
@@ -27,5 +28,5 @@ class TestWebSocketEventSender(BaseTest):
         event_id, stored_data = events[0]
 
         # 저장된 데이터가 원본 이벤트 데이터와 일치하는지 확인
-        expected_data = event_data.to_str_dict()
+        expected_data = event_data.model_dump()
         assert stored_data == expected_data, "저장된 데이터가 원본 이벤트 데이터와 일치하지 않습니다."

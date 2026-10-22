@@ -61,6 +61,7 @@ class WebSocketEventHandler:
                     streams={queue_key: last_event_id}, block=0, count=100)
                 if events:
                     await self._process_and_send_events(events, websocket)
+                    last_event_id = events[-1][1][-1][0]
             except (ConnectionClosedError, ConnectionClosedOK,
                     WebSocketDisconnect) as e:
                 logger.info(f"WebSocket 연결이 닫힘: {e}")
@@ -74,7 +75,7 @@ class WebSocketEventHandler:
                 logger.error(f"예상치 못한 오류 발생: {e}")
                 disconnect_event.set()
                 raise e
-        pool.close()
+
 
     async def _receive_ws_messages(self, websocket: WebSocket,
                                    disconnect_event: asyncio.Event):

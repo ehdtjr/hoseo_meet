@@ -10,8 +10,8 @@ from app.core.config import settings
 from app.service.email import EmailService, EmailVerificationService
 
 
-class TestEmailService(TestCase):
-    @patch("app.utils.email.send_email", new_callable=AsyncMock)
+class TestEmailService(unittest.IsolatedAsyncioTestCase):
+    @patch("app.service.email.send_email_task.delay")
     def setUp(self, mock_send_email):
         self.template_render = Mock()
         self.verification_service = AsyncMock()
@@ -27,7 +27,7 @@ class TestEmailService(TestCase):
         invalid_email = "user@invalid.com"
         self.assertFalse(self.email_service.validate_email_domain(invalid_email))
 
-    @patch("app.utils.email.send_email", new_callable=AsyncMock)
+    @patch("app.service.email.send_email_task.delay")
     async def test_send_email_verification_link(self, mock_send_email):
         user = Mock(spec=UserProtocol)
         user.email = f"user{settings.UNIVERSITY_EMAIL_DOMAIN}"
@@ -43,12 +43,12 @@ class TestEmailService(TestCase):
         # 이메일 템플릿 렌더링 확인
         self.template_render.render_template.assert_called_once_with(
             "new_register.html",
-            verification_link=f"http://{settings.DOMAIN}:8000/api/v1/auth/verify-email?token={token}",
+            verification_link=f"{settings.server_host}/api/v1/auth/verify-email?token={token}",
             user=user,
         )
 
         # 이메일 발송 확인
-        mock_send_email.assert_awaited_once_with(
+        mock_send_email.assert_called_once_with(
             user.email, "이메일 인증", rendered_content
         )
 

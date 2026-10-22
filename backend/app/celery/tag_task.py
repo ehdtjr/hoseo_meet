@@ -225,6 +225,8 @@ def process_user_for_tagging(db: Session, user_id: int):
 
 @app.task
 def process_user_tag():
+    if not settings.AI_ENABLED:
+        return
     logger.info("[Celery] process_user_tag 시작")
     with sync_session_maker() as session:
         user_ids = check_not_tag_user(session)

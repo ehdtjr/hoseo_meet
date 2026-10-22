@@ -162,6 +162,7 @@ class TestMeetPostService(BaseTest):
         self.meet_post_crud.get.return_value = None
 
         result = await self.service.get_detail_meet_post(
+            user=self.user,
             db=self.db,
             meet_post_id=meet_post_id,
             ip_address=ip_address
@@ -204,6 +205,7 @@ class TestMeetPostService(BaseTest):
         self.subscriber_service.get_subscribers.return_value = subscribers
 
         result = await self.service.get_detail_meet_post(
+            user=self.user,
             db=self.db,
             meet_post_id=meet_post_id,
             ip_address=ip_address

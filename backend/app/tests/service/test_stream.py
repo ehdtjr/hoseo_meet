@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 class TestStreamService(BaseTest):
     async def asyncSetUp(self):
         await super().asyncSetUp()
-        self.service = get_stream_service()
+        self.service = await get_stream_service()
 
     async def test_create_stream(self):
         # given
@@ -60,7 +60,7 @@ class TestStreamService(BaseTest):
 class TestSubscriberService(BaseTest):
     async def asyncSetUp(self):
         await super().asyncSetUp()
-        self.service = get_subscription_service()  # 구독 서비스로 변경
+        self.service = await get_subscription_service()  # 구독 서비스로 변경
 
     async def test_subscribe(self):
         # given: 사용자 및 스트림 생성

@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'firebase_options.dart';
+import 'config.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'firebase/fcm_service.dart';
@@ -22,19 +23,22 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  if (AppConfig.fcmEnabled) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
 
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: ".env", isOptional: true);
   await initializeDateFormatting('ko_KR', null);
 
   // 권한 초기화
   await _initPermissions();
 
-  await NaverMapSdk.instance.initialize(
-    clientId: dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '',
-  );
+  final mapClientId = dotenv.env['NAVER_MAP_CLIENT_ID'] ?? '';
+  if (mapClientId.isNotEmpty) {
+    await NaverMapSdk.instance.initialize(clientId: mapClientId);
+  }
 
   await _initLocalNotifications();
 
@@ -108,7 +112,7 @@ class _MyAppState extends ConsumerState<MyApp> {
       localNotificationsPlugin: flutterLocalNotificationsPlugin,
       ref: ref,
     );
-    _initFCM();
+    if (AppConfig.fcmEnabled) _initFCM();
   }
 
   Future<void> _initFCM() async {
