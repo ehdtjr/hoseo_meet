@@ -3,6 +3,7 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.redis import redis_client
+from app.core.config import settings
 from app.crud.user import UserFCMTokenCRUDProtocol, \
     get_user_fcm_token_crud
 from app.schemas.event import EventBase
@@ -29,7 +30,7 @@ class WebSocketEventSender(EventSenderProtocol):
     EventBase):
         if not event_data:
             raise ValueError("이벤트 데이터가 비어 있거나 유효하지 않습니다")
-            await redis_client.redis.xadd(f"queue:{user_id}", event_data.model_dump())
+        await redis_client.redis.xadd(f"queue:{user_id}", event_data.model_dump())
 
     async def send_events(self, db:AsyncSession,
                           user_ids: list[int], event_data: EventBase):
@@ -46,9 +47,13 @@ class FCMEventSender(EventSenderProtocol):
     async def send_event(self, db: AsyncSession, user_id: int, event_data:
     EventBase):
 
+        if not settings.FCM_ENABLED:
+            return
         fcm_crud: UserFCMTokenCRUDProtocol = get_user_fcm_token_crud()
         token = await fcm_crud.get_user_fcm_token_by_user_id(db, user_id)
 
+        if token is None:
+            return
         strategy = FCMEventStrategyFactory.get_strategy(event_data.type)
         context = FCMEventSelectionContext(
             token_id=token.fcm_token,
@@ -66,6 +71,8 @@ class FCMEventSender(EventSenderProtocol):
         if (user_ids is None) or (len(user_ids) == 0):
             return
 
+        if not settings.FCM_ENABLED:
+            return
         fcm_crud: UserFCMTokenCRUDProtocol = get_user_fcm_token_crud()
         tokens = await fcm_crud.get_user_fcm_tokens_by_user_ids(db, user_ids)
         tokens_ids = [token.fcm_token for token in tokens]

@@ -1,4 +1,6 @@
 from io import BytesIO
+
+from app.core.local_storage import LocalStorage
 from typing import Optional, List
 from urllib.parse import urlparse
 
@@ -14,7 +16,8 @@ class S3Manager:
         self.aws_access_key_id = settings.AWS_ACCESS_KEY_ID
         self.aws_secret_access_key = settings.AWS_SECRET_ACCESS_KEY
         self.cloud_front_domain_url = settings.CLOUD_FRONT_DOMAIN_URL
-        self.session = aioboto3.Session()
+        self.session = aioboto3.Session() if settings.STORAGE_BACKEND == "s3" else None
+        self.local = LocalStorage() if settings.STORAGE_BACKEND == "local" else None
 
     async def _get_client(self):
         return self.session.client(
@@ -25,6 +28,11 @@ class S3Manager:
         )
 
     async def upload_file(self, file: UploadFile, destination_path: str) -> str:
+        if self.local:
+            try:
+                return await self.local.upload_byte_file(file.file, destination_path)
+            finally:
+                file.file.close()
         content_type: Optional[str] = file.content_type or "application/octet-stream"
         try:
             async with await self._get_client() as s3_client:
@@ -50,6 +58,8 @@ class S3Manager:
         destination_path: str,
         content_type: str = "application/octet-stream",
     ) -> str:
+        if self.local:
+            return await self.local.upload_byte_file(byte_file, destination_path)
         try:
             async with await self._get_client() as s3_client:
                 byte_file.seek(0)
@@ -65,6 +75,8 @@ class S3Manager:
             raise RuntimeError(f"파일 업로드 실패: {e}")
 
     async def delete_file(self, file_url: str) -> None:
+        if self.local:
+            return await self.local.delete_file(file_url)
         try:
             parsed_url = urlparse(file_url)
             object_key = parsed_url.path.lstrip("/")

@@ -13,7 +13,7 @@ from sqlalchemy import event
 from sqlalchemy import Pool
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)

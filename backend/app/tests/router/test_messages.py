@@ -80,7 +80,7 @@ class TestSendMessageToStream(BaseTest):
             assert response.json() == {"message": "Message sent successfully"}
 
     async def test_send_message_to_stream_permission_denied(self):
-        mock_message_service = self.get_mock_message_service()
+        mock_message_service = self.get_mock_message_send_service()
 
         # 권한이 없을 때의 예외 처리 설정
         mock_message_service.send_message_stream.side_effect = (
@@ -93,7 +93,7 @@ class TestSendMessageToStream(BaseTest):
                 current_active_user] = self.override_current_user
             app.dependency_overrides[get_async_session] = override_get_db
             app.dependency_overrides[
-                get_message_service] = lambda: mock_message_service
+                get_message_send_service] = lambda: mock_message_service
 
             stream_id = 1
             message_content = "Hello, Stream!"
@@ -111,7 +111,7 @@ class TestSendMessageToStream(BaseTest):
             }
 
     async def test_send_message_to_stream_general_exception(self):
-        mock_message_service = self.get_mock_message_service()
+        mock_message_service = self.get_mock_message_send_service()
 
         # 일반 예외 발생 시 시나리오 설정
         mock_message_service.send_message_stream.side_effect = Exception(
@@ -124,7 +124,7 @@ class TestSendMessageToStream(BaseTest):
                 current_active_user] = self.override_current_user
             app.dependency_overrides[get_async_session] = override_get_db
             app.dependency_overrides[
-                get_message_service] = lambda: mock_message_service
+                get_message_send_service] = lambda: mock_message_service
 
             stream_id = 1
             message_content = "Hello, Stream!"

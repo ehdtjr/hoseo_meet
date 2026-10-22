@@ -1,13 +1,16 @@
 from pyfcm import FCMNotification
 from app.celery.worker import app
 
-fcm = FCMNotification(
-    service_account_file="hoseo-meet-firebase.json",
-    project_id="hoseo-meet-7918f"
-)
+from app.core.config import settings
 
 @app.task
 def send_multicast_task(token_ids, title, body, data_dict):
+    if not settings.FCM_ENABLED:
+        return
+    fcm = FCMNotification(
+        service_account_file="hoseo-meet-firebase.json",
+        project_id="hoseo-meet-7918f",
+    )
     # APNs(iOS)용 설정 예시
     apns_config = {
         "payload": {

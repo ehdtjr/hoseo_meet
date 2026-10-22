@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 
+from app.api.routes import media
+
 from app.api.routes import (
     auth,
     meet_post,
@@ -49,3 +51,4 @@ api_router.include_router(
 api_router.include_router(
     randomchat_routes.router, prefix="/random", tags=["random"]
 )
+api_router.include_router(media.router, prefix="/media", tags=["media"])

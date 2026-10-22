@@ -31,10 +31,13 @@ class WebSocketAuthenticator:
 
         if not user:
             await websocket.close(code=1008, reason="유저가 존재하지 않습니다")
+            return
         if not user.is_active:
             await websocket.close(code=1008, reason="사용이 정지된 유저 입니다")
+            return
         if not user.is_verified:
             await websocket.close(code=1008, reason="이메일 인증을 완료해주세요")
+            return
         return user
 
 

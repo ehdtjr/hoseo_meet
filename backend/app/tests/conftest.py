@@ -1,3 +1,4 @@
+import os
 from typing import AsyncGenerator
 from unittest.async_case import IsolatedAsyncioTestCase
 
@@ -11,8 +12,10 @@ from app.main import app
 from app.core.db import Base, get_async_session
 
 
-SQLALCHEMY_TEST_DATABASE_URL = "postgresql+asyncpg://test_user:test_password@localhost:5433/test_db"
-TEST_REDIS_URL = "redis://localhost:6380"
+SQLALCHEMY_TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "postgresql+asyncpg://test_user:test_password@localhost:5433/test_db")
+if not SQLALCHEMY_TEST_DATABASE_URL.endswith("/test_db"):
+    raise RuntimeError("Tests may only use the dedicated test_db database")
+TEST_REDIS_URL = os.environ.get("TEST_REDIS_URL", "redis://localhost:6380")
 
 test_engine = create_async_engine(SQLALCHEMY_TEST_DATABASE_URL,
                                   poolclass=NullPool)
@@ -60,3 +63,7 @@ class BaseTest(IsolatedAsyncioTestCase):
         await self.redis_client.flushdb()
         await self.redis_client.close()
         await redis_client.pool.disconnect()
+        redis_client.redis = None
+        redis_client.pool = None
+        app.dependency_overrides.clear()
+        await test_engine.dispose()

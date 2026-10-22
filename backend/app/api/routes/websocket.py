@@ -22,6 +22,8 @@ async def connect_event(
         websocket: WebSocket,
         user: User = Depends(get_authenticated_user),
 ):
+    if user is None:
+        return
     disconnect_event = asyncio.Event()
 
     try:

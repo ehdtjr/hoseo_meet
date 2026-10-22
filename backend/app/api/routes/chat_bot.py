@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
 
 from app.core.db import get_async_session
+from app.core.config import settings
 from app.core.security import current_active_user
 from app.crud.chat_bot import get_chat_bot_message_crud
 from app.models import User
@@ -42,7 +43,7 @@ SYSTEM_PROMPT = (
 chat_bot_agent = Agent(
     'openai:gpt-4o',
     system_prompt=SYSTEM_PROMPT
-)
+) if settings.AI_ENABLED else None
 
 def to_chat_message(m: ModelMessage, user_id: int) -> ChatBotMessageBase:
     first_part = m.parts[0]
@@ -76,6 +77,9 @@ async def post_chat(
     db: AsyncSession = Depends(get_async_session),
     chat_bot_message_crud = Depends(get_chat_bot_message_crud)
 ) -> StreamingResponse:
+
+    if chat_bot_agent is None:
+        raise fastapi.HTTPException(status_code=503, detail="AI integration is disabled")
 
     async def stream_messages():
         user_msg = ChatBotMessageBase(

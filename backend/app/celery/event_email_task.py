@@ -15,7 +15,7 @@ conf = ConnectionConfig(
     MAIL_SERVER=settings.SMTP_HOST,
     MAIL_STARTTLS=settings.SMTP_TLS,
     MAIL_SSL_TLS=settings.SMTP_SSL,
-    USE_CREDENTIALS=True,
+    USE_CREDENTIALS=settings.SMTP_USE_CREDENTIALS,
     VALIDATE_CERTS=True,
 )
 
