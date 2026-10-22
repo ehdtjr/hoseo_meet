@@ -54,7 +54,6 @@ class AuthService {
   Future<Map<String, dynamic>> refreshAccessToken({
     required String refreshToken,
   }) async {
-    print('[AuthService] Attempting to refresh token=$refreshToken');
 
     try {
       final response = await http.post(
@@ -69,14 +68,12 @@ class AuthService {
         final newAccess = data['access_token'] as String?;
         final newRefresh = data['refresh_token'] as String?;
 
-        print('[AuthService] Access token refreshed successfully: $newAccess');
         return {
           'statusCode': 200,
           'accessToken': newAccess,
           'refreshToken': newRefresh,
         };
       } else {
-        print('[AuthService] refresh failed: ${response.body}');
         return {
           'statusCode': response.statusCode,
           'error': response.body,
