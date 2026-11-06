@@ -102,12 +102,15 @@ class ChatRepository {
   }
 
   // 방 활성화 / 비활성화
-  Future<void> activateRoom(int streamId) => _activateService.activateRoom(streamId);
+  Future<void> activateRoom(int streamId) =>
+      _activateService.activateRoom(streamId);
   Future<void> deactivateRoom() => _activateService.deactivateRoom();
 
   // 소켓
+  Future<void> reconnectWebSocket() => _socketService.reconnectWebSocket();
   Future<void> connectWebSocket() => _socketService.connectWebSocket();
-  Stream<Map<String, dynamic>> get messageStream => _socketService.messageStream;
-  void closeWebSocket() => _socketService.closeWebSocket();
-  void disposeSocketService() => _socketService.dispose();
+  Stream<Map<String, dynamic>> get messageStream =>
+      _socketService.messageStream;
+  Future<void> closeWebSocket() => _socketService.closeWebSocket();
+  Future<void> disposeSocketService() => _socketService.dispose();
 }
