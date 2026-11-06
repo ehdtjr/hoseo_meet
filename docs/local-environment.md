@@ -27,7 +27,7 @@ docker compose stop                           # 중지, 데이터 유지
 docker compose down                           # 컨테이너 제거, 볼륨 유지
 ```
 
-**초기화는 이 프로젝트 데이터가 더 이상 필요 없을 때만** `docker compose --profile test --profile monitoring down -v`로 한다. DB/미디어/Redis/모니터링 볼륨이 삭제된다. 공유 클러스터나 다른 프로젝트에 적용하지 않는다. 초기화 스크립트는 비어 있는 로컬 DB의 테이블을 생성하고 합성 사용자 2명만 추가한다. 기존 사용자나 CSV를 갱신하지 않으며 운영 스키마 마이그레이션을 대신하지 않는다.
+**초기화는 이 프로젝트 데이터가 더 이상 필요 없을 때만** `docker compose --profile test --profile monitoring down -v`로 한다. DB/미디어/Redis/모니터링 볼륨이 삭제된다. 공유 클러스터나 다른 프로젝트에 적용하지 않는다. 초기화 스크립트는 추적된 Alembic revision을 `head`까지 적용하고 합성 사용자 2명만 추가한다. 같은 revision과 사용자는 중복 생성하지 않으며 기존 사용자나 CSV를 갱신하지 않는다. Alembic 이력이 없는 기존 DB는 자동 stamp하지 않으므로 [기존 DB adoption 절차](database-migrations.md)를 먼저 수행한다.
 
 기본 포트는 모두 127.0.0.1에만 바인딩한다. DB/Redis는 호스트 포트를 열지 않는다. `API_PORT`, `ADMIN_PORT`, `MAIL_PORT`로 충돌을 피한다. 호스트 포트를 바꾸면 DOMAIN/MEDIA_BASE_URL도 맞춰야 한다. 비밀값은 루트 `.env`에서만 소비하며 backend/.env는 만들지 않는다.
 

@@ -1,7 +1,9 @@
-"""Add the random-chat queue table to an existing initialized database.
+"""Legacy queue repair helper retained for pre-adoption reconciliation only.
 
-Run before deploying the matching API; repeat runs preserve existing data.
-There is no versioned Alembic baseline in this repository yet.
+Normal installations and upgrades use Alembic. Unversioned databases must
+pass app.scripts.adopt_legacy_db before upgrading. Use this helper only for a
+reviewed missing queue table with a verified backup and writers stopped; it
+does not validate or stamp the complete application schema.
 """
 import asyncio
 
