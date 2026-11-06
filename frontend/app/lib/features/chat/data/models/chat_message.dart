@@ -1,3 +1,4 @@
+import 'outgoing_message.dart';
 import '../../../auth/data/models/user.dart';
 
 /// [ChatMessage] 모델
@@ -97,6 +98,9 @@ class ChatMessage {
 }
 
 class ChatDetailState {
+  final List<OutgoingMessage> outgoingMessages;
+  bool get isSending => outgoingMessages.any(
+      (message) => message.status == MessageSendStatus.sending);
   final bool isLoadingMore;
   final List<ChatMessage> messages;
   final List<User> participants;
@@ -104,6 +108,7 @@ class ChatDetailState {
   final bool isLocationSharing; // ✅ 위치 공유 상태 추가
 
   ChatDetailState({
+    this.outgoingMessages = const [],
     this.isLoadingMore = false,
     this.messages = const [],
     this.participants = const [],
@@ -112,6 +117,7 @@ class ChatDetailState {
   });
 
   ChatDetailState copyWith({
+    List<OutgoingMessage>? outgoingMessages,
     bool? isLoadingMore,
     List<ChatMessage>? messages,
     List<User>? participants,
@@ -119,6 +125,7 @@ class ChatDetailState {
     bool? isLocationSharing, // ✅ copyWith에 추가
   }) {
     return ChatDetailState(
+      outgoingMessages: outgoingMessages ?? this.outgoingMessages,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       messages: messages ?? this.messages,
       participants: participants ?? this.participants,

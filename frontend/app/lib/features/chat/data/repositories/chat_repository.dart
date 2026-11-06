@@ -45,10 +45,12 @@ class ChatRepository {
   Future<void> sendMessage({
     required int streamId,
     required String content,
+    required String clientMessageId,
   }) {
     return _sendService.sendMessage(
       streamId: streamId,
       messageContent: content,
+      clientMessageId: clientMessageId,
     );
   }
 
@@ -69,15 +71,24 @@ class ChatRepository {
   // 메시지 읽음 처리
   Future<void> markMessagesAsRead({
     required int streamId,
-    required String anchor,
-    int numBefore = 0,
-    int numAfter = 0,
+    required int numAfter,
   }) {
     return _readService.markMessagesAsRead(
       streamId: streamId,
-      anchor: anchor,
-      numBefore: numBefore,
       numAfter: numAfter,
+    );
+  }
+
+  // Use the fetched anchor so concurrent arrivals are not marked as read.
+  Future<void> markLoadedMessagesAsRead({
+    required int streamId,
+    required int anchorId,
+    required int numBefore,
+  }) {
+    return _readService.markMessagesAsRead(
+      streamId: streamId,
+      anchor: anchorId.toString(),
+      numBefore: numBefore,
     );
   }
 

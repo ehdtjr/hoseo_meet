@@ -127,3 +127,20 @@ The earlier `network-probe.json` is retained as historical evidence from before
 the review fixes; its source hashes describe that earlier implementation.
 Physical-device switching, real backend/provider integration, CI, and deployment
 are separate checks and are not established by these local results.
+
+
+## Integration with main before publication
+
+Integrated `origin/main` at `b404e25` (including PRs #31 and #32) before publishing
+the WebSocket branch. The merged code preserves authenticated request replay,
+failed-draft retry identities, acknowledged-send reconciliation, numeric read
+anchors, and the new room/socket disposal guards. Test repository adapters now
+return the asynchronous close/dispose futures; the standalone probe builder also
+copies the outgoing-message model imported by the merged chat state.
+
+Validation on the integrated tree: 69 Flutter tests passed, locked dependency
+resolution passed, targeted analysis reported no issues, and the main application
+debug bundle built. The Android network observations above were recorded before
+this main integration; the socket/recovery sources are unchanged by the merge.
+The merged notifier/authentication/send combination is covered by the full Flutter
+suite and subsequent PR CI, rather than a new full-app Android device run.

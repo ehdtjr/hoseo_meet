@@ -6,6 +6,7 @@ class ChatInputBar extends StatefulWidget {
   final TextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onSend;
+  final bool isSending;
   final double height;
   final ChatRoom chatRoom;
 
@@ -16,6 +17,7 @@ class ChatInputBar extends StatefulWidget {
     required this.onSend,
     required this.chatRoom,
     this.height = 72,
+    this.isSending = false,
   });
 
   @override
@@ -106,8 +108,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
           const SizedBox(width: 10),
 
           GestureDetector(
-            onTapDown: (_) => setState(() => _isSendButtonPressed = true),
-            onTapUp: (_) {
+            key: const ValueKey('chat-send-button'),
+            onTapDown: widget.isSending ? null
+                : (_) => setState(() => _isSendButtonPressed = true),
+            onTapUp: widget.isSending ? null : (_) {
               setState(() => _isSendButtonPressed = false);
               widget.onSend();
             },

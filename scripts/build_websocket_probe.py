@@ -24,6 +24,7 @@ def main():
         'lib/features/chat/data/services/socket_message_service.dart',
         'lib/features/chat/data/services/message_recovery_service.dart',
         'lib/features/chat/data/models/chat_message.dart',
+        'lib/features/chat/data/models/outgoing_message.dart',
         'lib/features/auth/data/models/user.dart',
         'lib/config.dart',
     ]

@@ -90,8 +90,9 @@ class HistoryClient extends AuthHttpClient {
   @override
   Future<http.Response> postRequest(
     String url,
-    Map<String, dynamic> body,
-  ) async {
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+  }) async {
     final path = Uri.parse(url).path;
     posts.add((path: path, body: Map.of(body)));
     await beforePost?.call(path, body);
