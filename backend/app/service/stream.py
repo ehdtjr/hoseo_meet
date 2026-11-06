@@ -141,6 +141,14 @@ class SubscriberService(SubscriberServiceProtocol):
         # The policy lock and subscription write share the caller's transaction.
         # Creation uses commit=False and commits only after the creator joins.
         try:
+            stream = await self.stream_crud.get(db, stream_id)
+            if stream is not None and stream.type == "random":
+                # The matcher creates exactly two memberships atomically.
+                # Public joins must not add outsiders or reactivate a former
+                # participant after they have moved on to another match.
+                raise PermissionDeniedException(
+                    "랜덤 채팅방은 매칭을 통해서만 참가할 수 있습니다."
+                )
             recipient_id, max_people = await StreamAccessPolicy().lock_join_target(
                 db, user_id, stream_id)
             subscription = await self.subscription_crud.get_subscription(

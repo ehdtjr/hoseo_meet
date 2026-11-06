@@ -30,6 +30,8 @@ class ChatRoom {
         return '모임';
       case 'taxi':
         return '택시';
+      case 'random':
+        return '랜덤';
       default:
         return '일반';
     }

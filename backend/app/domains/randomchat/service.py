@@ -1,142 +1,147 @@
-from typing import Protocol, List, Tuple, Optional
+"""Matching is a single PostgreSQL transaction, including durable queue state.
 
-from fastapi import Depends
+Redis continues to transport chat events, but is not a second source of queue
+truth. This avoids losing users between a Redis pop and a failed DB commit.
+"""
+from datetime import timedelta
+from typing import Literal
+
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.redis import redis_client
-from app.schemas.stream import StreamCreate
-from app.service.stream import StreamService, get_stream_service, SubscriberService, get_subscription_service
+from app.domains.randomchat.schemas import QueueStatus
+from app.models import RandomChatQueue, Recipient, Stream, Subscription, User
+from app.schemas.recipient import RecipientType
+
+WAIT_SECONDS = 90
+# Transaction-scoped, shared across workers; released on commit, rollback or
+# connection loss. No expiring distributed lease can permit a second matcher.
+MATCH_LOCK_ID = 250025
 
 
-class RandomChatWaitingRoomProtocol(Protocol):
-    async def join(self, user_id: int):
-        ...
+class RandomChatService:
+    async def join(self, db: AsyncSession, user_id: int) -> QueueStatus:
+        return await self._change(db, user_id, "join")
 
-    async def leave(self, user_id: int):
-        ...
+    async def leave(self, db: AsyncSession, user_id: int) -> QueueStatus:
+        return await self._change(db, user_id, "leave")
 
-    async def list(self) -> List[int]:
-        ...
+    async def status(self, db: AsyncSession, user_id: int) -> QueueStatus:
+        return await self._change(db, user_id, "status")
 
-    async def length(self) -> int:
-        ...
+    async def _change(
+        self, db: AsyncSession, user_id: int,
+        action: Literal["join", "leave", "status"],
+    ) -> QueueStatus:
+        # Authentication may already have opened a transaction on this request's
+        # session. Own its final commit/rollback; generic CRUD commits each step.
+        try:
+            await db.execute(text("SET LOCAL lock_timeout = '5s'"))
+            await db.execute(
+                text("SELECT pg_advisory_xact_lock(:key)"), {"key": MATCH_LOCK_ID}
+            )
+            now = (await db.execute(select(func.clock_timestamp()))).scalar_one()
+            if action == "join":
+                # Keep eligibility stable until this transaction commits. Admin
+                # updates do not acquire the queue's advisory lock.
+                eligible = (await db.execute(
+                    select(User.id).where(
+                        User.id == user_id, User.is_active.is_(True),
+                        User.is_verified.is_(True),
+                    ).with_for_update(read=True)
+                )).scalar_one_or_none()
+                if eligible is None:
+                    raise PermissionError("An active verified account is required")
+            entry = await db.get(RandomChatQueue, user_id, populate_existing=True)
+            if entry is not None and entry.stream_id is not None:
+                active = (await db.execute(
+                    select(Subscription.id)
+                    .join(Stream, Stream.recipient_id == Subscription.recipient_id)
+                    .where(Stream.id == entry.stream_id,
+                           Subscription.user_id == user_id,
+                           Subscription.active.is_(True))
+                )).scalar_one_or_none()
+                if active is not None:
+                    result = QueueStatus(status="matched", stream_id=entry.stream_id)
+                    await db.commit()
+                    return result
+                await db.delete(entry)
+                await db.flush()
+                entry = None
+
+            if entry is not None and entry.expires_at <= now:
+                await db.delete(entry)
+                await db.flush()
+                entry = None
+
+            if action == "leave":
+                if entry is not None:
+                    await db.delete(entry)
+                result = QueueStatus(status="idle")
+            elif action == "status":
+                if entry is not None:
+                    entry.expires_at = now + timedelta(seconds=WAIT_SECONDS)
+                result = QueueStatus(status="waiting" if entry is not None else "idle")
+            else:
+                # FIFO position survives retries and heartbeats. Matched results
+                # remain durable until the user leaves that chat subscription.
+                eligible_users = select(User.id).where(
+                    User.is_active.is_(True), User.is_verified.is_(True)
+                )
+                await db.execute(delete(RandomChatQueue).where(
+                    RandomChatQueue.stream_id.is_(None),
+                    (RandomChatQueue.expires_at <= now)
+                    | RandomChatQueue.user_id.not_in(eligible_users),
+                ))
+                if entry is None:
+                    entry = RandomChatQueue(
+                        user_id=user_id, queued_at=now,
+                        expires_at=now + timedelta(seconds=WAIT_SECONDS),
+                    )
+                    db.add(entry)
+                else:
+                    entry.expires_at = now + timedelta(seconds=WAIT_SECONDS)
+                await db.flush()
+                peer = (await db.execute(
+                    select(RandomChatQueue)
+                    .join(User, User.id == RandomChatQueue.user_id)
+                    .where(RandomChatQueue.stream_id.is_(None),
+                           RandomChatQueue.user_id != user_id,
+                           User.is_active.is_(True), User.is_verified.is_(True))
+                    .order_by(RandomChatQueue.queued_at, RandomChatQueue.user_id)
+                    .limit(1)
+                    .with_for_update(read=True, of=User)
+                )).scalar_one_or_none()
+                if peer is None:
+                    result = QueueStatus(status="waiting")
+                else:
+                    stream_id = await self._create_match(db, peer.user_id, user_id)
+                    peer.stream_id = entry.stream_id = stream_id
+                    result = QueueStatus(status="matched", stream_id=stream_id)
+            await db.commit()
+            return result
+        except BaseException:
+            # Request cancellation also rolls back half-created rooms and queue
+            # changes. If a commit reply is lost, retry reads the durable result.
+            await db.rollback()
+            raise
+
+    async def _create_match(self, db: AsyncSession, first: int, second: int) -> int:
+        stream = Stream(name="랜덤 채팅", type="random", creator_id=first)
+        db.add(stream)
+        await db.flush()
+        recipient = Recipient(type=RecipientType.STREAM.value, type_id=stream.id)
+        db.add(recipient)
+        await db.flush()
+        stream.recipient_id = recipient.id
+        db.add_all([
+            Subscription(user_id=user_id, recipient_id=recipient.id,
+                         active=True, is_user_active=True, is_muted=False)
+            for user_id in (first, second)
+        ])
+        await db.flush()
+        return stream.id
 
 
-class RedisRandomChatWaitingRoom(RandomChatWaitingRoomProtocol):
-    async def join(self, user_id: int):
-        await redis_client.lpush("waiting_room", user_id)
-
-    async def leave(self, user_id: int):
-        await redis_client.lrem("waiting_room", 0, user_id)
-
-    async def list(self) -> List[int]:
-        user_ids = await redis_client.lrange("waiting_room", 0, -1)
-        return [int(u) for u in user_ids]
-
-    async def length(self) -> int:
-        return await redis_client.llen("waiting_room")
-
-
-def get_random_chat_waiting_room() -> RandomChatWaitingRoomProtocol:
-    return RedisRandomChatWaitingRoom()
-
-
-class RandomChatMatcherProtocol(Protocol):
-    async def match_pair(
-        self, waiting_room: RandomChatWaitingRoomProtocol
-    ) -> Optional[Tuple[int, int]]:
-        ...
-
-
-class RandomChatFIFOQueueMatcher(RandomChatMatcherProtocol):
-    async def match_pair(
-        self, waiting_room: RandomChatWaitingRoomProtocol
-    ) -> Optional[Tuple[int, int]]:
-        """
-        Redis Lua 스크립트: 대기열에서 두 명을 원자적으로 pop.
-        """
-        lua_script = """
-        local user1 = redis.call('rpop', KEYS[1])
-        if not user1 then return nil end
-        local user2 = redis.call('rpop', KEYS[1])
-        if not user2 then
-            redis.call('rpush', KEYS[1], user1)
-            return nil
-        end
-        return {user1, user2}
-        """
-        result = await (redis_client.eval(lua_script, keys=["waiting_room"]))
-        if result and len(result) == 2:
-            return int(result[0]), int(result[1])
-        return None
-
-
-def get_random_chat_fifo_queue_matcher() -> RandomChatFIFOQueueMatcher:
-    return RandomChatFIFOQueueMatcher()
-
-
-class RandomChatServiceProtocol(Protocol):
-    async def join(self, db: AsyncSession, user_id: int):
-        ...
-
-    async def leave(self, user_id: int):
-        ...
-
-
-class BasicRandomChatService(RandomChatServiceProtocol):
-    def __init__(
-        self,
-        random_chat_waiting_room: RandomChatWaitingRoomProtocol,
-        random_chat_matcher: RandomChatMatcherProtocol,
-        stream_service: StreamService,
-        subscriber_service: SubscriberService,
-    ):
-        self.waiting_room = random_chat_waiting_room
-        self.matcher = random_chat_matcher
-        self.stream_service = stream_service
-        self.subscriber_service = subscriber_service
-
-    async def join(self, db: AsyncSession, user_id: int):
-        await self.waiting_room.join(user_id)
-
-        # ✅ 길이 먼저 확인
-        if await self.waiting_room.length() < 2:
-            return
-
-        # ✅ 원자적 매칭 시도
-        pair = await self.matcher.match_pair(self.waiting_room)
-        if not pair:
-            return  # 다른 프로세스가 이미 가져갔음
-
-        user1, user2 = pair
-
-        # ✅ 방 생성 (익명 랜덤 채팅)
-        create_stream_data = StreamCreate(
-            name="익명 랜덤 채팅!",
-            type="random",
-            creator_id=user1,
-        )
-        created_stream = await self.stream_service.create_stream(
-            db=db, stream_create=create_stream_data
-        )
-
-        # ✅ 방 구독
-        await self.subscriber_service.subscribe(db, user_id=user1, stream_id=created_stream.stream_id)
-        await self.subscriber_service.subscribe(db, user_id=user2, stream_id=created_stream.stream_id)
-
-    async def leave(self, user_id: int):
-        await self.waiting_room.leave(user_id)
-
-
-def get_basic_random_chat_service(
-    random_chat_waiting_room: RandomChatWaitingRoomProtocol = Depends(get_random_chat_waiting_room),
-    random_chat_matcher: RandomChatMatcherProtocol = Depends(get_random_chat_fifo_queue_matcher),
-    stream_service: StreamService = Depends(get_stream_service),
-    subscriber_service: SubscriberService = Depends(get_subscription_service),
-) -> RandomChatServiceProtocol:
-    return BasicRandomChatService(
-        random_chat_waiting_room=random_chat_waiting_room,
-        random_chat_matcher=random_chat_matcher,
-        stream_service=stream_service,
-        subscriber_service=subscriber_service,
-    )
+def get_random_chat_service() -> RandomChatService:
+    return RandomChatService()
