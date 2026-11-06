@@ -51,7 +51,7 @@ class MeetPostQueryBuilder:
 
 
 class MeetPostCRUDProtocol:
-    def create(self, db: AsyncSession, meet_post: MeetPostCreate) -> (
+    async def create(self, db: AsyncSession, meet_post: MeetPostCreate, *, commit: bool = True) -> (
             MeetPostBase):
         pass
 
@@ -81,9 +81,9 @@ class MeetPostCRUD(CRUDBase[MeetPost, MeetPostBase], MeetPostCRUDProtocol):
     def __init__(self):
         super().__init__(MeetPost, MeetPostBase)
 
-    async def create(self, db: AsyncSession, meet_post: MeetPostCreate) -> (
+    async def create(self, db: AsyncSession, meet_post: MeetPostCreate, *, commit: bool = True) -> (
             MeetPostBase):
-        return await super().create(db, meet_post)
+        return await super().create(db, meet_post, commit=commit)
 
     async def get(self, db: AsyncSession, meet_post_id: int) -> MeetPostBase:
         return await super().get(db, meet_post_id)

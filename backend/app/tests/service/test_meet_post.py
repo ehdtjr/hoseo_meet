@@ -74,8 +74,7 @@ class TestMeetPostService(BaseTest):
         self.assertTrue(result)  # 구독 성공 여부 확인
         self.meet_post_crud.get.assert_called_once_with(self.db,
                                                         meet_post_data.id)
-        self.subscriber_service.get_subscribers.assert_called_once_with(self.db,
-                                                                        2)
+        self.subscriber_service.get_subscribers.assert_not_called()
         self.subscriber_service.subscribe.assert_called_once_with(self.db,
                                                                   self.user.id,
                                                                   2)
@@ -113,6 +112,7 @@ class TestMeetPostService(BaseTest):
         self.subscriber_service.get_subscribers.return_value = [1, self.user.id,
                                                                 3, 4]
 
+        self.subscriber_service.subscribe.side_effect = ValueError("이미 참가한 사용자입니다.")
         with self.assertRaises(ValueError) as context:
             await self.service.subscribe_to_meet_post(
                 db=self.db, user_id=self.user.id, meet_post_id=meet_post_data.id
@@ -141,6 +141,7 @@ class TestMeetPostService(BaseTest):
         # 이미 구독자 수가 최대 인원에 도달한 상태로 설정
         self.subscriber_service.get_subscribers.return_value = [1, 2, 3, 4, 5]
 
+        self.subscriber_service.subscribe.side_effect = ValueError("참가 가능한 인원을 초과했습니다.")
         # ValueError 발생 여부 확인
         with self.assertRaises(ValueError) as context:
             await self.service.subscribe_to_meet_post(

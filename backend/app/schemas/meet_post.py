@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.schemas.common import PostType
+from app.schemas.common import MeetPostType, PostType
 from app.schemas.user import UserPublicRead
 
 
@@ -11,6 +11,7 @@ class MeetPostBase(BaseModel):
 
     id: int
     title: str
+    # Previously accepted values must remain readable, including for deletion.
     type: PostType
     author_id: int
     stream_id: int
@@ -26,7 +27,7 @@ class MeetPostCreate(BaseModel):
     title: str
     author_id: int
     stream_id: int
-    type: PostType
+    type: MeetPostType
     content: str
     max_people: int = Field(..., ge=1, le=50)
 
@@ -35,7 +36,7 @@ class MeetPostRequest(BaseModel):
     model_config = ConfigDict(use_enum_values=True, from_attributes=True)
 
     title: str
-    type: PostType
+    type: MeetPostType
     content: str
     max_people: int = Field(..., ge=1, le=50)
 
