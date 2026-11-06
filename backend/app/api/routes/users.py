@@ -108,6 +108,8 @@ async def post_subscriptions(
             "msg": "",
             "result": "success",
         }
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e)) from e
     except Exception as e:
         raise (HTTPException(status_code=500,
                              detail=f"Failed to subscribe: {str(e)}"))

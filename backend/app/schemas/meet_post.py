@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
-from app.schemas.common import PostType
+from app.schemas.common import PostType, PublicStreamType
 from app.schemas.user import UserPublicRead
 
 
@@ -35,7 +35,7 @@ class MeetPostRequest(BaseModel):
     model_config = ConfigDict(use_enum_values=True, from_attributes=True)
 
     title: str
-    type: PostType
+    type: PublicStreamType
     content: str
     max_people: int = Field(..., ge=1, le=50)
 

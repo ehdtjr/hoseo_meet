@@ -8,6 +8,7 @@ from app.models.story_post import StoryPost
 from app.models.chat_bot import ChatBotMessage
 from app.models.term import Term, UserTermAgreement
 from app.models.tags import Tag, UserTag
+from app.models.randomchat import RandomChatQueue
 
 __all__ = [
     "User",
@@ -25,4 +26,5 @@ __all__ = [
     "UserTermAgreement",
     "Tag",
     "UserTag",
+    "RandomChatQueue",
 ]

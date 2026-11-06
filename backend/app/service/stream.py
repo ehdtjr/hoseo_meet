@@ -147,6 +147,12 @@ class SubscriberService(SubscriberServiceProtocol):
     async def subscribe(self, db: AsyncSession, user_id: int,
                         stream_id: int) \
             -> Optional[SubscriptionRead]:
+        stream = await self.stream_crud.get(db, stream_id)
+        if stream is not None and stream.type == "random":
+            # A random room has exactly the two subscriptions made by the
+            # matcher. Generic joins must not admit outsiders or reactivate an
+            # old room after a participant has started another match.
+            raise PermissionError("Random chat rooms can only be joined by matching")
         recipient = await self.recipient_crud.get_by_type_id(db, stream_id)
 
         if not recipient:
