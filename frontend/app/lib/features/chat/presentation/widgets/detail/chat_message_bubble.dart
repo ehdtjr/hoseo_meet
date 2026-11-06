@@ -156,8 +156,8 @@ String _formatTime(DateTime dateTime) {
   try {
     final localTime = dateTime.toLocal();
     return DateFormat('a h:mm', 'ko_KR').format(localTime);
-  } catch (e, stack) {
-    debugPrint('[ChatDetailPage] 타임스탬프 변환 오류: $e\n$stack');
+  } catch (_) {
+    debugPrint('[ChatDetailPage] 타임스탬프 변환 오류');
     return 'Unknown';
   }
 }

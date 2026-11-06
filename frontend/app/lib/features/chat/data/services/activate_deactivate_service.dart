@@ -15,10 +15,8 @@ class ActivateDeactivateService {
 
     if (response.statusCode == 200) {
       print('[Activate] 성공: $streamId');
-      print('응답: ${response.body}');
     } else {
       print('[Activate] 실패: ${response.statusCode}');
-      print('응답: ${response.body}');
     }
   }
 
@@ -29,10 +27,8 @@ class ActivateDeactivateService {
 
     if (response.statusCode == 200) {
       print('[Deactivate] 성공');
-      print('응답: ${response.body}');
     } else {
       print('[Deactivate] 실패: ${response.statusCode}');
-      print('응답: ${response.body}');
     }
   }
 }

@@ -105,7 +105,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       );
       if (_active) state = state.copyWith(participants: fetchedUsers);
     } catch (e) {
-      debugPrint('[ChatDetailNotifier] 참여자 정보 실패: $e');
+      debugPrint('[ChatDetailNotifier] 참여자 정보 실패');
     }
   }
 
@@ -126,7 +126,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
           lng: position.longitude,
         );
       } catch (e) {
-        debugPrint('[ChatDetailNotifier] 위치 전송 실패: $e');
+        debugPrint('[ChatDetailNotifier] 위치 전송 실패');
       }
     });
   }
@@ -258,7 +258,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
 
       state = state.copyWith(messages: merged);
     } catch (error) {
-      debugPrint('[ChatDetailNotifier] 초기 메시지 로드 실패: $error');
+      debugPrint('[ChatDetailNotifier] 초기 메시지 로드 실패');
     }
   }
 
@@ -296,7 +296,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         state = state.copyWith(hasMore: false); // ✅ 더 이상 없음
       }
     } catch (error) {
-      debugPrint('[ChatDetailNotifier] 이전 메시지 로드 실패: $error');
+      debugPrint('[ChatDetailNotifier] 이전 메시지 로드 실패');
     } finally {
       if (_active) state = state.copyWith(isLoadingMore: false);
     }
@@ -396,7 +396,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       _mergeServerSnapshot(readSnapshot);
       _updateRoomPreview();
     } catch (error) {
-      debugPrint('[ChatDetailNotifier] 전송 후 메시지 동기화 실패: $error');
+      debugPrint('[ChatDetailNotifier] 전송 후 메시지 동기화 실패');
     }
   }
 
@@ -420,20 +420,25 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       incoming,
     ) async {
       if (!_active) return;
-      final type = incoming['type'];
-      switch (type) {
-        case 'read':
-          _handleReadMessage(incoming);
-          break;
-        case 'stream':
-          await _handleStreamMessage(incoming);
-          break;
-        case 'location':
-          _handleLocationMessage(incoming);
-          break;
-        default:
-          debugPrint('[ChatDetailNotifier] 알 수 없는 소켓 타입: $type');
-          break;
+      try {
+        final type = incoming['type'];
+        switch (type) {
+          case 'read':
+            _handleReadMessage(incoming);
+            break;
+          case 'stream':
+            await _handleStreamMessage(incoming);
+            break;
+          case 'location':
+            _handleLocationMessage(incoming);
+            break;
+          default:
+            debugPrint('[ChatDetailNotifier] 알 수 없는 소켓 타입');
+            break;
+        }
+      } catch (_) {
+        // Parsing exceptions can quote message fields or coordinates.
+        debugPrint('[ChatDetailNotifier] socket_event_failed');
       }
     });
     if (_foreground) await _chatRepository.connectWebSocket();
@@ -480,7 +485,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         } catch (error) {
           failed = true;
           if (_active) _pendingReadIds.addAll(ids);
-          debugPrint('[ChatDetailNotifier] 읽음 상태 동기화 실패: $error');
+          debugPrint('[ChatDetailNotifier] 읽음 상태 동기화 실패');
           break; // A later event or reconnect retries; avoid a hot failure loop.
         }
       }
@@ -513,7 +518,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       try {
         await _markMessagesAsRead([newMessage]);
       } catch (error) {
-        debugPrint('[ChatDetailNotifier] read 실패: $error');
+        debugPrint('[ChatDetailNotifier] read 실패');
       }
     }
   }
@@ -561,7 +566,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
               .timeout(const Duration(seconds: 15));
         }
       } catch (error) {
-        debugPrint('[ChatDetailNotifier] 방 활성 상태 변경 실패: $error');
+        debugPrint('[ChatDetailNotifier] 방 활성 상태 변경 실패');
       }
     });
     return _presenceTask;
@@ -578,7 +583,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
           )
           .timeout(const Duration(seconds: 15));
     } catch (error) {
-      debugPrint('[ChatDetailNotifier] 읽음 처리 실패: $error');
+      debugPrint('[ChatDetailNotifier] 읽음 처리 실패');
     }
   }
 

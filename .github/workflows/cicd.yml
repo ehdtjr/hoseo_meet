@@ -64,4 +64,9 @@ jobs:
         run: cp .env.example .env
       - run: flutter pub get --enforce-lockfile
       - run: flutter test --no-pub
+      - name: Verify socket logs with synthetic private markers in JIT and AOT
+        run: |
+          dart --enable-asserts tool/check_websocket_logging.dart
+          dart compile exe tool/check_websocket_logging.dart -o "$RUNNER_TEMP/websocket-log-check"
+          "$RUNNER_TEMP/websocket-log-check"
       - run: flutter build bundle --debug --no-pub

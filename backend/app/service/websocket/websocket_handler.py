@@ -10,7 +10,15 @@ from app.core.redis import redis_client
 from app.service.websocket.websocket_manager import WebSocketManagerProtocol
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  # DEBUG 레벨로 설정하여 더 많은 로그 기록
+
+
+# Log protocol constants only. Never stringify payloads, exception messages,
+# close reasons, headers, cursor values or unknown event types.
+def _safe_event_type(event_data: dict) -> str:
+    event_type = event_data.get("type")
+    if isinstance(event_type, str) and event_type in ("stream", "user", "location", "read"):
+        return event_type
+    return "unknown"
 
 
 class WebSocketEventHandler:
@@ -37,14 +45,14 @@ class WebSocketEventHandler:
 
         try:
             await asyncio.gather(*tasks)  # 예외 발생 시 모든 작업 취소
-        except Exception as e:
-            logger.error(f"WebSocket 작업 중 예외 발생: {e}")
+        except Exception:
+            logger.error("websocket connection_failed")
         finally:
             # 모든 태스크 취소
             for task in tasks:
                 task.cancel()
             # 연결 종료 및 상태 감소
-            logger.info(f"사용자 {user_id}의 연결이 종료되었습니다.")
+            logger.info("websocket disconnected")
             connected_websockets.dec()
             self.websocket_manager.disconnect(websocket)
 
@@ -64,15 +72,15 @@ class WebSocketEventHandler:
                     last_event_id = events[-1][1][-1][0]
             except (ConnectionClosedError, ConnectionClosedOK,
                     WebSocketDisconnect) as e:
-                logger.info(f"WebSocket 연결이 닫힘: {e}")
+                logger.info("websocket redis_forwarding_disconnected")
                 disconnect_event.set()
                 raise e
             except ServerConnectionError as e:
-                logger.error(f"Redis 서버 연결 오류: {e}")
+                logger.error("websocket redis_connection_failed")
                 disconnect_event.set()
                 raise e
             except Exception as e:
-                logger.error(f"예상치 못한 오류 발생: {e}")
+                logger.error("websocket redis_forwarding_failed")
                 disconnect_event.set()
                 raise e
 
@@ -84,15 +92,15 @@ class WebSocketEventHandler:
         """
         while not disconnect_event.is_set():
             try:
-                message = await websocket.receive_text()
-                logger.debug(f"WebSocket에서 수신한 메시지: {message}")
+                await websocket.receive_text()
+                logger.debug("websocket client_frame_received")
             except (ConnectionClosedError, ConnectionClosedOK,
                     WebSocketDisconnect) as e:
-                logger.info(f"WebSocket receive 연결 종료: {e}")
+                logger.info("websocket client_disconnected")
                 disconnect_event.set()
                 raise e
             except Exception as e:
-                logger.error(f"WebSocket receive에서 예외 발생: {e}")
+                logger.error("websocket receive_failed")
                 disconnect_event.set()
                 raise e
 
@@ -115,9 +123,9 @@ class WebSocketEventHandler:
         event_data_json = json.dumps(event_data, ensure_ascii=False)
         try:
             await self.websocket_manager.send_message(event_data_json, websocket)
-            logger.debug(f"WebSocket으로 이벤트 전송: {event_data_json}")
-        except Exception as e:
-            logger.error(f"이벤트 전송 중 예외 발생: {e}")
+            logger.debug("websocket event_sent type=%s", _safe_event_type(event_data))
+        except Exception:
+            logger.error("websocket send_failed type=%s", _safe_event_type(event_data))
 
     def _parse_event_data(self, event_data: dict) -> dict:
         """
@@ -126,5 +134,5 @@ class WebSocketEventHandler:
         try:
             event_data["data"] = json.loads(event_data["data"])
         except json.JSONDecodeError:
-            logger.warning(f"JSON 파싱 실패: {event_data}")
+            logger.warning("websocket decode_failed type=%s", _safe_event_type(event_data))
         return event_data

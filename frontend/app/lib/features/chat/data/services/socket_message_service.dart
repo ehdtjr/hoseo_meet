@@ -66,6 +66,7 @@ class SocketMessageService {
   void _setState(SocketConnectionState value) {
     if (_state == value || _disposed) return;
     _state = value;
+    print('[WebSocket] state=${value.name}');
     _states.add(value);
   }
 
@@ -161,10 +162,12 @@ class SocketMessageService {
           if (_isCurrent(generation)) _onMessageReceived(data);
         },
         onDone: () {
+          print('[WebSocket] disconnected');
           if (!done.isCompleted) done.complete();
           _retry(generation);
         },
         onError: (Object error) {
+          print('[WebSocket] transport_failed');
           if (!done.isCompleted) done.complete();
           _retry(generation);
         },
@@ -177,6 +180,7 @@ class SocketMessageService {
       _setState(SocketConnectionState.connected);
     } catch (_) {
       // Avoid logging headers or message bodies containing private chat content.
+      print('[WebSocket] connect_failed');
       _retry(generation);
     }
   }
@@ -193,6 +197,7 @@ class SocketMessageService {
     }
     if (delay > maxRetryDelay) delay = maxRetryDelay;
     _failures++;
+    print('[WebSocket] retry_scheduled attempt=$_failures');
     _retryTimer = Timer(delay, () {
       _retryTimer = null;
       unawaited(connectWebSocket());
@@ -202,17 +207,29 @@ class SocketMessageService {
   void _onMessageReceived(dynamic data) {
     try {
       final decoded = jsonDecode(data as String);
-      if (decoded is! Map<String, dynamic>) return;
+      if (decoded is! Map<String, dynamic>) {
+        print('[WebSocket] invalid_message_shape');
+        return;
+      }
       final eventId = decoded['last_event_id']?.toString();
       if (eventId != null) {
         if (!_eventIds.add(eventId)) return;
         if (_eventIds.length > 1024) _eventIds.remove(_eventIds.first);
       }
+      // Unknown types can contain private input. Log protocol constants only.
+      final type = decoded['type'];
+      final safeType = type is String &&
+              const {'stream', 'user', 'location', 'read'}.contains(type)
+          ? type
+          : 'unknown';
+      print('[WebSocket] received type=$safeType');
       _messages.add(decoded);
     } on FormatException {
       // Ignore malformed frames without interrupting the connection.
+      print('[WebSocket] decode_failed');
     } on TypeError {
       // Binary/non-object frames are not chat events.
+      print('[WebSocket] invalid_frame');
     }
   }
 
