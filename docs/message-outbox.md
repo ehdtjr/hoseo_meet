@@ -20,16 +20,56 @@ HTTP `delivery_status=completed`는 모든 수신자의 처리가 위 결과 중
 
 메시지 저장은 키당 한 번이지만 외부 전달은 **at-least-once**다. FCM 수락 직후 DB commit 전 프로세스가 죽거나 다중 토큰 중 일부가 실패하면 재시도 알림이 중복될 수 있다. Redis marker 소실/7일 경과 후에도 이벤트가 중복될 수 있다. 이벤트의 서버 `id`로 클라이언트가 메시지를 병합하며, FCM data에 `message_id`도 넣는다. Redis stream은 영구 이력이 아니므로 접속 복구는 기존 HTTP 메시지 조회를 사용한다. 재시도 때문에 이벤트가 역순으로 도착할 수 있으므로 Flutter 방 목록의 미리보기는 도착한 이벤트 대신 병합된 메시지 중 가장 큰 서버 ID를 기준으로 갱신한다. 각 이벤트의 읽음 처리는 원래 ID를 유지한다.
 
-## 기존 DB 마이그레이션
+## 기존 DB schema 편입
 
-저장소에 추적된 Alembic baseline이 없어 독립적인 additive migration을 제공한다. 신규 DB는 `local_init`의 metadata 생성에 포함된다. **기존 DB는 새 API 실행 전에** 새 이미지로 다음 명령을 실행한다. 운영 환경에서는 해당 DB의 백업·변경 창 절차를 따른다. 일반 unique index 생성은 쓰기를 잠시 막을 수 있다.
+outbox schema는 Alembic `20261106_0003` revision에 추적된다. 빈 DB와 로컬 환경은
+`local_init`이 `upgrade head`를 실행해 설치한다. staging/production API 시작은 schema를
+자동 변경하지 않는다. 새 API를 시작하기 전에 쓰기를 중지하고 [공통 백업·복구
+정책](database-migrations.md#백업과-적용)에 따라 복원본을 검증한 뒤 명시적으로
+migration을 실행한다. unique index 생성 중에는 대상 테이블 쓰기가 잠시 대기할 수 있다.
+
+Alembic 이력이 있는 DB는 독립 outbox 스크립트를 실행하지 않고 일반 upgrade 경로를
+사용한다.
 
 ```sh
-# DB가 이미 실행 중이고 새 web 이미지를 빌드한 상태
-docker compose run --rm --no-deps web python -m app.scripts.migrate_message_outbox
+# DB가 실행 중이고 새 web 이미지를 빌드한 상태
+docker compose run --rm --no-deps web alembic current
+docker compose run --rm --no-deps web alembic upgrade head
+docker compose run --rm --no-deps web alembic current
 ```
 
-트랜잭션 안에서 nullable `message.client_message_id`, unique index, outbox 테이블을 추가한다. 기존 outbox에도 `channel` 컬럼과 대기 작업 인덱스를 추가하므로 리뷰 이전 버전에 마이그레이션을 적용했어도 같은 명령을 다시 실행한다. 반복 실행 가능하며 기존 메시지를 변경하거나 과거 이벤트를 발행하지 않는다. 코드 rollback 시 추가 스키마는 남겨둘 수 있지만 이전 서버는 키를 사용하지 않으므로 중복 방지를 제공하지 않는다. pending 이벤트가 있으면 worker가 다시 시작될 때까지 보존된다.
+테이블은 있지만 Alembic 이력이 없는 DB는 현재 schema를 먼저 검증하고 정확히 일치하는
+`20261106_0001`, `0002` 또는 `0003`을 기록한 뒤 upgrade한다. `0001`/`0002`로 편입한
+DB에는 `0003`이 outbox 객체를 추가하고, 이미 현재 outbox schema와 일치하는 DB는
+`0003`에 편입되어 upgrade가 no-op이 된다.
+
+```sh
+docker compose run --rm --no-deps web python -m app.scripts.adopt_legacy_db
+docker compose run --rm --no-deps web alembic upgrade head
+docker compose run --rm --no-deps web alembic current
+```
+
+이전 독립 migration의 일부만 적용되어 adoption이 실패한 알려진 outbox schema에는
+`migrate_message_outbox`를 pre-adoption 복구 도구로 유지한다. adoption 실패만으로 이
+명령을 실행하지 않는다. 백업 복원본에서 차이가 `message.client_message_id`,
+`message_sender_client_id`, `message_outbox`, `channel`과 pending index에만 한정됨을
+확인한 경우에만 변경 창에서 실행한다.
+
+```sh
+docker compose run --rm --no-deps web python -m app.scripts.migrate_message_outbox
+docker compose run --rm --no-deps web python -m app.scripts.adopt_legacy_db
+docker compose run --rm --no-deps web alembic upgrade head
+```
+
+복구 도구는 트랜잭션 안에서 누락된 nullable `message.client_message_id`, unique index,
+outbox 테이블, `channel` 컬럼과 대기 작업 index를 additive하게 보완한다. 반복 실행할 수
+있고 기존 메시지를 변경하거나 과거 이벤트를 생성하지 않지만, 알려지지 않은 schema
+차이를 고치거나 Alembic 이력을 기록하지 않는다. 애플리케이션 시작 과정이나 운영
+entrypoint에서 자동 실행하지 않는다.
+
+코드를 rollback해도 추가 schema는 그대로 둘 수 있지만 이전 서버는 키를 사용하지 않아
+중복 방지를 제공하지 않는다. pending 이벤트는 outbox worker가 다시 시작될 때까지 DB에
+보존된다. 운영 downgrade 대신 forward fix 또는 검증한 백업 복원을 사용한다.
 
 ## 운영 확인
 
@@ -54,6 +94,13 @@ COMPOSE_PROJECT_NAME=hoseo-issue22 docker compose --profile test run --rm test \
   -q -W error::RuntimeWarning
 ```
 
-테스트는 전용 `test_db` PostgreSQL/PostGIS와 별도 Redis를 사용한다. 실제 CRUD에 수신 상태 부분 실패·outbox 실패를 주입하고, 동시 재전송·HTTP 응답·키 충돌·Redis 실패·합성 FCM provider 실패를 검사한다. 별도 자식 프로세스를 Redis 발행 직후 강제 종료하고 다른 프로세스로 재시작해 pending 복구 및 Redis 중복 방지를 확인한다. 기존 스키마 migration의 반복 실행과 데이터 보존도 확인한다. FCM 지연 중 Redis 진행, 실제 자식 프로세스 타임아웃·취소·생성 중 취소 후 회수, FCM 단계의 재시작 복구를 추가 검증한다. Flutter 테스트는 102 → 101 → 102 이벤트에서 최신 미리보기·시간·메시지 정렬을 유지하면서 102와 101을 각각 한 번씩 읽음 처리하는지 검사한다. 실제 Firebase와 기기 수신은 이 테스트 범위에 포함되지 않는다.
+테스트는 전용 `test_db` PostgreSQL/PostGIS와 별도 Redis를 사용한다. 실제 CRUD에 수신 상태 부분 실패·outbox 실패를 주입하고, 동시 재전송·HTTP 응답·키 충돌·Redis 실패·합성 FCM provider 실패를 검사한다. 별도 자식 프로세스를 Redis 발행 직후 강제 종료하고 다른 프로세스로 재시작해 pending 복구 및 Redis 중복 방지를 확인한다. legacy outbox 복구 도구의 반복 실행과 데이터 보존도 확인한다. Alembic `0003`의 빈 DB 설치·기존 DB 편입·drift 검사는 [migration 통합 suite](database-migrations.md#자동-검증-범위)에서 수행한다. FCM 지연 중 Redis 진행, 실제 자식 프로세스 타임아웃·취소·생성 중 취소 후 회수, FCM 단계의 재시작 복구를 추가 검증한다. Flutter 테스트는 102 → 101 → 102 이벤트에서 최신 미리보기·시간·메시지 정렬을 유지하면서 102와 101을 각각 한 번씩 읽음 처리하는지 검사한다. 실제 Firebase와 기기 수신은 이 테스트 범위에 포함되지 않는다.
 
 2026-11-06 리뷰 반영 후 로컬 검증: `hoseo-issue22` Compose 프로젝트의 전용 PostGIS 16-3.5/Redis 7에서 전체 백엔드 **143개 통과**, 마지막 프로세스 생성 중 취소 보완 후 FCM 회귀 테스트 **5개 통과**. 기존 의존성 이미지에 현재 `backend/app`을 읽기 전용 마운트해 실행했다. Flutter 3.32.1의 전체 테스트 **71개**, 변경 파일 정적 분석, debug bundle 빌드도 통과했다. 새 Python 파일의 Ruff 검사, 기존 CRLF를 고려한 `git -c core.whitespace=cr-at-eol diff --check`, Compose 구성 검사와 tracked credential 검사도 통과했다. 기존 Pydantic deprecation 및 테스트 helper 클래스 수집 경고는 남아 있다. CI 실행·운영 배포·실제 FCM 기기 수신 결과는 아니다.
+
+위 수치는 독립 outbox migration을 사용하던 #22 구현의 역사적 검증이다. `0003` Alembic
+편입 뒤 새 이미지의 migration suite는 **24개**, 현재 코드의 전체 backend suite는
+**193개** 통과했다. 현재 `head`의 합성 메시지와 pending outbox를 `pg_dump -Fc` 백업에서
+새 DB로 복원한 뒤에도 보존됨을 확인했다. 자세한 범위와 경고, checksum은 [DB migration
+통합 결과](database-migrations.md#0003-outbox-통합-검증)에 기록했다. 원격 CI, 운영 DB
+적용과 실제 FCM 기기 수신 결과는 아니다.

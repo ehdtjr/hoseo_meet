@@ -1,7 +1,9 @@
-"""Idempotent additive migration for existing databases (no Alembic baseline).
+"""Legacy outbox repair helper retained for pre-adoption reconciliation only.
 
-Run before starting the new API: python -m app.scripts.migrate_message_outbox
-New databases are initialized by local_init with the same model metadata.
+Normal installation/upgrades use the tracked Alembic revisions. Unversioned
+databases must pass app.scripts.adopt_legacy_db before upgrading. Use this helper
+only for reviewed older outbox shapes on a backed-up database with writers
+stopped; it does not validate or stamp the complete application schema.
 """
 import asyncio
 
