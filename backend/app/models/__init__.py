@@ -3,6 +3,7 @@ from app.models.message import Message
 from app.models.recipient import Recipient
 from app.models.stream import Stream, Subscription
 from app.models.user import User
+from app.models.profile_media import ProfileMedia
 from app.models.room_post import RoomPost, RoomReview, RoomReviewImage
 from app.models.story_post import StoryPost
 from app.models.chat_bot import ChatBotMessage
@@ -11,6 +12,7 @@ from app.models.tags import Tag, UserTag
 
 __all__ = [
     "User",
+    "ProfileMedia",
     "Stream",
     "Message",
     "Recipient",

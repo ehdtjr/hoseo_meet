@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, quote, unquote, urlsplit
 from fastapi import HTTPException
 
 from app.core.config import settings
+from app.core.media_permissions import reject_profile_url_delete, verify_profile_key
 
 
 class LocalStorage:
@@ -55,4 +56,11 @@ class LocalStorage:
         key = unquote(parsed.path[len(prefix):])
         signature = parse_qs(parsed.query).get("signature", [""])[0]
         path = self.verify(key, signature)
+        reject_profile_url_delete(key)
+        await asyncio.to_thread(path.unlink, missing_ok=True)
+
+    async def delete_profile_file(self, key: str, *, uploader_id: int) -> None:
+        # Callers must obtain the key from the server-owned upload record.
+        verify_profile_key(key, uploader_id)
+        path = self.path(key)
         await asyncio.to_thread(path.unlink, missing_ok=True)
