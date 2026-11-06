@@ -125,13 +125,15 @@ class MessageCRUD(CRUDBase[Message, MessageBase], MessageCRUDProtocol):
         obj_in_data = message.model_dump()
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
-        await db.commit()
+        # The send service commits message, recipient states and outbox together.
+        await db.flush()
         return MessageBase.model_construct(
             id=db_obj.id,
             sender_id=db_obj.sender_id,
             type=db_obj.type,
             recipient_id=db_obj.recipient_id,
             content=db_obj.content,
+            client_message_id=db_obj.client_message_id,
             rendered_content=db_obj.rendered_content,
             date_sent=db_obj.date_sent)
 
@@ -229,7 +231,6 @@ class UserMessageCRUD(CRUDBase[UserMessage, UserMessageBase],
                           user_messages: list[dict]) -> None:
         stmt = insert(UserMessage).values(user_messages)
         await db.execute(stmt)
-        await db.commit()
 
     async def get_newest_message_in_stream(self, db: AsyncSession,
                                            user_id: int,

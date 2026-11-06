@@ -1,11 +1,11 @@
-import logging
 from typing import Dict, List
 
-from psycopg import DatabaseError
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing_extensions import Optional, Protocol
 
 from app.core.redis import redis_client
+from app.core.exceptions import PermissionDeniedException
+from app.service.stream_policy import StreamAccessPolicy
 from app.crud.message import MessageCRUDProtocol, UserMessageCRUDProtocol, \
     get_message_crud, get_user_message_crud
 from app.crud.recipient import RecipientCRUDProtocol, get_recipient_crud
@@ -13,17 +13,13 @@ from app.crud.stream import StreamCRUDProtocol, SubscriptionCRUDProtocol, \
     get_stream_crud, get_subscription_crud
 from app.schemas.message import MessageBase, UserMessageBase
 from app.schemas.recipient import RecipientBase, RecipientCreate, RecipientType
-from app.schemas.stream import StreamBase, StreamCreate, StreamRead, \
+from app.schemas.stream import StreamCreate, StreamRead, \
     SubscriptionBase, SubscriptionCreate, \
     SubscriptionRead
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-
 class StreamServiceProtocol(Protocol):
     async def create_stream(self, db: AsyncSession,
-                            stream_create: StreamCreate) -> StreamRead:
+                            stream_create: StreamCreate, *, commit: bool = True) -> StreamRead:
         pass
 
 
@@ -34,30 +30,24 @@ class StreamService(StreamServiceProtocol):
         self.recipient_crud = recipient_crud
 
     async def create_stream(self, db: AsyncSession,
-                            stream_create: StreamCreate) -> Optional[
-                            StreamRead]:
+                            stream_create: StreamCreate, *, commit: bool = True) -> StreamRead:
+        # Keep the stream and its recipient private until the owner commits.
         try:
-            created_stream: StreamBase = await self.stream_crud.create(db,
-            obj_in=stream_create)
+            created_stream = await self.stream_crud.create(
+                db, obj_in=stream_create, commit=False)
+            recipient = await self.recipient_crud.create(
+                db, obj_in=RecipientCreate(type=RecipientType.STREAM,
+                                           type_id=created_stream.id), commit=False)
+            created_stream.recipient_id = recipient.id
+            updated_stream = await self.stream_crud.update(db, created_stream, commit=False)
+            result = StreamRead.model_validate(updated_stream)
+            if commit:
+                await db.commit()
+            return result
+        except BaseException:
+            await db.rollback()
+            raise
 
-            if created_stream:
-                recipient_data = RecipientCreate(type=RecipientType.STREAM,
-                                                 type_id=created_stream.id)
-                recipient = await self.recipient_crud.create(db,
-                                                             obj_in=recipient_data)
-                # update recipient
-                created_stream.recipient_id = recipient.id
-                update_stream = await self.stream_crud.update(db, created_stream)
-                return StreamRead.model_validate(update_stream)
-            else:
-                logger.info("Error create stream")
-                return None
-        except DatabaseError as db_err:
-            logger.error(f"Database error while creating stream: {db_err}")
-            return None
-        except Exception as e:
-            logger.error(f"Unexpected error while creating stream: {e}")
-            return None
 
 async def get_stream_service(
 ) -> StreamServiceProtocol:
@@ -66,7 +56,7 @@ async def get_stream_service(
 
 class SubscriberServiceProtocol(Protocol):
     async def subscribe(self, db: AsyncSession, user_id: int,
-                        stream_id: int) \
+                        stream_id: int, *, commit: bool = True) \
             -> Optional[SubscriptionRead]:
         pass
 
@@ -145,34 +135,39 @@ class SubscriberService(SubscriberServiceProtocol):
         db, stream_id)
 
     async def subscribe(self, db: AsyncSession, user_id: int,
-                        stream_id: int) \
+                        stream_id: int, *, commit: bool = True) \
             -> Optional[SubscriptionRead]:
-        recipient = await self.recipient_crud.get_by_type_id(db, stream_id)
+        """Join or rejoin through the public access policy and capacity lock."""
+        # The policy lock and subscription write share the caller's transaction.
+        # Creation uses commit=False and commits only after the creator joins.
+        try:
+            recipient_id, max_people = await StreamAccessPolicy().lock_join_target(
+                db, user_id, stream_id)
+            subscription = await self.subscription_crud.get_subscription(
+                db, user_id=user_id, recipient_id=recipient_id)
+            if subscription:
+                if not subscription.is_user_active:
+                    raise PermissionDeniedException("참가 자격이 비활성화되었습니다.")
+                if subscription.active:
+                    raise ValueError("이미 참가한 사용자입니다.")
 
-        if not recipient:
-            raise ValueError(f"Recipient not found for stream {stream_id}")
+            if max_people is not None:
+                subscribers = await self.subscription_crud.get_subscribers(db, stream_id)
+                if len(subscribers) >= max_people:
+                    raise ValueError("참가 가능한 인원을 초과했습니다.")
 
-        subscribe = await self.subscription_crud.get_subscription(
-            db, user_id=user_id, recipient_id=recipient.id
-        )
-
-        if subscribe:
-            if subscribe.active:
-                raise ValueError(f"User {user_id} is already subscribed")
+            if subscription:
+                subscription.active = True
+                subscriber = await self.subscription_crud.update(
+                    db, subscription, commit=commit)
             else:
-                subscribe.active = True
-                updated_subscription = await self.subscription_crud.update(
-                    db, subscribe)
-                return SubscriptionRead.model_validate(updated_subscription)
-
-        subscriber_data = SubscriptionCreate(
-            user_id=user_id,
-            recipient_id=recipient.id,
-        )
-        subscriber = await self.subscription_crud.create(db,
-        subscriber_data)
-
-        return SubscriptionRead.model_validate(subscriber)
+                subscriber = await self.subscription_crud.create(
+                    db, SubscriptionCreate(user_id=user_id, recipient_id=recipient_id),
+                    commit=commit)
+            return SubscriptionRead.model_validate(subscriber)
+        except BaseException:
+            await db.rollback()
+            raise
 
     async def unsubscribe(self, db: AsyncSession, user_id: int,
                           stream_id: int) -> Optional[SubscriptionBase]:

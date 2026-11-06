@@ -29,6 +29,7 @@ class Message(Base):
         ForeignKey("recipient.id", ondelete="CASCADE")
     )
     content: Mapped[str] = mapped_column(String)
+    client_message_id: Mapped[Optional[str]] = mapped_column(String(128))
     rendered_content: Mapped[Optional[str]] = mapped_column(String,
                                                             nullable=True)
     date_sent: Mapped[datetime] = mapped_column(DateTime(timezone=True),
@@ -53,6 +54,7 @@ class Message(Base):
     )
 
     __table_args__ = (
+        Index("message_sender_client_id", "sender_id", "client_message_id", unique=True),
         Index("message_search_tsvector_idx", search_tsvector,
               postgresql_using="gin"),
         # 메시지를 이동하거나 읽음 표시할 때 사용

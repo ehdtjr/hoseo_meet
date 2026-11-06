@@ -13,11 +13,16 @@ class CRUDBase(Generic[ModelType, SchemaType]):
         self.model = model
         self.schema = schema
 
-    async def create(self, db: AsyncSession, obj_in: SchemaType) -> SchemaType:
+    async def create(self, db: AsyncSession, obj_in: SchemaType, *,
+                     commit: bool = True) -> SchemaType:
+        """Use commit=False when the calling service owns the transaction."""
         obj_in_data = obj_in.model_dump()
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         await db.refresh(db_obj)
         return self.schema.model_validate(db_obj.__dict__)
 
@@ -27,14 +32,18 @@ class CRUDBase(Generic[ModelType, SchemaType]):
             return None
         return self.schema.model_validate(result.__dict__)
 
-    async def update(self, db: AsyncSession, obj_in: SchemaType) -> SchemaType:
+    async def update(self, db: AsyncSession, obj_in: SchemaType, *,
+                     commit: bool = True) -> SchemaType:
         db_obj = await db.get(self.model, obj_in.id)
         update_data = obj_in.model_dump(exclude_unset=True)
 
         for field, value in update_data.items():
             setattr(db_obj, field, value)
 
-        await db.commit()
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         await db.refresh(db_obj)
 
         return self.schema.model_validate(db_obj)

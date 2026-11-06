@@ -14,13 +14,13 @@ from app.schemas.stream import StreamBase, StreamCreate, SubscriptionBase, \
 
 class StreamCRUDProtocol:
     async def create(self, db: AsyncSession,
-                     obj_in: StreamCreate) -> StreamBase:
+                     obj_in: StreamCreate, *, commit: bool = True) -> StreamBase:
         pass
 
     async def get(self, db: AsyncSession, stream_id: int) -> Optional[Stream]:
         pass
 
-    async def update(self, db: AsyncSession, obj_in: StreamBase) -> (
+    async def update(self, db: AsyncSession, obj_in: StreamBase, *, commit: bool = True) -> (
             StreamBase):
         pass
 
@@ -32,15 +32,15 @@ class StreamCRUD(CRUDBase[Stream, StreamBase], StreamCRUDProtocol):
     def __init__(self):
         super().__init__(Stream, StreamBase)
 
-    async def create(self, db: AsyncSession, obj_in: StreamCreate) -> (
+    async def create(self, db: AsyncSession, obj_in: StreamCreate, *, commit: bool = True) -> (
             StreamBase):
-        return await super().create(db, obj_in)
+        return await super().create(db, obj_in, commit=commit)
 
     async def get(self, db: AsyncSession, stream_id: int) -> Optional[Stream]:
         return await super().get(db, stream_id)
 
-    async def update(self, db: AsyncSession, obj_in: StreamBase) -> StreamBase:
-        return await super().update(db, obj_in)
+    async def update(self, db: AsyncSession, obj_in: StreamBase, *, commit: bool = True) -> StreamBase:
+        return await super().update(db, obj_in, commit=commit)
 
     async def delete(self, db: AsyncSession, stream_id: int) -> None:
         await super().delete(db, stream_id)
@@ -51,7 +51,7 @@ def get_stream_crud() -> StreamCRUDProtocol:
 
 
 class SubscriptionCRUDProtocol:
-    async def create(self, db: AsyncSession, obj_in: SubscriptionCreate) -> \
+    async def create(self, db: AsyncSession, obj_in: SubscriptionCreate, *, commit: bool = True) -> \
             SubscriptionBase:
         pass
 
@@ -59,7 +59,7 @@ class SubscriptionCRUDProtocol:
             Optional)[Subscription]:
         pass
 
-    async def update(self, db: AsyncSession, obj_in: SubscriptionBase) -> (
+    async def update(self, db: AsyncSession, obj_in: SubscriptionBase, *, commit: bool = True) -> (
             SubscriptionBase):
         pass
 
@@ -83,20 +83,22 @@ class SubscriptionCRUDProtocol:
 
 class SubscriptionCRUD(CRUDBase[Subscription, SubscriptionBase],
                        SubscriptionCRUDProtocol):
+    """Internal persistence; public joins must use SubscriberService.subscribe."""
+
     def __init__(self):
         super().__init__(Subscription, SubscriptionBase)
 
-    async def create(self, db: AsyncSession, obj_in: SubscriptionCreate) -> (
+    async def create(self, db: AsyncSession, obj_in: SubscriptionCreate, *, commit: bool = True) -> (
             SubscriptionBase):
-        return await super().create(db, obj_in)
+        return await super().create(db, obj_in, commit=commit)
 
     async def get(self, db: AsyncSession, subscription_id: int) -> Optional[
         Subscription]:
         return await super().get(db, subscription_id)
 
     async def update(self, db: AsyncSession,
-                     obj_in: SubscriptionBase) -> SubscriptionBase:
-        return await super().update(db, obj_in)
+                     obj_in: SubscriptionBase, *, commit: bool = True) -> SubscriptionBase:
+        return await super().update(db, obj_in, commit=commit)
 
     async def delete(self, db: AsyncSession, subscription_id: int) -> None:
         await super().delete(db, subscription_id)

@@ -5,6 +5,7 @@ from app.crud.stream import SubscriptionCRUDProtocol, get_subscription_crud
 from app.schemas.event import EventBase
 from app.schemas.message import LocationBase
 from app.service.event.events import EventDispatcher, get_event_dispatcher
+from app.service.stream_policy import StreamAccessPolicy
 
 import json
 
@@ -21,6 +22,7 @@ class LocationService:
                                    stream_id: int,
                                    user_id: int,
                                    location: LocationBase) -> None:
+        await StreamAccessPolicy().require_active_member(db, user_id, stream_id)
         event = EventBase(
             type='location',
             data=json.dumps({

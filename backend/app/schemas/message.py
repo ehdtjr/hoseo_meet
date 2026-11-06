@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -14,6 +14,7 @@ class MessageBase(BaseModel):
     type: MessageType
     recipient_id: int
     content: str
+    client_message_id: Optional[str] = None
     rendered_content: Optional[str] = None
     date_sent: datetime
 
@@ -25,6 +26,7 @@ class MessageCreate(BaseModel):
     type: MessageType
     recipient_id: int
     content: str
+    client_message_id: Optional[str] = None
     rendered_content: Optional[str] = None
 
 
@@ -41,6 +43,15 @@ class MessageRead(BaseModel):
 class MessageResponse(MessageBase):
     stream_id: int
     unread_count: int
+
+
+class MessageSendResponse(BaseModel):
+    message: str = "Message saved successfully"
+    message_id: int
+    client_message_id: str
+    storage_status: Literal["saved"] = "saved"
+    delivery_status: Literal["pending", "completed"]
+    duplicate: bool = False
 
 class UserMessageBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)

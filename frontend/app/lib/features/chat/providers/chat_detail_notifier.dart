@@ -511,9 +511,8 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       );
       state = state.copyWith(messages: merged);
 
-      ref
-          .read(chatRoomNotifierProvider.notifier)
-          .handleIncomingMessage(newMessage: newMessage, markAsRead: true);
+      // Retries can arrive after newer messages; preview the newest merged ID.
+      _updateRoomPreview();
 
       try {
         await _markMessagesAsRead([newMessage]);
