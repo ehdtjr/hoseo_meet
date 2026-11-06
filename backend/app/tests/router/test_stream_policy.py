@@ -142,7 +142,15 @@ class TestStreamPolicy(BaseTest):
                                          data={"message_content": "Synthetic message"},
                                          headers=headers)
         self.assertEqual(response.status_code, 200, response.text)
-        self.assertEqual(self.dispatcher.dispatch.await_count, 2)
+        # Location remains immediate; messages commit a durable recipient outbox.
+        self.assertEqual(self.dispatcher.dispatch.await_count, 1)
+        self.assertEqual(response.json()["storage_status"], "saved")
+        self.assertEqual(response.json()["delivery_status"], "pending")
+        from app.models.message_outbox import MessageOutbox
+        deliveries = (await self.db.scalars(select(MessageOutbox).where(
+            MessageOutbox.message_id == response.json()["message_id"]))).all()
+        self.assertEqual({row.user_id for row in deliveries}, set(self.user_ids[:2]))
+        self.assertTrue(all(row.completed_at is None for row in deliveries))
         self.assertEqual(await self.count(room), 2)
 
     async def test_nonmember_location_never_dispatches(self):
