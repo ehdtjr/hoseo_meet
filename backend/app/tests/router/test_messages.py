@@ -9,6 +9,7 @@ from app.main import app
 from app.service.message import MessageServiceProtocol, get_message_service, \
     MessageSendServiceProtocol, get_message_send_service
 from app.tests.conftest import BaseTest, override_get_db
+from app.schemas.message import MessageSendResponse
 
 
 class TestSendMessageToStream(BaseTest):
@@ -49,7 +50,8 @@ class TestSendMessageToStream(BaseTest):
 
     def get_mock_message_send_service(self):
         mock_message_send_service = AsyncMock(spec=MessageSendServiceProtocol)
-        mock_message_send_service.send_message_stream = AsyncMock(return_value=None)
+        mock_message_send_service.send_message_stream = AsyncMock(return_value=MessageSendResponse(
+            message_id=1, client_message_id="test-send", delivery_status="pending"))
         return mock_message_send_service
 
     async def test_send_message_to_stream(self):
@@ -77,7 +79,8 @@ class TestSendMessageToStream(BaseTest):
 
             # 응답 상태 및 메시지 확인
             assert response.status_code == 200
-            assert response.json() == {"message": "Message sent successfully"}
+            assert response.json()["storage_status"] == "saved"
+            assert response.json()["delivery_status"] == "pending"
 
     async def test_send_message_to_stream_permission_denied(self):
         mock_message_service = self.get_mock_message_send_service()
@@ -136,5 +139,6 @@ class TestSendMessageToStream(BaseTest):
             )
 
             # 400 Bad Request 응답 확인
-            assert response.status_code == 400
-            assert "Message sending failed" in response.json()["detail"]
+            assert response.status_code == 503
+            assert "Message storage could not be confirmed" in response.json()["detail"]
+            assert "Unknown error" not in response.text
