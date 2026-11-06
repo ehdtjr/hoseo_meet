@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/chat_message.dart';
+import '../../data/models/outgoing_message.dart';
 import '../../data/models/chat_room.dart';
 import '../../providers/chat_detail_provider.dart';
 import '../../providers/chat_detail_notifier.dart';
@@ -45,6 +46,16 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
   final ScrollController _scrollController = ScrollController();
   final FocusNode _messageFocusNode = FocusNode();
 
+  int _draftRevision = 0;
+  String _lastDraft = '';
+
+  void _onDraftChanged() {
+    if (_messageController.text != _lastDraft) {
+      _lastDraft = _messageController.text;
+      _draftRevision++;
+    }
+  }
+
   // 실제 비즈니스 로직 담당 Notifier
   late final ChatDetailNotifier _detailNotifier;
 
@@ -54,6 +65,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
   @override
   void initState() {
     super.initState();
+    _messageController.addListener(_onDraftChanged);
     WidgetsBinding.instance.addObserver(this);
 
     // Notifier 인스턴스 초기화
@@ -82,6 +94,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
 
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _messageController.removeListener(_onDraftChanged);
     _messageController.dispose();
     _messageFocusNode.dispose();
     super.dispose();
@@ -118,13 +131,19 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
   }
 
   /// (B) 메시지 전송
-  Future<void> _sendMessage() async {
-    final text = _messageController.text.trim();
-    if (text.isEmpty) return;
-
-    await _detailNotifier.sendMessage(text);
-    _messageController.clear();
-
+  Future<void> _sendMessage({OutgoingMessage? retry}) async {
+    if (ref.read(chatDetailNotifierProvider(widget.chatRoom)).isSending) return;
+    final draft = retry?.draft ?? _messageController.text;
+    if (draft.trim().isEmpty) return;
+    final revision = _draftRevision;
+    final draftWasInEditor = _messageController.text == draft;
+    final success = retry == null
+        ? await _detailNotifier.sendMessage(draft)
+        : await _detailNotifier.retryMessage(retry.clientMessageId);
+    if (!mounted || !success) return;
+    if (draftWasInEditor && _draftRevision == revision) {
+      _messageController.clear();
+    }
     _scrollToBottom();
   }
 
@@ -197,12 +216,40 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
                   participants: detailState.participants,
                 ),
 
+                if (detailState.outgoingMessages.isNotEmpty)
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 144),
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final outgoing in detailState.outgoingMessages)
+                          ListTile(
+                            key: ValueKey(outgoing.clientMessageId),
+                            dense: true,
+                            title: Text(outgoing.draft,
+                                maxLines: 2, overflow: TextOverflow.ellipsis),
+                            subtitle: Text(outgoing.status == MessageSendStatus.sending
+                                ? '전송 중…' : '전송 실패 · 내용을 보관했습니다'),
+                            trailing: outgoing.status == MessageSendStatus.sending
+                                ? const SizedBox(width: 20, height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2))
+                                : TextButton(
+                                    onPressed: detailState.isSending ? null
+                                        : () => _sendMessage(retry: outgoing),
+                                    child: const Text('재전송'),
+                                  ),
+                          ),
+                      ],
+                    ),
+                  ),
+
                 // 입력창
                 ChatInputBar(
                   chatRoom: widget.chatRoom,
                   controller: _messageController,
                   focusNode: _messageFocusNode,
-                  onSend: _sendMessage,
+                  onSend: () => _sendMessage(),
+                  isSending: detailState.isSending,
                 ),
               ],
             ),

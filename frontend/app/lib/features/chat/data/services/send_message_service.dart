@@ -1,8 +1,17 @@
 import '../../../../commons/network/auth_http_client.dart'; // AuthHttpClient import
 import '../../../../config.dart';
 
+class MessageSendException implements Exception {
+  final int statusCode;
+  const MessageSendException(this.statusCode);
+
+  @override
+  String toString() => "메시지 전송 실패 (HTTP $statusCode)";
+}
+
 class SendMessageService {
-  final String _locationEndpoint = '${AppConfig.baseUrl}/messages/send/stream/location/';
+  final String _locationEndpoint =
+      '${AppConfig.baseUrl}/messages/send/stream/location/';
   final AuthHttpClient _client; // AuthHttpClient 주입
 
   SendMessageService(this._client);
@@ -11,15 +20,21 @@ class SendMessageService {
   Future<void> sendMessage({
     required int streamId,
     required String messageContent,
+    required String clientMessageId,
   }) async {
     final formBody = <String, String>{
       'message_content': messageContent,
     };
 
-    final url = '${AppConfig.baseUrl}/messages/send/stream/$streamId?lifetime_seconds=3600';
+    final url =
+        '${AppConfig.baseUrl}/messages/send/stream/$streamId?lifetime_seconds=3600';
 
     // AuthHttpClient의 postFormUrlEncoded 활용
-    await _client.postFormUrlEncoded(url, formBody);
+    final response = await _client.postFormUrlEncoded(url, formBody,
+        headers: {'X-Client-Message-ID': clientMessageId});
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw MessageSendException(response.statusCode);
+    }
   }
 
   /// 2) 위치 전송
