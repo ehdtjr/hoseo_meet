@@ -8,6 +8,8 @@ class ChatRoomList extends StatelessWidget {
   final bool isExitMode;
   final Set<int> selectedRoomIds; // 선택된 Room ID 목록
   final Function(int roomId) onRoomToggle; // 선택 상태 변경 콜백
+  final Future<void> Function(ChatRoom room)? onRoomClosed;
+  final Widget Function(ChatRoom room)? chatDetailBuilder;
 
   const ChatRoomList({
     super.key,
@@ -15,6 +17,8 @@ class ChatRoomList extends StatelessWidget {
     required this.isExitMode,
     required this.selectedRoomIds,
     required this.onRoomToggle,
+    this.onRoomClosed,
+    this.chatDetailBuilder,
   });
 
   @override
@@ -38,7 +42,11 @@ class ChatRoomList extends StatelessWidget {
                 const SizedBox(width: 20),
               ],
               Expanded(
-                child: ChatRoomItem(room: room),
+                child: ChatRoomItem(
+                  room: room,
+                  onRoomClosed: onRoomClosed,
+                  chatDetailBuilder: chatDetailBuilder,
+                ),
               ),
             ],
           ),

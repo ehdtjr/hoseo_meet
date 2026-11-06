@@ -1,6 +1,7 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import PermissionDeniedException
 from app.crud.stream import SubscriptionCRUDProtocol, get_subscription_crud
 from app.schemas.event import EventBase
 from app.schemas.message import LocationBase
@@ -33,6 +34,10 @@ class LocationService:
         )
         subscribers = await self.subscription_crud.get_subscribers(db,
                                                                    stream_id)
+        if user_id not in subscribers:
+            raise PermissionDeniedException(
+                "You are not permitted to send locations to this stream"
+            )
 
         await self.event_dispatch.dispatch(db, user_ids=subscribers,
                                            stream_id=stream_id,

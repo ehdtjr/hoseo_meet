@@ -7,10 +7,14 @@ import '../../presentation/pages/chat_detail_page.dart';
 
 class ChatRoomItem extends StatelessWidget {
   final ChatRoom room;
+  final Future<void> Function(ChatRoom room)? onRoomClosed;
+  final Widget Function(ChatRoom room)? chatDetailBuilder;
 
   const ChatRoomItem({
     super.key,
     required this.room,
+    this.onRoomClosed,
+    this.chatDetailBuilder,
   });
 
   @override
@@ -55,13 +59,15 @@ class ChatRoomItem extends StatelessWidget {
 
     return GestureDetector(
       // 탭 시 ChatDetailPage 이동
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ChatDetailPage(chatRoom: room),
+            builder: (_) =>
+                chatDetailBuilder?.call(room) ?? ChatDetailPage(chatRoom: room),
           ),
         );
+        await onRoomClosed?.call(room);
       },
 
       child: Container(

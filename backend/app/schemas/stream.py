@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.common import PostType
+from app.schemas.common import PostType, PublicStreamType
 
 
 class StreamBase(BaseModel):
@@ -27,7 +27,7 @@ class StreamCreate(BaseModel):
 class StreamRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     name: str
-    type: str
+    type: PublicStreamType
 
 
 class StreamRead(BaseModel):
