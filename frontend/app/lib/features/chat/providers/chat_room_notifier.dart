@@ -7,6 +7,7 @@ class ChatRoomNotifier extends StateNotifier<List<ChatRoom>> {
   final ChatRoomService service;
   bool _isExitMode = false;
   final Set<int> _roomsToRemove = {};
+  int _roomSnapshotRevision = 0;
 
   ChatRoomNotifier(this.service) : super([]);
 
@@ -52,6 +53,7 @@ class ChatRoomNotifier extends StateNotifier<List<ChatRoom>> {
       for (final streamId in _roomsToRemove) {
         await service.unsubscribeRoom(streamId);
       }
+      _roomSnapshotRevision++;
       state = state.where((room) => !_roomsToRemove.contains(room.streamId)).toList();
       clearRoomsToRemove(); // 선택 상태 초기화
       _updateState([...state]); // 상태 갱신
@@ -62,8 +64,10 @@ class ChatRoomNotifier extends StateNotifier<List<ChatRoom>> {
 
   /// 채팅방 목록 불러오기
   Future<void> fetchRooms() async {
+    final requestRevision = ++_roomSnapshotRevision;
     try {
       final rooms = await service.loadRoomList();
+      if (requestRevision != _roomSnapshotRevision) return;
       _updateState(rooms); // 상태 갱신
     } catch (e) {
       rethrow;
@@ -74,6 +78,7 @@ class ChatRoomNotifier extends StateNotifier<List<ChatRoom>> {
   Future<void> unsubscribe(int streamId) async {
     try {
       await service.unsubscribeRoom(streamId);
+      _roomSnapshotRevision++;
       state = state.where((room) => room.streamId != streamId).toList();
     } catch (e) {
       rethrow;
