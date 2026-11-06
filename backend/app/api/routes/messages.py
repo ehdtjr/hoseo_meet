@@ -2,7 +2,7 @@ from typing import List
 
 from fastapi import APIRouter
 from fastapi import HTTPException
-from fastapi.params import Depends, Form
+from fastapi.params import Depends, Form, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_async_session
@@ -10,7 +10,7 @@ from app.core.exceptions import PermissionDeniedException
 from app.core.security import current_active_user
 from app.models import User
 from app.schemas.message import (UpdateUserMessageFlagsRequest,
-                                 LocationBase, MessageResponse)
+                                 LocationBase, MessageResponse, MessageSendResponse)
 from app.service.location import get_location_service, LocationService
 from app.service.message import MessageServiceProtocol, get_message_service, \
     MessageSendService, get_message_send_service
@@ -51,27 +51,31 @@ async def update_message_flags(
 
 
 
-@router.post("/send/stream/{stream_id}", response_model=None)
+@router.post("/send/stream/{stream_id}", response_model=MessageSendResponse)
 async def send_message_to_stream(
         stream_id: int,
         message_content: str = Form(...,
                                     description="The content of the message"),
         db: AsyncSession = Depends(get_async_session),
         user: User = Depends(current_active_user),
-        message_send_service: MessageSendService = Depends(get_message_send_service)
+        message_send_service: MessageSendService = Depends(get_message_send_service),
+        client_message_id: str | None = Header(default=None, alias="X-Client-Message-ID",
+                                              min_length=1, max_length=128),
 ):
     try:
-        await message_send_service.send_message_stream(
-            db=db, sender_id=user.id, stream_id=stream_id, message_content=message_content)
-        return {"message": "Message sent successfully"}
+        return await message_send_service.send_message_stream(
+            db=db, sender_id=user.id, stream_id=stream_id, message_content=message_content,
+            client_message_id=client_message_id)
 
     except PermissionDeniedException:
         raise HTTPException(status_code=403,
                             detail="You are not allowed to send messages to "
                                    "this stream")
-    except Exception as e:
-        raise HTTPException(status_code=400,
-                            detail=f"Message sending failed: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503,
+                            detail="Message storage could not be confirmed; retry with the same client message ID")
 
 
 @router.get("/stream", response_model=List[MessageResponse])

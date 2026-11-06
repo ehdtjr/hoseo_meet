@@ -1,6 +1,10 @@
 import bisect
 import json
+from datetime import timezone
 from typing import List, Optional, Protocol
+from uuid import uuid4
+
+from sqlalchemy import func, select, text
 
 from fastapi import HTTPException, Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -10,10 +14,11 @@ from app.crud.message import MessageCRUDProtocol, UserMessageCRUDProtocol, \
     get_message_crud, get_user_message_crud
 from app.crud.recipient import RecipientCRUDProtocol, get_recipient_crud
 from app.crud.stream import SubscriptionCRUDProtocol, get_subscription_crud
-from app.models.message import MessageType
+from app.models.message import Message, MessageType
+from app.models.message_outbox import MessageOutbox
 from app.schemas.event import EventBase
 from app.schemas.message import MessageBase, MessageCreate, UserMessageBase, \
-    MessageResponse
+    MessageResponse, MessageSendResponse
 from app.service.event.events import EventDispatcher, get_event_dispatcher
 
 
@@ -23,7 +28,8 @@ class MessageSendServiceProtocol(Protocol):
             db: AsyncSession,
             sender_id: int,
             stream_id: int,
-            message_content: str) -> None:
+            message_content: str,
+            client_message_id: Optional[str] = None) -> MessageSendResponse:
         pass
 
 
@@ -34,67 +40,68 @@ class MessageSendService(MessageSendServiceProtocol):
             user_message_crud: UserMessageCRUDProtocol,
             recipient_crud: RecipientCRUDProtocol,
             subscription_crud: SubscriptionCRUDProtocol,
-            event_dispatcher: EventDispatcher
     ):
         self.message_crud = message_crud
         self.user_message_crud = user_message_crud
         self.recipient_crud = recipient_crud
         self.subscription_crud = subscription_crud
-        self.event_dispatcher = event_dispatcher
 
-    async def send_message_stream(self, db: AsyncSession, sender_id: int,
-                                  stream_id: int, message_content: str) -> None:
+    async def send_message_stream(
+        self, db: AsyncSession, sender_id: int, stream_id: int,
+        message_content: str, client_message_id: Optional[str] = None,
+    ) -> MessageSendResponse:
+        # Authentication may already have started a read transaction on this
+        # request-scoped session. The service owns its commit/rollback boundary.
+        key = client_message_id if client_message_id is not None else str(uuid4())
+        if not key or len(key) > 128 or not key.isascii() or any(c.isspace() for c in key):
+            raise HTTPException(status_code=422, detail="Invalid client message ID")
+        try:
+            subscribers = await self.subscription_crud.get_subscribers(db, stream_id)
+            if sender_id not in subscribers:
+                raise PermissionDeniedException(
+                    "You are not permitted to send messages to this stream")
+            recipient = await self.recipient_crud.get_by_type_id(db, stream_id)
 
-        subscribers = await self.subscription_crud.get_subscribers(db,
-                                                                   stream_id)
-        if sender_id not in subscribers:
-            raise PermissionDeniedException(
-                "You are not permitted to send messages to this stream")
-
-        # Recipient 조회
-        recipient = await self.recipient_crud.get_by_type_id(db, stream_id)
-
-        # MessageCreate 직접 생성
-        message_create_data = {
-            "sender_id": sender_id,
-            "type": MessageType.NORMAL,
-            "recipient_id": recipient.id,
-            "content": message_content
-        }
-        message_create = MessageCreate.model_validate(message_create_data)
-        message:MessageBase = await self.message_crud.send_message_create(db,
-                                                              message_create)
-
-        # UserMessage 대량 생성
-        user_messages_data = [{"user_id": subscriber, "message_id": message.id}
-                              for subscriber in subscribers]
-        await self.user_message_crud.bulk_create(db, user_messages_data)
-        # 타임존이 없는 경우 추가
-        from datetime import timezone
-        message.date_sent = message.date_sent.astimezone(timezone.utc)
-
-        message_response = MessageResponse(
-            id=message.id,
-            sender_id=message.sender_id,
-            type=message.type,
-            recipient_id=message.recipient_id,
-            content=message.content,
-            rendered_content=message.rendered_content,
-            date_sent=message.date_sent,
-            stream_id=stream_id,
-            unread_count=len(subscribers)
-        )
-        # EventBase 생성
-        event_data: EventBase = EventBase(
-            type="stream",
-            data= message_response.model_dump_json()
-        )
-
-        # EventDispatcher로 이벤트 전송
-        await self.event_dispatcher.dispatch(db,
-                                             user_ids=subscribers,
-                                             stream_id=stream_id,
-                                             event_data=event_data)
+            # Serialize identical sender/key requests, including concurrent HTTP
+            # retries. The unique index is a second database-level safeguard.
+            await db.execute(text(
+                "SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"
+            ), {"key": f"message:{sender_id}:{key}"})
+            existing = await db.scalar(select(Message).where(
+                Message.sender_id == sender_id, Message.client_message_id == key))
+            if existing is not None:
+                if existing.recipient_id != recipient.id or existing.content != message_content:
+                    raise HTTPException(status_code=409,
+                                        detail="Client message ID already used for a different message")
+                pending = await db.scalar(select(func.count()).select_from(MessageOutbox).where(
+                    MessageOutbox.message_id == existing.id,
+                    MessageOutbox.completed_at.is_(None)))
+                response = MessageSendResponse(
+                    message_id=existing.id, client_message_id=key, duplicate=True,
+                    delivery_status="pending" if pending else "completed")
+            else:
+                message = await self.message_crud.send_message_create(db, MessageCreate(
+                    sender_id=sender_id, type=MessageType.NORMAL,
+                    recipient_id=recipient.id, content=message_content,
+                    client_message_id=key))
+                await self.user_message_crud.bulk_create(db, [
+                    {"user_id": user_id, "message_id": message.id}
+                    for user_id in subscribers
+                ])
+                message.date_sent = message.date_sent.astimezone(timezone.utc)
+                payload = MessageResponse(
+                    **message.model_dump(), stream_id=stream_id,
+                    unread_count=len(subscribers)).model_dump_json()
+                db.add_all([MessageOutbox(message_id=message.id, user_id=user_id,
+                                          stream_id=stream_id, payload=payload)
+                            for user_id in subscribers])
+                response = MessageSendResponse(
+                    message_id=message.id, client_message_id=key, delivery_status="pending")
+            await db.commit()
+            return response
+        except BaseException:
+            await db.rollback()
+            raise
 
 
 class MessageServiceProtocol(Protocol):
@@ -167,6 +174,7 @@ class MessageService(MessageServiceProtocol):
                 type=msg.type,
                 recipient_id=msg.recipient_id,
                 content=msg.content,
+                client_message_id=msg.client_message_id,
                 rendered_content=msg.rendered_content,
                 date_sent=msg.date_sent,
                 stream_id=stream_id,
@@ -274,14 +282,12 @@ def get_message_send_service(
             get_recipient_crud),
         subscription_crud: SubscriptionCRUDProtocol = Depends(
             get_subscription_crud),
-        event_dispatcher: EventDispatcher = Depends(get_event_dispatcher)
 ) -> MessageSendServiceProtocol:
     return MessageSendService(
         message_crud=message_crud,
         user_message_crud=user_message_crud,
         recipient_crud=recipient_crud,
         subscription_crud=subscription_crud,
-        event_dispatcher=event_dispatcher
     )
 
 

@@ -38,7 +38,6 @@ class TestMessageService(BaseTest):
             user_message_crud=self.user_message_crud,
             recipient_crud=self.recipient_crud,
             subscription_crud=self.subscription_crud,
-            event_dispatcher=self.event_dispatcher,
         )
 
         # Redis 모의 객체 생성
@@ -81,36 +80,17 @@ class TestMessageService(BaseTest):
         await self.db.commit()
         await self.db.refresh(stream)
 
-        # 메시지 생성 모의 설정
-        mock_message = AsyncMock()
-        mock_message.id = 1
-        mock_message.sender_id = user_id
-        mock_message.recipient_id = stream.recipient_id
-        mock_message.content = "Test message"
-        mock_message.date_sent = datetime.now()  # 현재 시간을 사용하여 date_sent 설정
-
-        self.message_crud.send_message_create.return_value = mock_message
+        from app.crud.message import MessageCRUD, UserMessageCRUD
+        self.send_service.message_crud = MessageCRUD()
+        self.send_service.user_message_crud = UserMessageCRUD()
         self.recipient_crud.get_by_type_id.return_value = SimpleNamespace(id=stream.recipient_id)
-        mock_message.type = MessageType.NORMAL
-        mock_message.rendered_content = None  # 메시지 생성 모의 설정
-
-        # 모의 구독자 리스트 설정
         self.subscription_crud.get_subscribers.return_value = [user_id]
-
-        # when: 메시지 전송
-        message_content = "Test message"
-        await self.send_service.send_message_stream(
-            db=self.db,
-            sender_id=user_id,
-            stream_id=stream_id,
-            message_content=message_content,
-        )
-
-        # then: 메시지 전송이 성공적으로 되었는지 검증
-        self.recipient_crud.get_by_type_id.assert_called_once_with(self.db,
-                                                                   stream.id)
-        self.message_crud.send_message_create.assert_awaited_once()
-        self.event_dispatcher.dispatch.assert_awaited_once()
+        response = await self.send_service.send_message_stream(
+            db=self.db, sender_id=user_id, stream_id=stream_id,
+            message_content="Test message")
+        self.assertEqual(response.storage_status, "saved")
+        self.assertEqual(response.delivery_status, "pending")
+        self.event_dispatcher.dispatch.assert_not_awaited()
 
     async def test_send_message_stream_not_subscript(self):
         # given: 사용자 및 스트림 설정
