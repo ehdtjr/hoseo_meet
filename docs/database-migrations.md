@@ -133,7 +133,8 @@ revision 파일을 수정하거나 이력을 다시 stamp하지도 않는다. �
 커밋되어 원상 복구가 필요하면, 원본 DB를 덮어쓰지 않고 검증된 백업을 새 DB에 복원해
 연결 대상을 전환한다. 기준 revision의 downgrade는 의도적으로 지원하지 않는다.
 `profile_media`와 outbox를 추가하는 revision의 downgrade는 테이블·컬럼이나 데이터를
-삭제할 수 있으므로 전용 개발/검증 DB에서만 명시적으로 시험한다.
+삭제할 수 있으므로 전용 개발/검증 DB에서만 명시적으로 시험한다. 특히 `0003`
+downgrade는 pending 전달 작업과 저장된 idempotency key를 제거한다.
 
 ## 자동 검증 범위
 
@@ -229,7 +230,8 @@ schema·SERIAL 시퀀스 drift와 offline public-schema 적용을 포함한다.
 1명, 메시지 1개와 pending outbox 1개를 확인했다. dump SHA-256은
 `8c679c0137831ae13b7dd375d02edae32238d9d3774f5d3f64b09cc065813241`이다.
 
-현재 코드의 전체 백엔드 suite는 전용 `test_db`와 Redis에서 **193 passed, 3 warnings,
-98.94초**로 통과했다. 새 이미지 빌드, 변경 Python 파일 Ruff 검사, Compose 설정 검증,
-credential scan과 `git diff --check`도 통과했다. 이 결과는 로컬 합성 DB 검증이며 원격
-GitHub Actions, 운영 DB 변경, 배포 환경 적용이나 실제 운영 데이터 복구 결과가 아니다.
+현재 코드의 전체 백엔드 suite는 기존 의존성 이미지에 현재 소스를 mount하고 전용
+`test_db`와 Redis에서 실행해 **193 passed, 3 warnings, 98.94초**로 통과했다. 새 이미지
+빌드, 변경 Python 파일 Ruff 검사, Compose 설정 검증, credential scan과
+`git diff --check`도 통과했다. 이 결과는 로컬 합성 DB 검증이며 원격 GitHub Actions,
+운영 DB 변경, 배포 환경 적용이나 실제 운영 데이터 복구 결과가 아니다.
