@@ -79,7 +79,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       );
       state = state.copyWith(participants: fetchedUsers);
     } catch (e) {
-      debugPrint('[ChatDetailNotifier] 참여자 정보 실패: $e');
+      debugPrint('[ChatDetailNotifier] 참여자 정보 실패');
     }
   }
 
@@ -96,7 +96,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
           lng: position.longitude,
         );
       } catch (e) {
-        debugPrint('[ChatDetailNotifier] 위치 전송 실패: $e');
+        debugPrint('[ChatDetailNotifier] 위치 전송 실패');
       }
     });
   }
@@ -140,7 +140,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
 
       state = state.copyWith(messages: merged);
     } catch (error) {
-      debugPrint('[ChatDetailNotifier] 초기 메시지 로드 실패: $error');
+      debugPrint('[ChatDetailNotifier] 초기 메시지 로드 실패');
     }
   }
 
@@ -177,7 +177,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         state = state.copyWith(hasMore: false); // ✅ 더 이상 없음
       }
     } catch (error) {
-      debugPrint('[ChatDetailNotifier] 이전 메시지 로드 실패: $error');
+      debugPrint('[ChatDetailNotifier] 이전 메시지 로드 실패');
     } finally {
       state = state.copyWith(isLoadingMore: false);
     }
@@ -272,7 +272,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
       _mergeServerSnapshot(readSnapshot);
       _updateRoomPreview();
     } catch (error) {
-      debugPrint('[ChatDetailNotifier] 전송 후 메시지 동기화 실패: $error');
+      debugPrint('[ChatDetailNotifier] 전송 후 메시지 동기화 실패');
     }
   }
 
@@ -301,20 +301,25 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   Future<void> _initWebSocket() async {
     await _chatRepository.connectWebSocket();
     _socketSubscription = _chatRepository.messageStream.listen((incoming) async {
-      final type = incoming['type'];
-      switch (type) {
-        case 'read':
-          _handleReadMessage(incoming);
-          break;
-        case 'stream':
-          await _handleStreamMessage(incoming);
-          break;
-        case 'location':
-          _handleLocationMessage(incoming);
-          break;
-        default:
-          debugPrint('[ChatDetailNotifier] 알 수 없는 소켓 타입: $type');
-          break;
+      try {
+        final type = incoming['type'];
+        switch (type) {
+          case 'read':
+            _handleReadMessage(incoming);
+            break;
+          case 'stream':
+            await _handleStreamMessage(incoming);
+            break;
+          case 'location':
+            _handleLocationMessage(incoming);
+            break;
+          default:
+            debugPrint('[ChatDetailNotifier] 알 수 없는 소켓 타입');
+            break;
+        }
+      } catch (_) {
+        // Parsing exceptions can quote message fields or coordinates.
+        debugPrint('[ChatDetailNotifier] socket_event_failed');
       }
     });
   }
@@ -352,7 +357,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
           streamId: chatRoom.streamId,
         );
       } catch (error) {
-        debugPrint('[ChatDetailNotifier] read 실패: $error');
+        debugPrint('[ChatDetailNotifier] read 실패');
       }
     }
   }
@@ -382,7 +387,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         await _chatRepository.activateRoom(chatRoom.streamId);
       }
     } catch (e) {
-      debugPrint('[ChatDetailNotifier] 방 활성화 실패: $e');
+      debugPrint('[ChatDetailNotifier] 방 활성화 실패');
     }
   }
 
@@ -390,7 +395,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     try {
       await _chatRepository.deactivateRoom();
     } catch (e) {
-      debugPrint('[ChatDetailNotifier] 방 비활성화 실패: $e');
+      debugPrint('[ChatDetailNotifier] 방 비활성화 실패');
     }
   }
 
@@ -401,7 +406,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         numAfter: chatRoom.unreadCount,
       );
     } catch (error) {
-      debugPrint('[ChatDetailNotifier] 읽음 처리 실패: $error');
+      debugPrint('[ChatDetailNotifier] 읽음 처리 실패');
     }
   }
 
