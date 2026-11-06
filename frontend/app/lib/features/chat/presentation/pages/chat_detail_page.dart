@@ -62,7 +62,9 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
 
     // 화면 렌더링이 끝난 뒤 초기 작업
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       await _detailNotifier.init();
+      if (!mounted) return;
       await _detailNotifier.startLocationTracking();
 
       // 채팅방 읽음 처리
@@ -85,6 +87,16 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
     _messageController.dispose();
     _messageFocusNode.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _detailNotifier.resumeConnection();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _detailNotifier.pauseConnection();
+    }
   }
 
   /// (A) 스크롤 리스너
