@@ -53,14 +53,21 @@ revision을 stamp한다. stamp는 애플리케이션 테이블이나 데이터�
 차이를 확인하지 않은 수동 `alembic stamp`나 schema 검사를 우회한 stamp는 금지한다.
 현재 지원하는 기존 schema는 `profile_media` 도입 전 기준인 `20261106_0001`, 해당
 테이블까지 이미 있는 `20261106_0002`, 메시지 중복 방지와 outbox 객체까지 있는
-`20261106_0003`이다. 도구는 셋 중 정확히 일치하는 revision을 기록하며, 그 밖의 부분
-일치 상태를 임의로 추정하지 않는다.
+`20261106_0003`, random-chat queue까지 있는 `20261106_0004`다. 도구는 넷 중 정확히
+일치하는 revision을 기록하며, 그 밖의 부분 일치 상태를 임의로 추정하지 않는다.
 
-이전 outbox 독립 migration을 일부 적용한 DB는 세 동결 schema 중 어느 것과도 일치하지
-않을 수 있다. 이 경우 adoption 오류를 무시하거나 직접 stamp하지 않는다. 차이가 알려진
-outbox 객체에만 한정되는지 백업 복원본에서 확인한 뒤 [outbox 기존 schema 복구
+이전 outbox 독립 migration을 일부 적용한 DB는 지원하는 동결 schema 중 어느 것과도
+일치하지 않을 수 있다. 이 경우 adoption 오류를 무시하거나 직접 stamp하지 않는다.
+차이가 알려진 outbox 객체에만 한정되는지 백업 복원본에서 확인한 뒤 [outbox 기존 schema 복구
 절차](message-outbox.md#기존-db-schema-편입)를 사용한다. 복구 도구는 Alembic 이력을
 기록하지 않으므로 복구 후에도 adoption과 `upgrade head`를 순서대로 실행해야 한다.
+
+이전 random-chat 독립 migration을 적용한 unversioned DB도 [random-chat 기존 schema
+편입 절차](randomchat-policy.md#기존-db-schema-편입)를 따른다. 정상 `0001`–`0003`
+schema에는 먼저 adoption을 실행한 뒤 `upgrade head`로 `0004`를 적용한다. legacy helper는
+queue가 없고 나머지가 `0003`과 일치하는 DB에서 이전 배포 절차와의 호환이 꼭 필요할
+때만 adoption 전에 명시적으로 사용한다. 이미 존재하는 queue schema의 drift는 고치지
+않는다.
 
 ## 관리 범위와 schema 비교
 
@@ -73,7 +80,8 @@ outbox 객체에만 한정되는지 백업 복원본에서 확인한 뒤 [outbox
 빈 DB의 테이블은 이 정의를 통해 생성하며 실행 시점의 애플리케이션 모델을 `create_all`
 하지 않는다. 이후 변경은 `20261106_0002`, `20261106_0003`처럼 앞 revision을 잇는
 별도 파일로 적용한다. `20261106_0003`은 `message.client_message_id`, 발신자별 중복
-방지 index와 `message_outbox`를 버전 이력에 편입한다.
+방지 index와 `message_outbox`를 버전 이력에 편입한다. `20261106_0004`는
+`random_chat_queue`와 FIFO·만료 index를 편입한다.
 
 표준 `alembic check`는 Alembic autogenerate가 지원하는 테이블, 컬럼, 타입, 제약과
 인덱스 차이를 검사한다. CHECK 식, PostgreSQL enum label, generated 식, primary key와
@@ -135,6 +143,7 @@ revision 파일을 수정하거나 이력을 다시 stamp하지도 않는다. �
 `profile_media`와 outbox를 추가하는 revision의 downgrade는 테이블·컬럼이나 데이터를
 삭제할 수 있으므로 전용 개발/검증 DB에서만 명시적으로 시험한다. 특히 `0003`
 downgrade는 pending 전달 작업과 저장된 idempotency key를 제거한다.
+`0004` downgrade는 대기 중 사용자와 기록된 random-chat 매칭 결과를 모두 제거한다.
 
 ## 자동 검증 범위
 
@@ -235,3 +244,24 @@ schema·SERIAL 시퀀스 drift와 offline public-schema 적용을 포함한다.
 빌드, 변경 Python 파일 Ruff 검사, Compose 설정 검증, credential scan과
 `git diff --check`도 통과했다. 이 결과는 로컬 합성 DB 검증이며 원격 GitHub Actions,
 운영 DB 변경, 배포 환경 적용이나 실제 운영 데이터 복구 결과가 아니다.
+
+## `0004` random-chat 통합 검증
+
+`origin/main` `724396e`를 통합한 코드를 `hoseo-issue26-final:local` 이미지로 빌드하고
+소스 mount 없이 전용 PostGIS DB에서 **25 passed, 4 warnings, 41.09초**를 확인했다.
+빈 DB 재현과 반복 upgrade, `0001`–`0004`의 정확 일치 adoption, 사용자·메시지·pending
+outbox·queue 데이터 보존, 부분 schema 거절, SERIAL 설정 검증, rollback/retry,
+offline public-schema 적용과 온라인 후속 검사를 포함한다.
+
+현재 코드의 전체 backend suite도 기존 의존성 이미지에 소스를 mount한 전용
+`test_db`/Redis에서 **213 passed, 4 warnings, 100.69초**로 통과했다. 기존 Pydantic
+경고, 테스트 helper 수집 경고와 admin OpenAPI의 중복 operation ID 경고가 남아 있다.
+새 이미지 빌드, Ruff, Compose 설정, credential scan, `git diff --check`도 통과했다.
+
+현재 head의 합성 DB를 `pg_dump -Fc`로 백업하고 새 `migration_restore_db`에
+`pg_restore --exit-on-error`로 복원했다. revision `20261106_0004`, 사용자·메시지·pending
+outbox·queue 각 1개가 보존되었다. dump SHA-256은
+`529eb7ab8816bf4b42578f320b59b1317fd7d5483c5c9e7e65e7e4d3325af61e`다.
+
+이는 전용 합성 DB에서 수행한 로컬 검증이다. 운영 DB 변경이나 배포를 수행하지 않았으며
+원격 CI 결과는 PR의 최종 commit에 연결된 GitHub Actions 결과를 확인한다.

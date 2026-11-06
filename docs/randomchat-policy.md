@@ -91,26 +91,56 @@
   프로세스 종료 중 미커밋 트랜잭션은 DB가 rollback하므로 큐에서 꺼낸 사용자만 사라지지 않는다.
 - 매칭된 방의 일반 참가/재가입 API는 차단한다. 두 구독은 매칭 트랜잭션만 생성한다.
 
-## 기존 DB 적용
+## 기존 DB schema 편입
 
-새 빈 로컬/테스트 DB는 모델 등록으로 `Base.metadata.create_all` 시 새 테이블을 함께 생성한다.
-기존 DB는 **새 API를 띄우기 전에**, 대상 DB 설정을 사용해 아래 전용 명령을 실행해야 한다.
-저장소에 버전 관리된 Alembic 기준 revision이 없어 새 루트 revision을 임의로 만들지 않았다.
+random-chat queue는 Alembic `20261106_0004` revision에 추적된다. 빈 DB와 로컬 환경은
+`local_init`의 `upgrade head`로 설치한다. staging/production API 시작은 schema를 자동
+변경하지 않는다. 새 API를 시작하기 전에 쓰기를 중지하고 [공통 백업·복구
+정책](database-migrations.md#백업과-적용)에 따라 복원본을 검증한 뒤 명시적으로
+migration을 실행한다.
+
+Alembic 이력이 있는 DB는 전용 random-chat 스크립트를 실행하지 않고 일반 upgrade
+경로를 사용한다.
 
 ```sh
-# Compose: 기존 user/streams 테이블이 있는 DB에 대기열 테이블만 추가
-# 먼저 현재 소스로 backend 이미지를 빌드해야 한다.
-docker compose build web
-docker compose run --rm --no-deps web python -m app.scripts.migrate_randomchat
+# DB가 실행 중이고 새 web 이미지를 빌드한 상태
+docker compose run --rm --no-deps web alembic current
+docker compose run --rm --no-deps web alembic upgrade head
+docker compose run --rm --no-deps web alembic current
 ```
 
-명령은 `random_chat_queue` 및 인덱스·외래키만 추가한다. 기존 사용자/채팅 데이터를 변경하지
-않으며 동일 스키마에서 재실행해도 큐를 지우지 않는다. 빈 DB 전체 초기화나 이후 스키마
-변경을 자동 처리하는 범용 마이그레이션 명령은 아니다. 애플리케이션 롤백 시 추가 테이블은
-보존한다. 테이블 삭제는 모든 매칭 API를 중단하고 대기/결과 데이터 폐기를 결정한 뒤 별도로 한다.
-과거 공개 API로 수동 생성한 `type=random` 방과 구독은 자동 이관하지 않는다. 기존 DB에
-그런 방이 있다면 배포 전 확인해야 하며, 새 대기열의 중복 매칭 제한은 이 매칭 API가 관리하는
-결과를 기준으로 한다.
+테이블은 있지만 Alembic 이력이 없는 DB는 현재 schema를 먼저 검증하고 정확히 일치하는
+`20261106_0001`–`0004`를 기록한 뒤 upgrade한다. `0001`–`0003`으로 편입한 DB에는
+`0004`가 queue를 추가하고, 현재 queue schema까지 정확히 일치하는 DB는 `0004`에
+편입되어 upgrade가 no-op이 된다.
+
+```sh
+docker compose run --rm --no-deps web python -m app.scripts.adopt_legacy_db
+docker compose run --rm --no-deps web alembic upgrade head
+docker compose run --rm --no-deps web alembic current
+```
+
+기존에 문서화했던 `migrate_randomchat`은 unversioned DB의 pre-adoption 호환 도구로만
+유지한다. 정상 설치·upgrade 경로가 아니며 애플리케이션 시작이나 운영 entrypoint에서
+자동 실행하지 않는다. 백업과 쓰기 중단을 확인하고, 기존 schema가 queue를 제외하면
+`0003`과 일치함을 복원본에서 검토한 경우에만 다음 순서로 명시적으로 실행한다.
+
+```sh
+docker compose run --rm --no-deps web python -m app.scripts.migrate_randomchat
+docker compose run --rm --no-deps web python -m app.scripts.adopt_legacy_db
+docker compose run --rm --no-deps web alembic upgrade head
+```
+
+호환 도구는 `random_chat_queue`가 없을 때 테이블·인덱스·외래키를 만들며 기존 큐 행을
+삭제하지 않는다. 이미 존재하지만 `0004`와 다른 queue schema를 수정하거나 Alembic
+이력을 기록하지 않는다. 이 경우 직접 stamp하거나 helper를 반복하지 말고 차이를 위한
+reviewed reconciliation migration을 준비한다.
+
+애플리케이션 rollback 시 추가 schema는 보존한다. `0004` downgrade는 모든 대기와
+기록된 매칭 결과를 삭제하므로 운영 복구 수단으로 사용하지 않는다. 과거 공개 API로 수동
+생성한 `type=random` 방과 구독은 자동 이관하지 않는다. 기존 DB에 그런 방이 있다면 배포
+전 확인해야 하며, 새 대기열의 중복 매칭 제한은 이 매칭 API가 관리하는 결과를 기준으로
+한다.
 
 ## 검증 범위
 
@@ -126,7 +156,7 @@ cd frontend/app
 flutter test --no-pub
 ```
 
-### 최신 main 통합 후 로컬 실행 결과
+### #25 구현 당시 로컬 실행 결과 (`main` `074a018`)
 
 - `main`의 `074a018`을 통합한 코드에서 백엔드 전체 **213 passed**.
   전용 PostGIS·Redis, 현재 소스 마운트로 실행했다.
@@ -148,3 +178,11 @@ flutter test --no-pub
 
 CI, APK/IPA, 운영 배포, 실기기 검증은 수행하지 않았다. 기존 DB 마이그레이션 역시
 위 전용 테스트 DB에서만 검증했고 운영 DB에는 적용하지 않았다.
+
+### `0004` Alembic 편입 후 통합 검증
+
+`main` `724396e`의 random-chat queue를 `20261106_0004` revision으로 편입한 뒤 새
+이미지에서 migration **25개**, 현재 코드의 전체 backend **213개**가 통과했다.
+기존 DB adoption과 upgrade, 큐 및 pending outbox 보존, offline SQL 적용, dump/restore를
+검증했다. 상세한 실행 환경·경고·checksum은 [DB migration 통합 기록](database-migrations.md#0004-random-chat-통합-검증)을 참고한다.
+운영 DB 변경과 배포는 수행하지 않았다.

@@ -28,7 +28,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 BASELINE_REVISION = "20261106_0001"
 PROFILE_MEDIA_REVISION = "20261106_0002"
-HEAD_REVISION = "20261106_0003"
+MESSAGE_OUTBOX_REVISION = "20261106_0003"
+HEAD_REVISION = "20261106_0004"
 DATABASE_NAME = "migration_test_db"
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_DIR = BACKEND_ROOT / "app" / "alembic"
@@ -128,6 +129,16 @@ def _assert_pending_outbox_marker() -> None:
     ) == ["migration-outbox-marker"]
 
 
+def _assert_random_chat_queue_marker() -> None:
+    assert _sql(
+        'SELECT "user".email FROM public.random_chat_queue AS queue '
+        'JOIN public."user" AS "user" ON "user".id = queue.user_id '
+        "WHERE \"user\".email = 'migration-marker@example.com' "
+        "AND queue.stream_id IS NULL "
+        "AND queue.expires_at = queue.queued_at + interval '5 minutes'"
+    ) == ["migration-marker@example.com"]
+
+
 def _reset_database() -> None:
     _sql(
         "DROP SCHEMA public CASCADE",
@@ -139,25 +150,40 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
     # Existing unversioned installations match the frozen baseline, not today's
     # ORM metadata.  Loading it from the tracked revision also prevents this
     # fixture from silently changing when a model is edited later.
-    if revision not in (BASELINE_REVISION, PROFILE_MEDIA_REVISION, HEAD_REVISION):
+    if revision not in (
+        BASELINE_REVISION,
+        PROFILE_MEDIA_REVISION,
+        MESSAGE_OUTBOX_REVISION,
+        HEAD_REVISION,
+    ):
         raise ValueError(f"Unsupported legacy fixture revision: {revision}")
     baseline = ScriptDirectory.from_config(_alembic_config()).get_revision(
         BASELINE_REVISION
     )
     assert baseline is not None
     baseline_metadata = baseline.module.schema()
-    if revision in (PROFILE_MEDIA_REVISION, HEAD_REVISION):
+    if revision in (
+        PROFILE_MEDIA_REVISION,
+        MESSAGE_OUTBOX_REVISION,
+        HEAD_REVISION,
+    ):
         profile_media = ScriptDirectory.from_config(_alembic_config()).get_revision(
             PROFILE_MEDIA_REVISION
         )
         assert profile_media is not None
         profile_media.module.add_table(baseline_metadata)
-    if revision == HEAD_REVISION:
+    if revision in (MESSAGE_OUTBOX_REVISION, HEAD_REVISION):
         outbox = ScriptDirectory.from_config(_alembic_config()).get_revision(
-            HEAD_REVISION
+            MESSAGE_OUTBOX_REVISION
         )
         assert outbox is not None
         outbox.module.extend_schema(baseline_metadata)
+    if revision == HEAD_REVISION:
+        random_chat = ScriptDirectory.from_config(_alembic_config()).get_revision(
+            HEAD_REVISION
+        )
+        assert random_chat is not None
+        random_chat.module.extend_schema(baseline_metadata)
 
     engine = create_async_engine(TEST_URL)
     try:
@@ -181,7 +207,7 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
                     "gender": "other",
                 },
             )
-            if revision == HEAD_REVISION:
+            if revision in (MESSAGE_OUTBOX_REVISION, HEAD_REVISION):
                 user_id = await connection.scalar(
                     text(
                         'SELECT id FROM "user" '
@@ -222,6 +248,16 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
                         "payload": "migration-outbox-marker",
                     },
                 )
+                if revision == HEAD_REVISION:
+                    await connection.execute(
+                        text(
+                            "INSERT INTO random_chat_queue "
+                            "(user_id, queued_at, expires_at, stream_id) "
+                            "VALUES (:user_id, now(), "
+                            "now() + interval '5 minutes', NULL)"
+                        ),
+                        {"user_id": user_id},
+                    )
     finally:
         await engine.dispose()
 
@@ -312,6 +348,9 @@ def test_unversioned_matching_database_is_adopted_without_losing_data() -> None:
     )
     assert _sql("SELECT to_regclass('public.profile_media')") == ["profile_media"]
     assert _sql("SELECT to_regclass('public.message_outbox')") == ["message_outbox"]
+    assert _sql("SELECT to_regclass('public.random_chat_queue')") == [
+        "random_chat_queue"
+    ]
     assert _sql(
         "SELECT email FROM public.\"user\" WHERE email = 'migration-marker@example.com'"
     ) == ["migration-marker@example.com"]
@@ -337,6 +376,9 @@ def test_unversioned_profile_media_schema_upgrades_to_head() -> None:
     command.upgrade(_alembic_config(), "head")
     assert _sql("SELECT version_num FROM public.alembic_version") == [HEAD_REVISION]
     assert _sql("SELECT to_regclass('public.message_outbox')") == ["message_outbox"]
+    assert _sql("SELECT to_regclass('public.random_chat_queue')") == [
+        "random_chat_queue"
+    ]
     assert _sql(
         "SELECT EXISTS ("
         "SELECT 1 FROM information_schema.columns "
@@ -346,6 +388,25 @@ def test_unversioned_profile_media_schema_upgrades_to_head() -> None:
     assert _sql(
         "SELECT email FROM public.\"user\" WHERE email = 'migration-marker@example.com'"
     ) == ["migration-marker@example.com"]
+
+
+def test_unversioned_outbox_schema_upgrades_to_head() -> None:
+    asyncio.run(_create_legacy_schema(revision=MESSAGE_OUTBOX_REVISION))
+
+    result = _run_adoption()
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert _sql("SELECT version_num FROM public.alembic_version") == [
+        MESSAGE_OUTBOX_REVISION
+    ]
+    assert _sql("SELECT to_regclass('public.random_chat_queue')") == [None]
+    _assert_pending_outbox_marker()
+
+    command.upgrade(_alembic_config(), "head")
+    assert _sql("SELECT version_num FROM public.alembic_version") == [HEAD_REVISION]
+    assert _sql("SELECT to_regclass('public.random_chat_queue')") == [
+        "random_chat_queue"
+    ]
+    _assert_pending_outbox_marker()
 
 
 def test_unversioned_current_schema_is_adopted_at_head() -> None:
@@ -359,6 +420,7 @@ def test_unversioned_current_schema_is_adopted_at_head() -> None:
         "SELECT email FROM public.\"user\" WHERE email = 'migration-marker@example.com'"
     ) == ["migration-marker@example.com"]
     _assert_pending_outbox_marker()
+    _assert_random_chat_queue_marker()
 
     command.upgrade(_alembic_config(), "head")
     assert _sql("SELECT version_num FROM public.alembic_version") == [HEAD_REVISION]
@@ -372,10 +434,11 @@ def test_unversioned_current_schema_is_adopted_at_head() -> None:
         > marker_id
     )
     _assert_pending_outbox_marker()
+    _assert_random_chat_queue_marker()
 
 
-def test_current_adoption_rejects_partial_outbox_schema() -> None:
-    asyncio.run(_create_legacy_schema(revision=HEAD_REVISION))
+def test_outbox_adoption_rejects_partial_schema() -> None:
+    asyncio.run(_create_legacy_schema(revision=MESSAGE_OUTBOX_REVISION))
     _sql(
         "DROP INDEX public.message_outbox_channel_pending",
         "CREATE INDEX message_outbox_channel_pending "
@@ -496,10 +559,13 @@ def test_baseline_downgrade_is_explicitly_blocked() -> None:
 
     with pytest.raises(Exception, match="(?i)(baseline|backup|downgrade)"):
         command.downgrade(config, "base")
-    # 0003/0002 downgrades and baseline's refusal share the real env transaction.
+    # 0004/0003/0002 downgrades and the baseline refusal share one transaction.
     assert _sql("SELECT version_num FROM public.alembic_version") == [HEAD_REVISION]
     assert _sql("SELECT to_regclass('public.profile_media')") == ["profile_media"]
     assert _sql("SELECT to_regclass('public.message_outbox')") == ["message_outbox"]
+    assert _sql("SELECT to_regclass('public.random_chat_queue')") == [
+        "random_chat_queue"
+    ]
     assert _sql(
         "SELECT EXISTS ("
         "SELECT 1 FROM information_schema.columns "
@@ -525,19 +591,20 @@ def test_failed_revision_rolls_back_and_can_be_retried(
         "20261106_0001_baseline.py",
         "20261106_0002_profile_media.py",
         "20261106_0003_message_outbox.py",
+        "20261106_0004_random_chat_queue.py",
     ):
         shutil.copy2(
             ALEMBIC_DIR / "versions" / revision_file, versions_dir / revision_file
         )
-    (versions_dir / "20261106_0004_failure_probe.py").write_text(
+    (versions_dir / "20261106_0005_failure_probe.py").write_text(
         dedent(
             """
             import os
             from alembic import op
             import sqlalchemy as sa
 
-            revision = "probe_004"
-            down_revision = "20261106_0003"
+            revision = "probe_005"
+            down_revision = "20261106_0004"
             branch_labels = None
             depends_on = None
 
@@ -562,6 +629,7 @@ def test_failed_revision_rolls_back_and_can_be_retried(
     assert _sql("SELECT version_num FROM public.alembic_version") == [BASELINE_REVISION]
     assert _sql("SELECT to_regclass('public.profile_media')") == [None]
     assert _sql("SELECT to_regclass('public.message_outbox')") == [None]
+    assert _sql("SELECT to_regclass('public.random_chat_queue')") == [None]
     assert _sql(
         "SELECT EXISTS ("
         "SELECT 1 FROM information_schema.columns "
@@ -575,9 +643,12 @@ def test_failed_revision_rolls_back_and_can_be_retried(
 
     monkeypatch.delenv("MIGRATION_FAILURE_PROBE")
     command.upgrade(config, "head")
-    assert _sql("SELECT version_num FROM public.alembic_version") == ["probe_004"]
+    assert _sql("SELECT version_num FROM public.alembic_version") == ["probe_005"]
     assert _sql("SELECT to_regclass('public.profile_media')") == ["profile_media"]
     assert _sql("SELECT to_regclass('public.message_outbox')") == ["message_outbox"]
+    assert _sql("SELECT to_regclass('public.random_chat_queue')") == [
+        "random_chat_queue"
+    ]
     assert _sql(
         "SELECT EXISTS ("
         "SELECT 1 FROM information_schema.columns "

@@ -21,6 +21,7 @@ from app.core.config import settings
 BASELINE = "20261106_0001"
 PROFILE_MEDIA = "20261106_0002"
 MESSAGE_OUTBOX = "20261106_0003"
+RANDOM_CHAT_QUEUE = "20261106_0004"
 
 
 def adopt(connection, config):
@@ -38,16 +39,18 @@ def adopt(connection, config):
     scripts = ScriptDirectory.from_config(config)
     metadata = scripts.get_revision(BASELINE).module.schema()
     revision = BASELINE
-    if "profile_media" in inspector.get_table_names():
+    tables = set(inspector.get_table_names())
+    # Require every earlier revision when recognizing a later table. Partially
+    # applied legacy scripts must fail comparison rather than skip migrations.
+    if tables & {"profile_media", "message_outbox", "random_chat_queue"}:
         scripts.get_revision(PROFILE_MEDIA).module.add_table(metadata)
         revision = PROFILE_MEDIA
-    if "message_outbox" in inspector.get_table_names():
-        # Outbox is a later revision than profile ownership. Require the whole
-        # known schema; a partially applied legacy script must never be stamped.
-        if "profile_media" not in metadata.tables:
-            scripts.get_revision(PROFILE_MEDIA).module.add_table(metadata)
+    if tables & {"message_outbox", "random_chat_queue"}:
         scripts.get_revision(MESSAGE_OUTBOX).module.extend_schema(metadata)
         revision = MESSAGE_OUTBOX
+    if "random_chat_queue" in tables:
+        scripts.get_revision(RANDOM_CHAT_QUEUE).module.extend_schema(metadata)
+        revision = RANDOM_CHAT_QUEUE
     migration_context = MigrationContext.configure(
         connection,
         opts={
