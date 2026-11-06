@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
@@ -11,6 +11,7 @@ from app.api.main import api_router
 from app.core.config import settings
 from app.core.redis import redis_client
 from app.middlewares import register_profile_middleware
+from app.service.message_outbox import MessageOutboxWorker
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,11 +30,15 @@ async def lifespan(app: FastAPI):
     instrumentator.expose(
         app, include_in_schema=False, should_gzip=True
     )  # Prometheus 메트릭 노출
+    outbox_task = asyncio.create_task(MessageOutboxWorker().run(), name="message-outbox")
     try:
         yield
     except asyncio.CancelledError:
         logger.warning("Application lifespan task was cancelled.")
     finally:
+        outbox_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await outbox_task
         logger.info("Ending application lifespan and closing Redis connection.")
         await redis_client.close_connection()  # 종료 시 연결 해제
 
