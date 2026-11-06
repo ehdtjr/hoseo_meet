@@ -29,8 +29,19 @@ class LoadMessageService {
     });
 
     // AuthHttpClient를 통해 GET 요청
-    final http.Response response = await _client.getRequest(uri.toString());
+    final http.Response response = await _client
+        .getRequest(uri.toString())
+        .timeout(const Duration(seconds: 15));
 
+    if (response.statusCode == 404 &&
+        const ['newest', 'oldest', 'first_unread'].contains(anchor)) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes));
+      if (body is Map &&
+          body['detail'] is String &&
+          (body['detail'] as String).startsWith('No messages found in')) {
+        return [];
+      }
+    }
     if (response.statusCode == 200) {
       final decoded = jsonDecode(
         utf8.decode(response.bodyBytes),

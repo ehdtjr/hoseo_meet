@@ -127,6 +127,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// (3) 로그아웃
   Future<void> logout() async {
     final accessToken = state.accessToken;
+    // Notify realtime consumers immediately, even if the server is unreachable.
+    state = AuthState.initial();
 
     if (accessToken == null) {
       print('[AuthNotifier] accessToken 없음 → 서버 로그아웃 생략');
@@ -135,7 +137,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
 
     await _tokenStorage.deleteRefreshToken();
-    state = AuthState.initial();
   }
 
   Future<Register> register(RegisterRequest request) async {

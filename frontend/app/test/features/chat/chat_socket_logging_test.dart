@@ -28,6 +28,7 @@ class LoggedInAuth extends AuthNotifier {
 
 class SocketRepository implements ChatRepository {
   final events = StreamController<Map<String, dynamic>>();
+  List<ChatMessage>? historySnapshot;
   @override
   Stream<Map<String, dynamic>> get messageStream => events.stream;
   @override
@@ -38,13 +39,19 @@ class SocketRepository implements ChatRepository {
       throw const FormatException(privateText, privateText);
   @override
   Future<List<ChatMessage>> loadMessages(
-          {required int streamId,
-          String anchor = 'first_unread',
-          int numBefore = 10,
-          int numAfter = 30}) async =>
-      throw const FormatException(privateText, privateText);
+      {required int streamId,
+      String anchor = 'first_unread',
+      int numBefore = 10,
+      int numAfter = 30}) async {
+    if (historySnapshot != null) return historySnapshot!;
+    throw const FormatException(privateText, privateText);
+  }
+
   @override
-  Future<void> markNewestMessageAsRead({required int streamId}) async =>
+  Future<void> markLoadedMessagesAsRead(
+          {required int streamId,
+          required int anchorId,
+          required int numBefore}) async =>
       throw const FormatException(privateText, privateText);
   @override
   Future<void> activateRoom(int streamId) async =>
@@ -53,9 +60,9 @@ class SocketRepository implements ChatRepository {
   Future<void> deactivateRoom() async =>
       throw const FormatException(privateText, privateText);
   @override
-  void closeWebSocket() {}
+  Future<void> closeWebSocket() async {}
   @override
-  void disposeSocketService() {}
+  Future<void> disposeSocketService() async {}
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -128,15 +135,26 @@ void main() {
         repository.events.add(event);
         await Future<void>.delayed(Duration.zero);
       }
+      expect(logs.any((line) => line.contains('읽음 상태 동기화 실패')), isTrue);
+      repository.historySnapshot = [
+        ChatMessage.fromJson({...message, 'unread_count': 1})
+      ];
+      repository.events.add({
+        'type': 'read',
+        'data': {
+          'read_message': [42]
+        }
+      });
+      await Future<void>.delayed(Duration.zero);
       final state = container.read(provider);
       expect(state.messages.single.content, privateText);
       expect(state.messages.single.unreadCount, 1);
       expect(container.read(mapNotifierProvider)[1]!.latitude, 37.123456789);
       expect(container.read(mapNotifierProvider)[1]!.longitude, 127.987654321);
       expect(logs.where((line) => line.contains('socket_event_failed')),
-          hasLength(3));
+          hasLength(2));
       expect(logs.any((line) => line.contains('알 수 없는 소켓 타입')), isTrue);
-      expect(logs.any((line) => line.contains('read 실패')), isTrue);
+      expect(logs.any((line) => line.contains('읽음 처리 실패')), isTrue);
     } finally {
       await notifier.disposeNotifier();
       await repository.events.close();
@@ -150,7 +168,6 @@ void main() {
     expect(output, contains('초기 메시지 로드 실패'));
     expect(output, contains('이전 메시지 로드 실패'));
     expect(output, contains('읽음 처리 실패'));
-    expect(output, contains('방 활성화 실패'));
-    expect(output, contains('방 비활성화 실패'));
+    expect(output, contains('방 활성 상태 변경 실패'));
   });
 }

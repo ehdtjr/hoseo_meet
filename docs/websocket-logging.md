@@ -22,8 +22,8 @@ flutter build bundle --release --no-pub
 ```
 
 - 순수 Dart 검사 도구는 실제 loopback WebSocket으로 합성 본문·좌표·토큰을 보낸다. 정상 이벤트 6개가 그대로 전달되고, 잘못된 JSON·비객체 JSON·바이너리 입력 이후에도 수신이 계속되는지 확인한다. 종료 사유와 인증 실패 URL/응답에도 표식을 넣고 재시도/종료 상태를 캡처한다. 캡처된 로그에 표식이 하나라도 있거나 진단 상태가 사라지면 실패한다. 검사는 `assert`에 의존하지 않으므로 AOT에서도 유효하다.
-- Flutter 소비자 테스트는 민감한 문자열이 들어간 날짜·읽음·좌표 파싱 오류, 알 수 없는 타입, 조회·읽음·활성화 실패를 확인한다. 오류 뒤 정상 채팅·읽음·위치 업데이트가 적용되는지도 확인한다.
+- Flutter 소비자 테스트는 민감한 문자열이 들어간 날짜·읽음·좌표 파싱 오류, 알 수 없는 타입, 조회·읽음·읽음 상태 동기화·활성 상태 변경 실패를 확인한다. 오류 뒤 정상 채팅·읽음·위치 업데이트가 적용되는지도 확인한다.
 - 서버 `app/tests/service/test_websocket_logging.py`는 DEBUG 로그를 캡처하여 이벤트 전달, malformed JSON, 전송 실패, 클라이언트 프레임/종료, Redis 오류, 연결 정리를 검사한다. DB·Redis는 모의 객체를 사용한다. 기존 백엔드 테스트 환경에서 `python -m pytest app/tests/service/test_websocket_logging.py -q -W error::RuntimeWarning`로 실행한다.
 - CI는 기존 전체 백엔드·Flutter 테스트에 더해 Dart JIT/AOT 로그 검사를 실행한다.
 
-2026-11-06 로컬 결과: Flutter 테스트 43개, 서버 로그 테스트 5개, JIT/AOT 로그 검사, debug/release bundle 빌드 통과. 변경 Dart 파일 분석은 오류·경고 없이 기존 유형의 안내 15건(`avoid_print` 13건, 간접 의존성 import 1건, 위치 API deprecation 1건)을 보고했다. 이 결과는 소스·로컬 실행 검증이며 GitHub CI 실행, 배포 환경 로그 수집, 휴대폰에서의 debug/release 실행 결과는 포함하지 않는다. FCM 등 별도 전송 경로 전체를 감사한 결과도 아니다.
+2026-11-06 로컬 결과: 최신 main의 재연결·복구 코드와 통합 후 Flutter 테스트 70개, 서버 로그 테스트 5개, JIT/AOT 로그 검사, debug/release bundle 빌드 통과. 변경 Dart 파일 분석은 오류·경고 없이 안내 13건(`avoid_print`, 고정된 비민감 진단 출력)을 보고했다. 이 결과는 소스·로컬 실행 검증이며 GitHub CI 실행, 배포 환경 로그 수집, 휴대폰에서의 debug/release 실행 결과는 포함하지 않는다. FCM 등 별도 전송 경로 전체를 감사한 결과도 아니다.

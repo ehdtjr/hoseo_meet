@@ -33,7 +33,8 @@ Future<void> main() async {
       peer.listen((_) {});
       peerReady.complete(peer);
     });
-    final service = SocketMessageService(markers.last,
+    final service = SocketMessageService(
+        tokenProvider: () => markers.last,
         socketUrl: 'ws://127.0.0.1:${server.port}/events');
     final delivered = <Map<String, dynamic>>[];
     final allDelivered = Completer<void>();
@@ -77,15 +78,23 @@ Future<void> main() async {
       }
       check(logs.contains('[WebSocket] disconnected'), 'Missing close status');
 
-      final rejected = SocketMessageService(markers.last,
+      await service.closeWebSocket();
+
+      final rejected = SocketMessageService(
+          tokenProvider: () => markers.last,
+          initialRetryDelay: const Duration(milliseconds: 10),
+          maxRetryDelay: const Duration(milliseconds: 20),
           socketUrl:
               'ws://127.0.0.1:${server.port}/reject?token=${markers.last}');
       await rejected.connectWebSocket();
-      rejected.closeWebSocket();
-      rejected.dispose();
+      for (var i = 0;
+          i < 500 && !logs.contains('[WebSocket] retry_scheduled attempt=3');
+          i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      await rejected.dispose();
     } finally {
-      service.closeWebSocket();
-      service.dispose();
+      await service.dispose();
       await subscription.cancel();
       await requests.cancel();
       await server.close(force: true);
@@ -99,7 +108,7 @@ Future<void> main() async {
     check(!output.contains(marker), 'Private marker leaked into socket logs');
   }
   for (final status in [
-    'connected',
+    'state=connected',
     'received type=stream',
     'received type=location',
     'received type=read',
@@ -108,9 +117,11 @@ Future<void> main() async {
     'decode_failed',
     'invalid_message_shape',
     'disconnected',
-    'connect_failed retry=3/3',
-    'retries_exhausted',
-    'closed',
+    'connect_failed',
+    'retry_scheduled attempt=3',
+    'state=disconnected',
+    'state=disposed',
+    'invalid_frame',
   ]) {
     check(
         output.contains('[WebSocket] $status'), 'Missing diagnostic: $status');

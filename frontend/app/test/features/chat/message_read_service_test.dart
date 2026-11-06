@@ -29,7 +29,7 @@ void main() {
     test('fetched-range read uses explicit anchor and propagates HTTP $status',
         () async {
       final client = ReadClient(status);
-      final socket = SocketMessageService('test-token');
+      final socket = SocketMessageService(tokenProvider: () => 'test-token');
       addTearDown(socket.dispose);
       final repository = ChatRepository(
         loadService: LoadMessageService(client),

@@ -112,9 +112,9 @@ class ControlledRepository implements ChatRepository {
   @override
   Future<void> deactivateRoom() async {}
   @override
-  void closeWebSocket() {}
+  Future<void> closeWebSocket() async {}
   @override
-  void disposeSocketService() {}
+  Future<void> disposeSocketService() async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
