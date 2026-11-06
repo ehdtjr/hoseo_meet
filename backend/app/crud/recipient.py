@@ -8,7 +8,7 @@ from app.schemas.recipient import RecipientBase, RecipientCreate  # type: ignore
 
 
 class RecipientCRUDProtocol:
-    async def create(self, db: AsyncSession, obj_in: RecipientCreate) \
+    async def create(self, db: AsyncSession, obj_in: RecipientCreate, *, commit: bool = True) \
             -> RecipientBase:
         pass
 
@@ -27,9 +27,9 @@ class RecipientCRUD(CRUDBase[Recipient, RecipientBase], RecipientCRUDProtocol):
     def __init__(self):
         super().__init__(Recipient, RecipientBase)
 
-    async def create(self, db: AsyncSession, obj_in: RecipientCreate) \
+    async def create(self, db: AsyncSession, obj_in: RecipientCreate, *, commit: bool = True) \
             -> RecipientBase:
-        return await super().create(db, obj_in)
+        return await super().create(db, obj_in, commit=commit)
 
     async def get(self, db: AsyncSession, recipient_id: int) -> RecipientBase:
         return await super().get(db, recipient_id)

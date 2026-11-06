@@ -10,9 +10,9 @@ class StoryPostCRUD(CRUDBase[StoryPost, StoryPostBase]):
     def __init__(self):
             super().__init__(StoryPost, StoryPostBase)
 
-    async def create(self, db: AsyncSession, story_post: StoryPostCreate) -> (
+    async def create(self, db: AsyncSession, story_post: StoryPostCreate, *, commit: bool = True) -> (
         StoryPostBase):
-        return await super().create(db, story_post)
+        return await super().create(db, story_post, commit=commit)
 
     async def get(self, db: AsyncSession, story_post_id: int) -> StoryPostBase:
         return await super().get(db, story_post_id)

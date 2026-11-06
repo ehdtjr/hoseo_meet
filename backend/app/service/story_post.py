@@ -47,41 +47,49 @@ class StoryPostService:
         user_id: int,
         story_request: StoryPostRequest,
     ) -> StoryPostResponse:
-        # stream 참여하기 위한 채팅방 생성
-        stream_create = StreamCreate(
-            name=story_request.text_overlay.text,
-            type="story",
-            creator_id=user_id,
-        )
-        created_stream: StreamRead =  await self.stream_service.create_stream(
-            db, stream_create)
+        try:
+            # stream 참여하기 위한 채팅방 생성
+            stream_create = StreamCreate(
+                name=story_request.text_overlay.text,
+                type="story",
+                creator_id=user_id,
+            )
+            created_stream: StreamRead =  await self.stream_service.create_stream(
+                db, stream_create, commit=False)
 
-        await self.subscriber_service.subscribe(
-            db,
-            user_id=user_id,
-            stream_id=created_stream.id
-        )
+            story_create_post: StoryPostCreate = StoryPostCreate(
+                author_id=user_id,
+                stream_id=created_stream.id,
+                image_url=story_request.image_url,
+                text_overlay=story_request.text_overlay,
+            )
 
-        story_create_post: StoryPostCreate = StoryPostCreate(
-            author_id=user_id,
-            stream_id=created_stream.id,
-            image_url=story_request.image_url,
-            text_overlay=story_request.text_overlay,
-        )
+            created_story_post: StoryPostBase = await self.story_post_crud.create(
+                db=db,
+                story_post=story_create_post,
+                commit=False,
+            )
 
-        created_story_post: StoryPostBase = await self.story_post_crud.create(
-            db=db,
-            story_post=story_create_post
-        )
+            await self.subscriber_service.subscribe(
+                db,
+                user_id=user_id,
+                stream_id=created_stream.id,
+                commit=False,
+            )
 
-        return StoryPostResponse(
-            id=created_story_post.id,
-            author_id=created_story_post.author_id,
-            text_overlay=created_story_post.text_overlay,
-            image_url=created_story_post.image_url,
-            is_subscribed=True,
-            created_at=created_story_post.created_at
-        )
+            result = StoryPostResponse(
+                id=created_story_post.id,
+                author_id=created_story_post.author_id,
+                text_overlay=created_story_post.text_overlay,
+                image_url=created_story_post.image_url,
+                is_subscribed=True,
+                created_at=created_story_post.created_at
+            )
+            await db.commit()
+            return result
+        except BaseException:
+            await db.rollback()
+            raise
 
     async def get_detail_story_post(self, db: AsyncSession, story_post_id: int,
                                     user_id: int) -> StoryPostResponse:
@@ -167,11 +175,6 @@ class StoryPostService:
                                                                    story_post_id)
         if story_post is None:
             raise ValueError("해당 스토리를 찾을 수 없습니다.")
-
-        current_subscribers = await self.subscriber_service.get_subscribers(db,
-                                                                            story_post.stream_id)
-        if user_id in current_subscribers:
-            raise ValueError("이미 참여한 사용자입니다.")
 
         await self.subscriber_service.subscribe(db, user_id,
                                                 story_post.stream_id)
