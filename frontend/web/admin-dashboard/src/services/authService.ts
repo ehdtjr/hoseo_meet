@@ -1,4 +1,4 @@
-import api from "../lib/axios";
+import authClient from "../lib/authClient";
 import type { LoginResponse } from "../types/auth";
 
 export async function login(
@@ -9,7 +9,7 @@ export async function login(
   formData.append("username", username);
   formData.append("password", password);
 
-  const response = await api.post("/auth/login", formData, {
+  const response = await authClient.post("/auth/login", formData, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
@@ -21,7 +21,7 @@ export async function login(
 export async function refreshToken(
   refreshToken: string
 ): Promise<LoginResponse> {
-  const response = await api.post("/auth/refresh", {
+  const response = await authClient.post("/auth/refresh", {
     refresh_token: refreshToken,
   });
 
