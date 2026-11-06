@@ -1,106 +1,85 @@
+"""Alembic entry point; schema changes belong in versioned revisions only."""
+
 import asyncio
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import settings
-from app.models import *  # noqa
+from app.core.db import Base
+import app.models  # noqa: F401
+import app.domains.restaurant.model  # noqa: F401
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
 config = context.config
-
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
-def get_url():
-    return str(settings.SQLALCHEMY_DATABASE_URI)
-
-
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-
-# add your model's MetaData object here
-# for 'autogenerate' support
-# from myapp import mymodel
-# target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
 
-def include_name(name, type_, parent_names):
-    if type_ == "table":
-        return name in target_metadata.tables
-    return True
-
-
-def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
-    url = get_url()
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-        include_name=include_name,
-        compare_type=True
+def get_url():
+    return config.get_main_option("sqlalchemy.url") or str(
+        settings.SQLALCHEMY_DATABASE_URI
     )
 
+
+def include_name(name, type_, parent_names):
+    # Ignore only PostGIS-owned tables, never unknown application tables: a stale
+    # table must make `alembic check` fail just like a missing column does.
+    return type_ != "table" or name != "spatial_ref_sys"
+
+
+def options():
+    return dict(
+        target_metadata=target_metadata,
+        include_name=include_name,
+        compare_type=True,
+        compare_server_default=True,
+    )
+
+
+def run_migrations_offline():
+    context.configure(
+        url=get_url(),
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+        **options(),
+    )
     with context.begin_transaction():
+        # Emit this before Alembic creates its version table, just as online.
+        context.execute("SET LOCAL search_path TO public")
         context.run_migrations()
 
 
 def do_run_migrations(connection):
-    context.configure(
-        connection=connection,
-        target_metadata=target_metadata,
-        include_name=include_name,
-        compare_type=True,
-    )
-
+    context.configure(connection=connection, **options())
     with context.begin_transaction():
+        # PostGIS images add tiger/topology to search_path. The application owns
+        # public only; otherwise reflection mistakes extension tables for drift.
+        connection.execute(text("SET LOCAL search_path TO public"))
         context.run_migrations()
 
 
-async def run_async_migrations() -> None:
-    """In this scenario we need to create an Engine
-    and associate a connection with the context.
-
-    """
-
+async def run_async_migrations():
     connectable = async_engine_from_config(
-        {"sqlalchemy.url": get_url()},  # URL을 직접 전달
+        {"sqlalchemy.url": get_url()},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
-
-    async with connectable.connect() as connection:
-        from sqlalchemy import text
-        await connection.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
-        await connection.commit()
-        await connection.run_sync(do_run_migrations)
-
-    await connectable.dispose()
+    try:
+        async with connectable.connect() as connection:
+            await connection.run_sync(do_run_migrations)
+    finally:
+        await connectable.dispose()
 
 
-def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
-
-    asyncio.run(run_async_migrations())
+def run_migrations_online():
+    connection = config.attributes.get("connection")
+    if connection is not None:
+        do_run_migrations(connection)
+    else:
+        asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():
