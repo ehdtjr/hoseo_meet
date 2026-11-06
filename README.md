@@ -12,3 +12,5 @@ alembic upgrade head
 [로컬 환경 실행·테스트·Kubernetes·백업/복구 절차](docs/local-environment.md)
 
 [채팅·위치 WebSocket 로그 정책과 검증](docs/websocket-logging.md)
+
+[API 토큰 용도·회전·로그아웃·다중 기기 정책](docs/auth-token-policy.md)

@@ -1,11 +1,12 @@
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import uuid4
 
 import httpx
 import jwt
 from fastapi import HTTPException, status
-from fastapi_users import models
+from fastapi_users import BaseUserManager, exceptions, models
 from fastapi_users.authentication.strategy import JWTStrategy
 
 from app.core.config import settings
@@ -47,15 +48,45 @@ class CustomJWTStrategy(JWTStrategy):
         self.refresh_lifetime_seconds = lifetime_seconds * 24 * 14
         self.token_storage = token_storage
 
+    def _decode_token(self, token: str, expected_type: str) -> dict:
+        payload = jwt.decode(
+            token,
+            self.decode_key,
+            algorithms=[self.algorithm],
+            audience=self.token_audience,
+            options={"require": ["sub", "exp", "aud", "type"]},
+        )
+        if (
+            payload["type"] != expected_type
+            or not isinstance(payload["sub"], str)
+            or not payload["sub"]
+        ):
+            raise jwt.InvalidTokenError("Invalid token subject or purpose")
+        return payload
+
+    async def read_token(
+        self, token: Optional[str], user_manager: BaseUserManager[models.UP, models.ID]
+    ) -> Optional[models.UP]:
+        if token is None:
+            return None
+        try:
+            payload = self._decode_token(token, expected_type="access")
+            user_id = user_manager.parse_id(payload["sub"])
+            return await user_manager.get(user_id)
+        except (jwt.PyJWTError, exceptions.InvalidID, exceptions.UserNotExists):
+            return None
 
     def _generate_token(self, user_id: str, expires_in: int, token_type: str) -> str:
         payload = {
             "sub": user_id,  # 오직 user_id만 저장
             "type": token_type,  # 토큰 타입을 별도 필드로 관리
             "exp": datetime.now(timezone.utc) + timedelta(seconds=expires_in),
-            "aud": ["fastapi-users:auth"],
+            "aud": self.token_audience,
         }
-        return jwt.encode(payload, self.secret, algorithm=ALGORITHM)
+        if token_type == "refresh":
+            # JWT expiry has second precision; rotation must also work in one second.
+            payload["jti"] = uuid4().hex
+        return jwt.encode(payload, self.encode_key, algorithm=self.algorithm)
 
     async def write_token(self, user: models.UP) -> dict:
         user_id = str(user.id)
@@ -82,19 +113,10 @@ class CustomJWTStrategy(JWTStrategy):
     # Refresh Token 유효성 검사
     async def validate_refresh_token(self, refresh_token: str) -> str:
         try:
-            payload = jwt.decode(
-                refresh_token,
-                self.secret,
-                algorithms=[ALGORITHM],
-                audience="fastapi-users:auth",
-            )
-            user_id = payload.get("sub")
-            token_type = payload.get("type")
+            payload = self._decode_token(refresh_token, expected_type="refresh")
+            user_id = payload["sub"]
 
-            if not user_id or token_type != "refresh":
-                raise ValueError("Invalid token payload or token type")
-
-            # Redis에서 토큰 확인 (토큰 일치 여부 확인 권장)
+            # Only the currently stored refresh token may renew the session.
             stored_token = await self.token_storage.read_token(user_id)
             if not stored_token or stored_token.get("token") != refresh_token:
                 raise ValueError("Refresh token not found, mismatched or expired in store")
@@ -107,13 +129,7 @@ class CustomJWTStrategy(JWTStrategy):
 
     async def decode_token(self, token: str) -> dict:
         try:
-            decoded = jwt.decode(
-                token,
-                self.secret,
-                algorithms=[ALGORITHM],
-                audience="fastapi-users:auth",
-            )
-            return decoded
+            return self._decode_token(token, expected_type="access")
         except jwt.ExpiredSignatureError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
