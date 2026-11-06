@@ -24,12 +24,14 @@ class UserPublicRead(BaseModel):
 class UserCreate(schemas.BaseUserCreate):
     name: str
     gender: str
+    # Display-only URL. Ownership is recorded by the dedicated upload endpoint.
     profile: Optional[str] = None
 
 
 class UserUpdate(schemas.BaseUserUpdate):
     id: int
     name: Optional[str] = None
+    # Updating this value must never grant deletion rights or change upload records.
     profile: Optional[str] = None
 
 

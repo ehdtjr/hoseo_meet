@@ -1,8 +1,9 @@
 from io import BytesIO
 
 from app.core.local_storage import LocalStorage
-from typing import Optional, List
-from urllib.parse import urlparse
+from app.core.media_permissions import reject_profile_url_delete, verify_profile_key
+from typing import Optional
+from urllib.parse import urlsplit
 
 import aioboto3
 from fastapi import UploadFile, HTTPException
@@ -77,15 +78,29 @@ class S3Manager:
     async def delete_file(self, file_url: str) -> None:
         if self.local:
             return await self.local.delete_file(file_url)
+        parsed_url, base = urlsplit(file_url), urlsplit(self.cloud_front_domain_url.rstrip("/"))
+        prefix = base.path + "/"
+        if (parsed_url.scheme, parsed_url.netloc) != (base.scheme, base.netloc) or not parsed_url.path.startswith(prefix):
+            raise HTTPException(400, "Foreign media URL")
+        # S3 upload URLs contain the literal key, including any percent escapes
+        # in the original filename. Decoding would target a different object.
+        object_key = parsed_url.path[len(prefix):]
+        reject_profile_url_delete(object_key)
         try:
-            parsed_url = urlparse(file_url)
-            object_key = parsed_url.path.lstrip("/")
             async with await self._get_client() as s3_client:
                 await s3_client.delete_object(Bucket=self.bucket_name, Key=object_key)
         except Exception as e:
             raise HTTPException(
                 status_code=500, detail=f"Failed to delete file from S3: {str(e)}"
             )
+
+    async def delete_profile_file(self, key: str, *, uploader_id: int) -> None:
+        # A read URL is deliberately not accepted by this API.
+        verify_profile_key(key, uploader_id)
+        if self.local:
+            return await self.local.delete_profile_file(key, uploader_id=uploader_id)
+        async with await self._get_client() as s3_client:
+            await s3_client.delete_object(Bucket=self.bucket_name, Key=key)
 
 
 s3_manager = S3Manager()
