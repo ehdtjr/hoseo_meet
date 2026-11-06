@@ -37,6 +37,14 @@ jobs:
         run: docker compose build web admin
       - name: Collect and run the complete backend suite
         run: docker compose --profile test run --rm test
+      - name: Verify migrations on a dedicated disposable database
+        run: |
+          docker compose --profile test up -d --wait test-db
+          docker compose exec -T test-db createdb \
+            --username test_user --maintenance-db test_db migration_test_db
+          docker compose --profile test run --rm \
+            -e MIGRATION_TEST_DATABASE_URL=postgresql+asyncpg://test_user:test_password@test-db:5432/migration_test_db \
+            test python -m pytest app/migration_tests -q
       - name: Start and check core services
         run: |
           docker compose up -d --wait web admin celery-worker celery-beat mailpit
