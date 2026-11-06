@@ -3,5 +3,7 @@ import 'auth_http_client.dart';
 
 
 final authHttpClientProvider = Provider<AuthHttpClient>((ref) {
-  return AuthHttpClient(ref);
+  final client = AuthHttpClient(ref);
+  ref.onDispose(client.close);
+  return client;
 });

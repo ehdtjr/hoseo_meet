@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../../commons/network/auth_http_client_provider.dart';
 import '../../auth/providers/user_profile_provider.dart';
 import '../data/models/chat_message.dart';
+import '../data/models/outgoing_message.dart';
 import '../data/models/chat_room.dart';
 import '../data/repositories/chat_repository.dart';
 import '../data/services/activate_deactivate_service.dart';
@@ -22,12 +23,17 @@ import 'chat_room_provicer.dart';
 import 'map_provider.dart';
 
 class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
-  ChatDetailNotifier(this.ref, this.chatRoom) : super(ChatDetailState());
+  ChatDetailNotifier(this.ref, this.chatRoom, {ChatRepository? repository})
+      : _repositoryProvided = repository != null, super(ChatDetailState()) {
+    if (repository != null) _chatRepository = repository;
+  }
 
   final Ref ref;
   final ChatRoom chatRoom;
 
   bool _isInitialized = false;
+  bool _isRoomClosed = false;
+  final bool _repositoryProvided;
   late final ChatRepository _chatRepository;
 
   Timer? _locationTimer;
@@ -37,6 +43,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   final Set<String> _exhaustedAnchors = {}; // ✅ 추가된 anchor 추적
 
   Future<void> init() async {
+    _isRoomClosed = false;
     if (_isInitialized) return;
     _isInitialized = true;
 
@@ -44,13 +51,15 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     final token = ref.read(authNotifierProvider).accessToken;
     if (token == null) return;
 
-    _chatRepository = ChatRepository(
-      loadService: LoadMessageService(client),
-      sendService: SendMessageService(client),
-      readService: MessageReadService(client),
-      activateService: ActivateDeactivateService(client),
-      socketService: SocketMessageService(token),
-    );
+    if (!_repositoryProvided) {
+      _chatRepository = ChatRepository(
+        loadService: LoadMessageService(client),
+        sendService: SendMessageService(client),
+        readService: MessageReadService(client),
+        activateService: ActivateDeactivateService(client),
+        socketService: SocketMessageService(token),
+      );
+    }
 
     await _markMessagesAsRead();
     await _loadMessagesAtFirstUnread();
@@ -98,6 +107,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   }
 
   Future<void> disposeNotifier() async {
+    _isRoomClosed = true;
     stopLocationTracking();
     _activateTimer?.cancel();
     _activateTimer = null;
@@ -174,18 +184,118 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   }
 
 
-  Future<void> sendMessage(String content) async {
-    final trimmed = content.trim();
-    if (trimmed.isEmpty) return;
+  Future<bool> sendMessage(String content) async {
+    if (content.trim().isEmpty || state.isSending) return false;
+    // Sending the unchanged failed draft is a retry of the same logical send.
+    final matching = state.outgoingMessages.where((m) => m.draft == content);
+    final outgoing = matching.isEmpty
+        ? OutgoingMessage.create(content)
+        : matching.first;
+    return _sendOutgoing(outgoing);
+  }
 
+  Future<bool> retryMessage(String clientMessageId) async {
+    if (state.isSending) return false;
+    final matching = state.outgoingMessages.where(
+        (m) => m.clientMessageId == clientMessageId);
+    if (matching.isEmpty) return false;
+    return _sendOutgoing(matching.first);
+  }
+
+  Future<bool> _sendOutgoing(OutgoingMessage outgoing) async {
+    state = state.copyWith(outgoingMessages: [
+      for (final message in state.outgoingMessages)
+        if (message.clientMessageId != outgoing.clientMessageId) message,
+      outgoing.withStatus(MessageSendStatus.sending),
+    ]);
     try {
       await _chatRepository.sendMessage(
         streamId: chatRoom.streamId,
-        content: trimmed,
+        content: outgoing.draft.trim(),
+        clientMessageId: outgoing.clientMessageId,
       );
     } catch (error) {
-      debugPrint('[ChatDetailNotifier] 메시지 전송 실패: $error');
+      if (mounted) {
+        state = state.copyWith(outgoingMessages: [
+          for (final message in state.outgoingMessages)
+            message.clientMessageId == outgoing.clientMessageId
+                ? message.withStatus(MessageSendStatus.failed) : message,
+        ]);
+      }
+      return false;
     }
+
+    if (mounted) {
+      state = state.copyWith(outgoingMessages: [
+        for (final message in state.outgoingMessages)
+          if (message.clientMessageId != outgoing.clientMessageId) message,
+      ]);
+      unawaited(_syncLatestMessages());
+    }
+    return true;
+  }
+
+  // Recover missed WebSocket events without delaying the acknowledged send or
+  // offering to resend it when a read/history request fails.
+  Future<void> _syncLatestMessages() async {
+    try {
+      final latest = await _chatRepository.loadMessages(
+        streamId: chatRoom.streamId,
+        anchor: 'newest',
+        numBefore: 30,
+        numAfter: 0,
+      );
+      if (!mounted || _isRoomClosed || latest.isEmpty) return;
+      final knownIds = state.messages.map((m) => m.id).toSet();
+      final hasRecoveredMessages = latest.any((m) => !knownIds.contains(m.id));
+      _mergeServerSnapshot(latest);
+      _updateRoomPreview();
+      if (!hasRecoveredMessages) return;
+
+      final anchorId = latest.map((m) => m.id).reduce((a, b) => a > b ? a : b);
+      await _chatRepository.markLoadedMessagesAsRead(
+        streamId: chatRoom.streamId,
+        anchorId: anchorId,
+        numBefore: latest.length - 1,
+      );
+      if (!mounted || _isRoomClosed) return;
+      // Read acknowledgements are also delivered over the socket that may be
+      // unavailable. Fetch authoritative counts instead of assuming zero or
+      // decrementing every message (other participants may still be unread).
+      final readSnapshot = await _chatRepository.loadMessages(
+        streamId: chatRoom.streamId,
+        anchor: anchorId.toString(),
+        numBefore: latest.length - 1,
+        numAfter: 0,
+      );
+      if (!mounted || _isRoomClosed) return;
+      _mergeServerSnapshot(readSnapshot);
+      _updateRoomPreview();
+    } catch (error) {
+      debugPrint('[ChatDetailNotifier] 전송 후 메시지 동기화 실패: $error');
+    }
+  }
+
+  void _mergeServerSnapshot(List<ChatMessage> snapshot) {
+    final byId = {for (final message in state.messages) message.id: message};
+    for (final message in snapshot) {
+      final existing = byId[message.id];
+      // A delayed history response must not undo newer socket read updates.
+      byId[message.id] = existing != null &&
+              existing.unreadCount < message.unreadCount
+          ? message.copyWith(unreadCount: existing.unreadCount)
+          : message;
+    }
+    final messages = byId.values.toList()..sort((a, b) => a.id.compareTo(b.id));
+    state = state.copyWith(messages: messages);
+  }
+
+  void _updateRoomPreview() {
+    if (state.messages.isEmpty) return;
+    ref.read(chatRoomNotifierProvider.notifier).handleIncomingMessage(
+      newMessage: state.messages.last,
+      markAsRead: true,
+    );
   }
 
   Future<void> _initWebSocket() async {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,193 +9,167 @@ import '../../features/auth/providers/auth_notifier_provider.dart';
 
 class AuthHttpClient {
   final Ref _ref;
+  final http.Client _client;
+  final Directory _temporaryDirectory;
 
-  AuthHttpClient(this._ref);
+  AuthHttpClient(this._ref,
+      {http.Client? client, Directory? temporaryDirectory})
+      : _client = client ?? http.Client(),
+        _temporaryDirectory = temporaryDirectory ?? Directory.systemTemp;
 
-  /// ✅ 공통 요청 처리
-  Future<http.Response> _sendRequest(
-      String url,
-      String method, {
-        Map<String, String>? headers,
-        Map<String, dynamic>? body,
-        Map<String, String>? formFields,
-        bool isFormEncoded = false,
-      }) async {
-    final authState = _ref.read(authNotifierProvider);
-    final token = authState.accessToken;
+  void close() => _client.close();
 
-    if (token == null) {
-      return http.Response('No access token', 401);
-    }
-
-    final defaultHeaders = {
-      'Authorization': 'Bearer $token',
-      'Content-Type': isFormEncoded ? 'application/x-www-form-urlencoded' : 'application/json',
-    };
-
-    if (headers != null) {
-      defaultHeaders.addAll(headers);
-    }
-
+  // Each attempt gets a fresh request. Bodies are replayed from an immutable
+  // small encoded body or a disk snapshot, never a consumed request stream.
+  Future<http.Response> _sendAuthenticated(
+      http.BaseRequest Function() createRequest) async {
     try {
-      http.Response response;
-      final uri = Uri.parse(url);
-
-      switch (method) {
-        case 'GET':
-          response = await http.get(uri, headers: defaultHeaders);
-          break;
-        case 'POST':
-          response = await http.post(
-            uri,
-            headers: defaultHeaders,
-            body: isFormEncoded ? formFields : jsonEncode(body),
-          );
-          break;
-        case 'DELETE':
-          response = await http.delete(
-            uri,
-            headers: defaultHeaders,
-            body: jsonEncode(body),
-          );
-          break;
-        default:
-          throw UnsupportedError('Method $method is not supported');
+      Future<http.Response> send(String token) async {
+        final attempt = createRequest()
+          ..headers['Authorization'] = 'Bearer $token';
+        return http.Response.fromStream(await _client.send(attempt));
       }
 
-      return await _handleUnauthorized(response, url, method, body: body, formFields: formFields);
+      final token = _ref.read(authNotifierProvider).accessToken;
+      if (token == null) return http.Response('No access token', 401);
+      final response = await send(token);
+      if (response.statusCode != 401) return response;
+
+      await _ref.read(authNotifierProvider.notifier).refreshAccessToken();
+      final auth = _ref.read(authNotifierProvider);
+      if (!auth.isLoggedIn || auth.accessToken == null) return response;
+      // A second 401 is returned to the caller, never recursively retried.
+      return await send(auth.accessToken!);
     } catch (e) {
       return http.Response('Error: $e', 500);
     }
   }
 
-  /// ✅ GET 요청
-  Future<http.Response> getRequest(String url) async {
-    return _sendRequest(url, 'GET');
-  }
-
-  /// ✅ POST 요청 (JSON Body)
-  Future<http.Response> postRequest(String url, Map<String, dynamic> body) async {
-    return _sendRequest(url, 'POST', body: body);
-  }
-
-  /// ✅ POST 요청 (x-www-form-urlencoded)
-  Future<http.Response> postFormUrlEncoded(String url, Map<String, String> formFields) async {
-    return _sendRequest(url, 'POST', formFields: formFields, isFormEncoded: true);
-  }
-
-  /// ✅ DELETE 요청
-  Future<http.Response> deleteRequest(String url, {Map<String, dynamic>? body}) async {
-    return _sendRequest(url, 'DELETE', body: body);
-  }
-
-
-  Future<http.Response> postSingleMultipartRequest(String url, String key, File file) async {
-    final authState = _ref.read(authNotifierProvider);
-    final token = authState.accessToken;
-
-    if (token == null) {
-      return http.Response('No access token', 401);
+  Future<http.Response> _sendRequest(
+    String url,
+    String method, {
+    Map<String, String>? headers,
+    Map<String, dynamic>? body,
+    Map<String, String>? formFields,
+    bool isFormEncoded = false,
+  }) {
+    final request = http.Request(method, Uri.parse(url));
+    request.headers['Content-Type'] = isFormEncoded
+        ? 'application/x-www-form-urlencoded'
+        : 'application/json';
+    if (headers != null) request.headers.addAll(headers);
+    if (isFormEncoded) {
+      request.bodyFields = Map<String, String>.of(formFields ?? {});
+    } else if (method != 'GET') {
+      request.body = jsonEncode(body);
     }
-
-    try {
-      var request = http.MultipartRequest('POST', Uri.parse(url))
-        ..headers.addAll({
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'multipart/form-data',
-        });
-
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          key,
-          file.path,
-          contentType: MediaType('image', extension(file.path).replaceAll('.', '')),
-        ),
-      );
-
-      final streamedResponse = await request.send();
-      return await http.Response.fromStream(streamedResponse);
-    } catch (e) {
-      return http.Response('Error uploading image: $e', 500);
-    }
+    final encodedHeaders = Map<String, String>.of(request.headers);
+    final encodedBody = request.bodyBytes;
+    return _sendAuthenticated(() => http.Request(method, request.url)
+      ..headers.addAll(encodedHeaders)
+      ..bodyBytes = encodedBody);
   }
 
+  Future<http.Response> getRequest(String url) => _sendRequest(url, 'GET');
 
+  Future<http.Response> postRequest(String url, Map<String, dynamic> body,
+          {Map<String, String>? headers}) =>
+      _sendRequest(url, 'POST', body: body, headers: headers);
+
+  Future<http.Response> postFormUrlEncoded(
+          String url, Map<String, String> formFields,
+          {Map<String, String>? headers}) =>
+      _sendRequest(url, 'POST',
+          formFields: formFields, isFormEncoded: true, headers: headers);
+
+  Future<http.Response> deleteRequest(String url,
+          {Map<String, dynamic>? body}) =>
+      _sendRequest(url, 'DELETE', body: body);
+
+  Future<http.Response> postSingleMultipartRequest(
+          String url, String key, File file) =>
+      postMultipleMultipartRequest(url, key, [file]);
 
   Future<http.Response> postMultipleMultipartRequest(
-      String url,
-      String key,
-      List<File> files, {
-        Map<String, String>? additionalFields,
-      }) async {
-    final authState = _ref.read(authNotifierProvider);
-    final token = authState.accessToken;
-
-    if (token == null) {
+    String url,
+    String key,
+    List<File> files, {
+    Map<String, String>? additionalFields,
+  }) async {
+    if (_ref.read(authNotifierProvider).accessToken == null) {
       return http.Response('No access token', 401);
     }
-
+    // Copy caller-owned collections before the first await.
+    final paths = files.map((file) => file.path).toList();
+    final request = http.MultipartRequest('POST', Uri.parse(url));
+    if (additionalFields != null) request.fields.addAll(additionalFields);
+    Directory? snapshotDirectory;
     try {
-      var request = http.MultipartRequest('POST', Uri.parse(url))
-        ..headers.addAll({
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'multipart/form-data',
-        });
-
-      // 추가 필드가 있는 경우 요청 필드에 추가
-      if (additionalFields != null) {
-        request.fields.addAll(additionalFields);
+      for (final path in paths) {
+        final fileName = basename(path);
+        request.files.add(await http.MultipartFile.fromPath(
+          key,
+          path,
+          contentType: MediaType('image', extension(path).replaceAll('.', '')),
+          filename: fileName,
+        ));
       }
-
-      // 파일 추가 (파일명은 path 패키지의 basename 사용)
-      for (var file in files) {
-        final fileName = basename(file.path);
-        final ext = extension(fileName).replaceAll('.', '');
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            key,
-            file.path,
-            contentType: MediaType('image', ext),
-            filename: fileName,
-          ),
-        );
+      snapshotDirectory =
+          await _temporaryDirectory.createTemp('campusmeet-upload-');
+      final bodyFile = File('${snapshotDirectory.path}/body');
+      final sink = bodyFile.openWrite();
+      try {
+        // MultipartRequest emits file chunks; addStream applies backpressure.
+        // Finalizing also chooses the boundary copied into each attempt.
+        await sink.addStream(request.finalize());
+      } finally {
+        await sink.close();
       }
-
-      final streamedResponse = await request.send();
-      return await http.Response.fromStream(streamedResponse);
+      final encodedHeaders = Map<String, String>.of(request.headers);
+      final length = await bodyFile.length();
+      return await _sendAuthenticated(() => _FileBodyRequest(
+            request.method,
+            request.url,
+            bodyFile,
+            length,
+          )..headers.addAll(encodedHeaders));
     } catch (e) {
       return http.Response('Error uploading images: $e', 500);
-    }
-  }
-
-
-  /// ✅ 401 처리 후 토큰 재발급 및 재시도
-  Future<http.Response> _handleUnauthorized(
-      http.Response response,
-      String url,
-      String method, {
-        Map<String, dynamic>? body,
-        Map<String, String>? formFields,
-      }) async {
-    if (response.statusCode == 401) {
-      await _ref.read(authNotifierProvider.notifier).refreshAccessToken();
-      final newToken = _ref.read(authNotifierProvider).accessToken;
-
-      if (newToken != null) {
-        return _sendRequest(url, method, body: body, formFields: formFields);
+    } finally {
+      if (snapshotDirectory != null) {
+        try {
+          await snapshotDirectory.delete(recursive: true);
+        } on FileSystemException catch (error) {
+          // A cleanup failure must not turn an acknowledged upload into a
+          // failed upload that the caller could duplicate by retrying.
+          debugPrint('[AuthHttpClient] Upload snapshot cleanup failed: $error');
+        }
       }
     }
-    return response;
   }
 
-  Future<http.StreamedResponse> sendStreamRequest(http.BaseRequest request) async {
-    final authState = _ref.read(authNotifierProvider);
-    final token = authState.accessToken;
-    if (token == null) {
-      throw Exception('No access token');
-    }
-
+  // Arbitrary streaming bodies cannot be replayed safely.
+  Future<http.StreamedResponse> sendStreamRequest(
+      http.BaseRequest request) async {
+    final token = _ref.read(authNotifierProvider).accessToken;
+    if (token == null) throw Exception('No access token');
     request.headers['Authorization'] = 'Bearer $token';
-    return await request.send();
+    return _client.send(request);
+  }
+}
+
+// Reopening the snapshot makes retries byte-identical without retaining a
+// multi-file upload in RAM. The snapshot outlives both HTTP attempts.
+class _FileBodyRequest extends http.BaseRequest {
+  final File _bodyFile;
+
+  _FileBodyRequest(super.method, super.url, this._bodyFile, int length) {
+    contentLength = length;
+  }
+
+  @override
+  http.ByteStream finalize() {
+    super.finalize();
+    return http.ByteStream(_bodyFile.openRead());
   }
 }
