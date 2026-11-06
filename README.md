@@ -14,3 +14,5 @@ alembic upgrade head
 [채팅·위치 WebSocket 로그 정책과 검증](docs/websocket-logging.md)
 
 [메시지 원자적 저장·재처리·기존 DB 마이그레이션](docs/message-outbox.md)
+
+[API 토큰 용도·회전·로그아웃·다중 기기 정책](docs/auth-token-policy.md)

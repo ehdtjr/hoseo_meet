@@ -17,13 +17,13 @@ from app.models import User
 from app.schemas.stream import SubscriptionRequest
 from app.schemas.tag import TagRead, TagBase
 from app.schemas.user import (UserFCMTokenCreate, UserFCMTokenRequest,
-                              UserRead, UserPublicRead, UserUpdate,
+                              UserRead, UserPublicRead,
                               UserReportRequest,
                               UserReportCreate, ChangePasswordRequest)
 from app.service.stream import SubscriberServiceProtocol, \
     get_subscription_service
 from app.service.user import get_user_manager, UserManager
-from app.utils.s3 import generate_s3_key
+from app.service.profile_media import replace_profile_media
 
 router = APIRouter()
 
@@ -139,41 +139,14 @@ async def update_user_profile(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
-    user_crud: UserCRUDProtocol = Depends(get_user_crud),
     s3_manager: S3Manager = Depends(S3Manager),
 ):
     # 지원하지 않는 파일 형식 처리
     if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
         raise HTTPException(status_code=400, detail="File type not supported")
 
-    try:
-        # 기존 프로필 이미지 URL 가져오기
-        current_profile_url = user.profile
-
-        # 새로운 S3 경로 생성
-        unique_url = generate_s3_key(f"profile/user_{user.id}", "profile.webp")
-
-        file.file.seek(0)  # 파일 포인터를 처음으로 이동
-        profile_url = await s3_manager.upload_file(file, unique_url)
-
-        # DB 업데이트
-        user_update = UserUpdate(
-            id=user.id,
-            name=user.name,
-            profile=profile_url,
-        )
-        await user_crud.update(db, user_update)
-
-        # 기존 이미지 삭제 (DB 업데이트 후 실행)
-        if current_profile_url:
-            try:
-                await s3_manager.delete_file(current_profile_url)
-            except Exception as e:
-                print(f"[경고] 기존 프로필 이미지 삭제 실패: {e}")
-        return {"msg": "Profile updated successfully", "profile_url": profile_url}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+    profile_url = await replace_profile_media(db, user.id, file, s3_manager)
+    return {"msg": "Profile updated successfully", "profile_url": profile_url}
 
 
 
