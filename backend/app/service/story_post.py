@@ -1,8 +1,14 @@
-from fastapi import UploadFile
+import logging
+
+from fastapi import HTTPException, UploadFile
+from sqlalchemy import or_, select
+
+from app.core.config import settings
+from app.models import StoryMedia
+from app.service.story_media import try_collect_story_media
 from fastapi.params import Depends
 from sqlmodel.ext.asyncio.session import AsyncSession
-from starlette import status
-from starlette.responses import JSONResponse, Response
+from starlette.responses import JSONResponse
 
 from app.core.exceptions import PermissionDeniedException, NotFoundException
 from app.core.s3 import S3Manager, get_s3_manager
@@ -29,25 +35,62 @@ class StoryPostService:
         self.subscriber_service = subscriber_service
         self.s3_manager = s3_manager
 
-    async def upload_image(self, user_id: int, file: UploadFile) -> str:
+    async def upload_image(self, db: AsyncSession, user_id: int, file: UploadFile) -> str:
         unique_url = generate_s3_key(
             f"story_post/{user_id}", "story.webp",
         )
         if file.content_type == "image/webp":
-            file.file.seek(0)
             image_url = await self.s3_manager.upload_file(file, unique_url)
         else:
             webp_file = convert_image_to_webp(file.file)
-            image_url = await self.s3_manager.upload_byte_file(webp_file, unique_url)
-
+            try:
+                image_url = await self.s3_manager.upload_byte_file(webp_file, unique_url)
+            finally:
+                webp_file.close()
+        commit_started = False
+        try:
+            db.add(StoryMedia(
+                key=unique_url, uploader_id=user_id,
+                storage_backend=settings.STORAGE_BACKEND, upload_url=image_url,
+            ))
+            await db.flush()
+            commit_started = True
+            await db.commit()
+        except BaseException:
+            await db.rollback()
+            if not commit_started:
+                # Proven pre-commit failure: this operation exclusively owns key.
+                try:
+                    await self.s3_manager.delete_story_file(unique_url, uploader_id=user_id)
+                except Exception:
+                    logging.getLogger(__name__).warning("Story upload compensation failed")
+            # A lost COMMIT acknowledgement is ambiguous; retain the file.
+            raise
         return image_url
+
+    async def image_url(self, db: AsyncSession, stored: str) -> str:
+        record = await db.get(StoryMedia, stored)
+        if record is None:
+            return stored  # Unowned legacy URLs remain readable and are retained.
+        return self.s3_manager.media_url(record.key, record.storage_backend)
 
     async def create_story_post(
         self, db: AsyncSession,
         user_id: int,
         story_request: StoryPostRequest,
     ) -> StoryPostResponse:
+        owned_key = None
         try:
+            record = await db.scalar(select(StoryMedia).where(or_(
+                StoryMedia.key == story_request.image_url,
+                StoryMedia.upload_url == story_request.image_url,
+            )).with_for_update())
+            if (record is None or record.uploader_id != user_id or
+                    record.claimed or record.deleted_at is not None or
+                    record.storage_backend != settings.STORAGE_BACKEND):
+                raise HTTPException(403, "An unused story upload owned by you is required")
+            owned_key = record.key
+            record.claimed = True
             # stream 참여하기 위한 채팅방 생성
             stream_create = StreamCreate(
                 name=story_request.text_overlay.text,
@@ -60,7 +103,7 @@ class StoryPostService:
             story_create_post: StoryPostCreate = StoryPostCreate(
                 author_id=user_id,
                 stream_id=created_stream.id,
-                image_url=story_request.image_url,
+                image_url=owned_key,
                 text_overlay=story_request.text_overlay,
             )
 
@@ -81,7 +124,7 @@ class StoryPostService:
                 id=created_story_post.id,
                 author_id=created_story_post.author_id,
                 text_overlay=created_story_post.text_overlay,
-                image_url=created_story_post.image_url,
+                image_url=await self.image_url(db, created_story_post.image_url),
                 is_subscribed=True,
                 created_at=created_story_post.created_at
             )
@@ -89,6 +132,10 @@ class StoryPostService:
             return result
         except BaseException:
             await db.rollback()
+            # The image was uploaded in an earlier, committed request. Keep it
+            # as an unclaimed draft for the normal 24h grace period, so the
+            # existing editor can retry its URL after a transient DB failure.
+            # Ambiguous story commits also retain the potentially published file.
             raise
 
     async def get_detail_story_post(self, db: AsyncSession, story_post_id: int,
@@ -103,7 +150,7 @@ class StoryPostService:
             id=story_post_base.id,
             author_id=story_post_base.author_id,
             text_overlay=story_post_base.text_overlay,
-            image_url=story_post_base.image_url,
+            image_url=await self.image_url(db, story_post_base.image_url),
             is_subscribed=is_subscribed,
             created_at=story_post_base.created_at
         )
@@ -126,6 +173,7 @@ class StoryPostService:
 
         try:
             await self.story_post_crud.delete(db, story_post_id)
+            await try_collect_story_media(db, self.s3_manager, story_post_base.image_url)
             return JSONResponse(status_code=204, content={"success": True})
         except Exception as e:
             raise e
@@ -152,7 +200,7 @@ class StoryPostService:
                     id=post.id,
                     author_id=post.author_id,
                     text_overlay=post.text_overlay,
-                    image_url=post.image_url,
+                    image_url=await self.image_url(db, post.image_url),
                     is_subscribed=is_subscribed,
                     created_at=post.created_at
                 )

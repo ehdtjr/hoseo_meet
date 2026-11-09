@@ -2,7 +2,9 @@
 import asyncio
 import hashlib
 import hmac
+import os
 import shutil
+import tempfile
 from pathlib import Path, PurePosixPath
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
@@ -40,13 +42,36 @@ class LocalStorage:
 
         def write():
             path.parent.mkdir(parents=True, exist_ok=True)
-            file.seek(0)
-            # Exclusive creation prevents overwriting another upload.
-            with path.open("xb") as target:
-                shutil.copyfileobj(file, target)
+            # Publish only complete files. link() preserves exclusive creation.
+            fd, temporary = tempfile.mkstemp(prefix=".upload-", dir=path.parent)
+            try:
+                with os.fdopen(fd, "wb") as target:
+                    file.seek(0)
+                    shutil.copyfileobj(file, target)
+                    target.flush()
+                    os.fsync(target.fileno())
+                os.link(temporary, path)
+            finally:
+                os.unlink(temporary)
 
-        await asyncio.to_thread(write)
-        return f"{self.base_url}/{quote(destination_path, safe='/')}?signature={self.signature(destination_path)}"
+        task = asyncio.create_task(asyncio.to_thread(write))
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            # to_thread continues after cancellation; wait before closing the
+            # input, and remove only a destination this write actually created.
+            try:
+                await task
+            except Exception:
+                pass
+            else:
+                path.unlink(missing_ok=True)
+            raise
+        return self.url(destination_path)
+
+    def url(self, key: str) -> str:
+        self.path(key)
+        return f"{self.base_url}/{quote(key, safe='/')}?signature={self.signature(key)}"
 
     async def delete_file(self, file_url: str) -> None:
         parsed, base = urlsplit(file_url), urlsplit(self.base_url)

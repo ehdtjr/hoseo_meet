@@ -2,6 +2,8 @@
 
 import asyncio
 import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -10,6 +12,8 @@ from fastapi import Header
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select, text, update
 
+from app.core.config import settings
+from app.core.s3 import S3Manager, get_s3_manager
 from app.core.db import get_async_session
 from app.core.security import current_active_user
 from app.main import app
@@ -41,6 +45,13 @@ class TestStreamPolicy(BaseTest):
             async with TestSessionLocal(expire_on_commit=False) as db:
                 yield db
 
+        self.tmp = TemporaryDirectory()
+        self.root_patch = patch.object(settings, "LOCAL_MEDIA_ROOT", Path(self.tmp.name))
+        self.root_patch.start()
+        self.addCleanup(self.root_patch.stop)
+        self.addCleanup(self.tmp.cleanup)
+        storage = S3Manager()
+        app.dependency_overrides[get_s3_manager] = lambda: storage
         self.dispatcher = AsyncMock()
         app.dependency_overrides[get_async_session] = request_db
         app.dependency_overrides[current_active_user] = current_user
@@ -247,6 +258,15 @@ class TestStreamPolicy(BaseTest):
             }, headers={"x-test-user": str(self.user_ids[0])})
             self.assertEqual(response.status_code, 422, response.text)
 
+    async def upload_story_image(self):
+        response = await self.client.post(
+            "/api/v1/story_post/upload_image",
+            files={"file": ("synthetic.webp", b"synthetic-image", "image/webp")},
+            headers={"x-test-user": str(self.user_ids[0])},
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        return response.json()["url"]
+
     async def test_creator_joins_meeting_and_story(self):
         headers = {"x-test-user": str(self.user_ids[0])}
         response = await self.client.post("/api/v1/meet_post/create", json={
@@ -256,7 +276,7 @@ class TestStreamPolicy(BaseTest):
         room = SimpleNamespace(id=response.json()["stream_id"])
         self.assertEqual((await self.join(room)).status_code, 400)
         response = await self.client.post("/api/v1/story_post/create", json={
-            "image_url": "/synthetic.webp", "text_overlay": {
+            "image_url": await self.upload_story_image(), "text_overlay": {
                 "text": "Synthetic", "position": {"x": 0.5, "y": 0.5},
                 "font_style": {"name": "sans", "size": 12, "color": "#000000"},
             },
@@ -271,7 +291,7 @@ class TestStreamPolicy(BaseTest):
     async def create_post(self, kind):
         payload = {"title": "Synthetic", "type": "meet", "content": "Synthetic", "max_people": 1}
         if kind == "story":
-            payload = {"image_url": "/synthetic.webp", "text_overlay": {
+            payload = {"image_url": await self.upload_story_image(), "text_overlay": {
                 "text": "Synthetic", "position": {"x": 0.5, "y": 0.5},
                 "font_style": {"name": "sans", "size": 12, "color": "#000000"},
             }}

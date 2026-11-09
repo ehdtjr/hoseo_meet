@@ -17,6 +17,7 @@ async def replace_profile_media(
 ) -> str:
     key = generate_s3_key(f"profile/user_{uploader_id}", "profile.webp")
     profile_url = await storage.upload_file(file, key)
+    commit_started = False
     try:
         # Serialize replacements even when no upload record exists yet.
         user_id = await db.scalar(
@@ -37,10 +38,13 @@ async def replace_profile_media(
         await db.execute(
             update(User).where(User.id == uploader_id).values(profile=profile_url)
         )
+        await db.flush()
+        commit_started = True
         await db.commit()
-    except Exception:
+    except BaseException:
         await db.rollback()
-        await _cleanup(storage, key, uploader_id)
+        if not commit_started:
+            await _cleanup(storage, key, uploader_id)
         raise
 
     if previous and previous[1] == settings.STORAGE_BACKEND:
