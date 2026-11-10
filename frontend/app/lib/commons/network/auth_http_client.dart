@@ -39,7 +39,9 @@ class AuthHttpClient {
 
       if (notifier.sessionRevision != revision ||
           !await notifier.refreshRejectedToken(token) ||
-          notifier.sessionRevision != revision) return response;
+          notifier.sessionRevision != revision) {
+        return response;
+      }
       final auth = _ref.read(authNotifierProvider);
       if (!auth.isLoggedIn || auth.accessToken == null) return response;
       // A second 401 is returned to the caller, never recursively retried.

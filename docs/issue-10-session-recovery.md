@@ -23,7 +23,7 @@ flutter build bundle --debug --no-pub
 ```
 
 - 전체 테스트: 124개 통과 (리뷰 후 회귀 11개 추가).
-- analyzer: error 0, 기존 warning 11 / info 193. warning/info는 비실패 옵션으로 실행했다.
+- analyzer: error 0, 기존 warning 11 / info 191. warning/info는 비실패 옵션으로 실행했다.
 - debug bundle 빌드 성공. 운영 APK/IPA 검증을 의미하지 않는다.
 - 인증 회귀 테스트는 동시 성공·실패 갱신, 회전 토큰 저장, 지연된 401, 일시 장애에서 저장 자격 유지, 명시적 거절, 로그아웃·계정 교체와 저장 경쟁을 검증한다.
 - lifecycle widget 테스트는 인증 준비 전 목록/polling 요청이 시작되지 않으며, 실패·재백그라운드·dispose 후 재개하지 않음을 검증한다.

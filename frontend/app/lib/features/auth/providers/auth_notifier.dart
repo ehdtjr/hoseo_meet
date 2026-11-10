@@ -202,8 +202,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final clearing = _queueStorage(_tokenStorage.deleteRefreshToken);
     state = AuthState.initial();
     try {
-      if (accessToken != null)
+      if (accessToken != null) {
         await _authService.logout(accessToken: accessToken);
+      }
     } finally {
       await clearing;
     }
