@@ -1,0 +1,36 @@
+{
+  "backend": [
+    "app.tests.router.test_auth.TestTokenPurpose::test_invalid_access_is_rejected_by_http_authentication",
+    "app.tests.router.test_auth.TestTokenPurpose::test_invalid_refresh_is_rejected_even_if_stored",
+    "app.tests.router.test_auth.TestTokenPurpose::test_revoked_refresh_is_rejected",
+    "app.tests.router.test_stream_policy.TestStreamPolicy::test_nonmember_location_never_dispatches",
+    "app.tests.router.test_stream_policy.TestStreamPolicy::test_meeting_creation_failure_rolls_back_all_rows",
+    "app.tests.service.test_message_outbox.TestMessageOutbox::test_recipient_failure_rolls_back_message_and_partial_recipients",
+    "app.tests.service.test_message_outbox.TestMessageOutbox::test_outbox_insert_failure_rolls_back_all_storage",
+    "app.tests.service.test_message_outbox.TestMessageOutbox::test_fcm_provider_failure_retries_without_repeating_completed_recipient",
+    "app.tests.service.test_story_media.TestStoryMedia::test_create_failure_rolls_back_room_and_same_editor_url_can_retry",
+    "app.tests.service.test_rental_csv.TestRentalImport::test_valid_synthetic_rows_load_coordinates",
+    "app.tests.service.test_rental_csv.TestRentalImport::test_invalid_later_row_does_not_partially_save",
+    "app.tests.router.test_profile_media.TestProfileMediaRoutes::test_registration_cannot_claim_another_users_upload",
+    "app.tests.router.test_profile_media.TestProfileMediaRoutes::test_database_failure_preserves_old_profile_and_cleans_new_file",
+    "app.tests.router.test_messages.TestSendMessageToStream::test_send_message_to_stream_permission_denied",
+    "app.tests.router.test_randomchat.TestRandomChatRoutes::test_queue_routes_require_authentication",
+    "app.tests.router.test_randomchat.TestRandomChatRoutes::test_storage_failure_is_an_explicit_temporary_error",
+    "app.tests.service.test_randomchat.TestRandomChatService::test_match_failure_rolls_back_new_user_and_preserves_peer",
+    "app.tests.service.test_websocket_logging.TestWebSocketLogging::test_parse_and_send_errors_do_not_quote_input",
+    "app.tests.service.test_story_media.TestStoryMedia::test_read_url_is_not_upload_ownership_or_delete_authority"
+  ],
+  "migrations": [
+    "app.migration_tests.test_migrations::test_empty_database_upgrades_to_current_schema_and_repeats_cleanly",
+    "app.migration_tests.test_migrations::test_unversioned_matching_database_is_adopted_without_losing_data"
+  ],
+  "flutter": [
+    "test/commons/network/auth_http_client_test.dart::failed refresh does not resend with a stale token",
+    "test/commons/network/auth_http_client_test.dart::a second 401 terminates after one refresh",
+    "test/features/chat/send_message_service_test.dart::send propagates HTTP 403 explicitly",
+    "test/features/chat/send_message_service_test.dart::send propagates HTTP 500 explicitly",
+    "test/features/chat/send_message_service_test.dart::transport errors propagate instead of becoming successful sends",
+    "test/chat/socket_message_service_test.dart::retries failures with capped exponential backoff until network returns",
+    "test/chat/socket_message_service_test.dart::failed catch-up retries even after the handshake succeeded"
+  ]
+}
