@@ -82,6 +82,14 @@ class RandomChatQueueController extends StateNotifier<RandomChatQueueState> {
     _pollTimer = null;
   }
 
+  /// Authentication could not be checked after resume. Do not show a cached
+  /// waiting/matched result as current while the page retries the session.
+  void markStatusUncertain() {
+    if (!_disposed) {
+      state = state.copyWith(isStatusUncertain: true, clearError: true);
+    }
+  }
+
   Future<void> join() => _mutate(
         operation: _api.join,
         succeeded: (result) => result.status != RandomChatQueueStatus.idle,

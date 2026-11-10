@@ -23,15 +23,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   bool _isCurrent(int revision) => mounted && revision == _sessionRevision;
 
-  // Serialize persistent writes so a slow token rotation cannot undo logout or
-  // overwrite a newer account. Recheck ownership when each operation starts.
-  Future<void> _store(int revision, Future<void> Function() operation) {
-    final task = _storageTask.then((_) async {
-      if (_isCurrent(revision)) await operation();
-    });
+  // All storage mutations share one queue. Clears must run even when a later
+  // login changes revision; that login's write is queued after the clear.
+  Future<void> _queueStorage(Future<void> Function() operation) {
+    final task = _storageTask.then((_) => operation());
     _storageTask = task.catchError((Object _) {});
     return task;
   }
+
+  Future<void> _store(int revision, Future<void> Function() operation) =>
+      _queueStorage(() async {
+        if (_isCurrent(revision)) await operation();
+      });
 
   Future<void> _initAutoLogin() async {
     final revision = _sessionRevision;
@@ -175,10 +178,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } else if (status == 400 || status == 401 || status == 403) {
         // Explicit credential rejection clears both in-memory credentials and
         // storage. Other failures leave the session available for later retry.
-        final rejectedRevision = ++_sessionRevision;
+        _sessionRevision++;
+        final clearing = _queueStorage(_tokenStorage.deleteRefreshToken);
         state = AuthState.initial()
             .copyWith(errorMessage: '로그인이 만료되었습니다. 다시 로그인해주세요.');
-        await _store(rejectedRevision, _tokenStorage.deleteRefreshToken);
+        await clearing;
       } else {
         state = state.copyWith(
             isLoading: false, errorMessage: '로그인 연결을 확인하지 못했습니다. 다시 시도해주세요.');
@@ -193,10 +197,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     final accessToken = state.accessToken;
-    final revision = ++_sessionRevision;
+    _sessionRevision++;
     _refreshTask = null;
+    final clearing = _queueStorage(_tokenStorage.deleteRefreshToken);
     state = AuthState.initial();
-    final clearing = _store(revision, _tokenStorage.deleteRefreshToken);
     try {
       if (accessToken != null)
         await _authService.logout(accessToken: accessToken);
@@ -251,10 +255,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final statusCode = await _authService.deleteAccount(accessToken: accessToken);
 
       if (statusCode == 204) {
-        final revision = ++_sessionRevision;
+        _sessionRevision++;
         _refreshTask = null;
+        final clearing = _queueStorage(_tokenStorage.deleteRefreshToken);
         state = AuthState.initial();
-        await _store(revision, _tokenStorage.deleteRefreshToken);
+        await clearing;
       } else {
         state = state.copyWith(
           isLoading: false,

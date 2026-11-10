@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -30,6 +32,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
   bool _isInitialized = false;
   bool _openingMatchedRoom = false;
   int _resumeRevision = 0;
+  bool _foreground = true;
+  Timer? _sessionRetryTimer;
+  RandomChatQueueController? _queueController;
 
   @override
   void initState() {
@@ -51,6 +56,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
   @override
   void dispose() {
+    _sessionRetryTimer?.cancel();
+    _queueController?.pause();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -59,33 +66,48 @@ class _ChatPageState extends ConsumerState<ChatPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final controller = ref.read(randomChatQueueProvider.notifier);
     if (state == AppLifecycleState.resumed) {
+      _foreground = true;
       _resumeChat();
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
+      _foreground = false;
       _resumeRevision++;
+      _sessionRetryTimer?.cancel();
       controller.pause();
     }
   }
 
   Future<void> _resumeChat() async {
+    if (!mounted || !_foreground) return;
+    _sessionRetryTimer?.cancel();
     final revision = ++_resumeRevision;
     final ready = await ref.read(authNotifierProvider.notifier).ensureValidSession();
-    if (!mounted || revision != _resumeRevision || !ready) return;
+    if (!mounted || !_foreground || revision != _resumeRevision) return;
+    if (!ready) {
+      ref.read(randomChatQueueProvider.notifier).markStatusUncertain();
+      if (ref.read(authNotifierProvider).refreshToken != null &&
+          ref.read(bottomNavIndexProvider) == 2) {
+        _sessionRetryTimer = Timer(const Duration(seconds: 2), () {
+          if (mounted && _foreground && revision == _resumeRevision &&
+              ref.read(bottomNavIndexProvider) == 2) {
+            unawaited(_resumeChat());
+          }
+        });
+      }
+      return;
+    }
     await _fetchRooms(showError: true);
     if (!mounted || revision != _resumeRevision) return;
     if (ref.read(bottomNavIndexProvider) == 2) {
-      await ref.read(randomChatQueueProvider.notifier).resume();
+      final controller = ref.read(randomChatQueueProvider.notifier);
+      _queueController = controller;
+      await controller.resume();
     }
   }
 
-  Future<void> _onRefresh() async {
-    await Future.wait([
-      _fetchRooms(showError: true),
-      ref.read(randomChatQueueProvider.notifier).refreshStatus(force: true),
-    ]);
-  }
+  Future<void> _onRefresh() => _resumeChat();
 
   Future<bool> _fetchRooms({required bool showError}) async {
     try {
@@ -154,7 +176,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
         if (loggedIn && previous == false) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted && ref.read(bottomNavIndexProvider) == 2) {
-              ref.read(randomChatQueueProvider.notifier).resume();
+              _resumeChat();
             }
           });
         }
@@ -184,13 +206,14 @@ class _ChatPageState extends ConsumerState<ChatPage>
       _isInitialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _fetchRooms(showError: false);
-        ref.read(randomChatQueueProvider.notifier).resume();
+        _resumeChat();
       });
     }
 
     if (currentIndex != 2) {
       if (_isInitialized) {
+        _sessionRetryTimer?.cancel();
+        _resumeRevision++;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) ref.read(randomChatQueueProvider.notifier).pause();
         });
@@ -235,9 +258,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
                   final streamId = randomChatState.queue.streamId;
                   if (streamId != null) _openMatchedRoom(streamId);
                 },
-                onRetry: () => ref
-                    .read(randomChatQueueProvider.notifier)
-                    .refreshStatus(force: true),
+                onRetry: _resumeChat,
               ),
               const SizedBox(height: 25),
               const ChatCategoryBar(),

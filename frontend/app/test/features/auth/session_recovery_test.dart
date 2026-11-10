@@ -38,6 +38,8 @@ class MemoryStorage extends TokenStorageService {
 
 class SessionService extends AuthService {
   int refreshes = 0;
+  bool failLogin = false;
+  int logoutStatus = 200;
   Map<String, dynamic> response = {'statusCode': 503};
   Future<Map<String, dynamic>> Function()? handler;
   String access = token(-60);
@@ -46,7 +48,13 @@ class SessionService extends AuthService {
     required String username,
     required String password,
   }) async =>
-      {'statusCode': 200, 'accessToken': access, 'refreshToken': username};
+      failLogin
+          ? {'statusCode': 400, 'error': 'bad credentials'}
+          : {
+              'statusCode': 200,
+              'accessToken': access,
+              'refreshToken': username
+            };
   @override
   Future<Map<String, dynamic>> refreshAccessToken(
       {required String refreshToken}) async {
@@ -56,7 +64,7 @@ class SessionService extends AuthService {
 
   @override
   Future<Map<String, dynamic>> logout({required String accessToken}) async =>
-      {'statusCode': 200};
+      {'statusCode': logoutStatus};
 }
 
 void main() {
@@ -185,6 +193,40 @@ void main() {
     expect(storage.value, isNull);
     expect(auth.state.accessToken, isNull);
   });
+
+  for (final succeeds in [false, true]) {
+    test(
+        'queued logout deletion survives a later ${succeeds ? 'successful' : 'failed'} login',
+        () async {
+      await setup();
+      await auth.loginUser('first', 'password');
+      storage.writeGate = Completer<void>();
+      service.response = {
+        'statusCode': 200,
+        'accessToken': token(3600),
+        'refreshToken': 'rotated',
+      };
+      final refreshing = auth.refreshAccessToken();
+      await Future<void>.delayed(Duration.zero);
+      service.logoutStatus = -1; // The server cannot revoke the old credential.
+      final loggingOut = auth.logout();
+      service.failLogin = !succeeds;
+      final loggingIn = auth.loginUser('second', 'password');
+      await Future<void>.delayed(Duration.zero);
+      storage.writeGate!.complete();
+      await Future.wait([refreshing, loggingOut, loggingIn]);
+      expect(storage.deletes, 1);
+      expect(storage.value, succeeds ? 'second' : null);
+      expect(auth.state.isLoggedIn, succeeds);
+      // A fresh process must never auto-login with the logged-out credential.
+      if (!succeeds) {
+        final restarted = AuthNotifier(service, storage);
+        await restarted.initialization;
+        expect(restarted.state.isLoggedIn, isFalse);
+        restarted.dispose();
+      }
+    });
+  }
 
   test(
       'concurrent and delayed 401s share refresh without resending stale credentials',
