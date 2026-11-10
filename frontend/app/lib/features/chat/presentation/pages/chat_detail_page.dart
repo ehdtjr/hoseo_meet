@@ -107,6 +107,7 @@ class _ChatDetailPageState extends ConsumerState<ChatDetailPage>
     if (state == AppLifecycleState.resumed) {
       _detailNotifier.resumeConnection();
     } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       _detailNotifier.pauseConnection();
     }

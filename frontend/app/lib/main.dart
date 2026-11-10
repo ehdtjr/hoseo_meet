@@ -9,6 +9,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'firebase_options.dart';
 import 'config.dart';
+import 'commons/services/session_lifecycle.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'features/auth/presentation/pages/login_page.dart';
 import 'firebase/fcm_service.dart';
@@ -44,7 +45,7 @@ Future<void> main() async {
 
   runApp(
     const ProviderScope(
-      child: MyApp(),
+      child: SessionLifecycle(child: MyApp()),
     ),
   );
 }

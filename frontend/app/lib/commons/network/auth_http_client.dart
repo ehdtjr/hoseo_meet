@@ -30,12 +30,18 @@ class AuthHttpClient {
         return http.Response.fromStream(await _client.send(attempt));
       }
 
+      final notifier = _ref.read(authNotifierProvider.notifier);
+      final revision = notifier.sessionRevision;
       final token = _ref.read(authNotifierProvider).accessToken;
       if (token == null) return http.Response('No access token', 401);
       final response = await send(token);
       if (response.statusCode != 401) return response;
 
-      await _ref.read(authNotifierProvider.notifier).refreshAccessToken();
+      if (notifier.sessionRevision != revision ||
+          !await notifier.refreshRejectedToken(token) ||
+          notifier.sessionRevision != revision) {
+        return response;
+      }
       final auth = _ref.read(authNotifierProvider);
       if (!auth.isLoggedIn || auth.accessToken == null) return response;
       // A second 401 is returned to the caller, never recursively retried.

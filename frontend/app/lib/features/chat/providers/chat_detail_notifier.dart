@@ -49,6 +49,9 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   Future<void> _presenceTask = Future.value();
   MapNotifier? _mapNotifier;
   bool _foreground = true;
+  int _resumeRevision = 0;
+  bool _waitingForSession = false;
+  Timer? _sessionRetryTimer;
   int? _recoveryAnchor;
   bool get _active => !_isDisposed && mounted;
   late final ChatRepository _chatRepository;
@@ -73,10 +76,20 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         readService: MessageReadService(client),
         activateService: ActivateDeactivateService(client),
         socketService: ref.read(socketMessageServiceFactoryProvider)(
-          tokenProvider: () {
-            if (!_active) return null;
-            final auth = ref.read(authNotifierProvider);
-            return auth.isLoggedIn ? auth.accessToken : null;
+          tokenProvider: () async {
+            if (!_active || !_foreground) return null;
+            final ready = await ref.read(authNotifierProvider.notifier)
+                .ensureValidSession();
+            if (!_active || !_foreground) return null;
+            if (!ready) {
+              if (ref.read(authNotifierProvider).refreshToken != null) {
+                // Null means signed out to SocketMessageService. A temporary
+                // auth outage must keep its reconnect/backoff loop alive.
+                throw StateError('Session temporarily unavailable');
+              }
+              return null;
+            }
+            return ref.read(authNotifierProvider).accessToken;
           },
           onConnected: _recoverMessages,
         ),
@@ -140,6 +153,8 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   Future<void> disposeNotifier() async {
     if (_isDisposed) return;
     _isDisposed = true;
+    _sessionRetryTimer?.cancel();
+    _sessionRetryTimer = null;
     stopLocationTracking();
     _activateTimer?.cancel();
     _activateTimer = null;
@@ -164,17 +179,46 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   }
 
   Future<void> pauseConnection() async {
+    _resumeRevision++;
     _foreground = false;
+    _waitingForSession = false;
+    _sessionRetryTimer?.cancel();
+    _sessionRetryTimer = null;
     if (!_hasRepository || !_active) return;
     final closing = _chatRepository.closeWebSocket();
     await Future.wait([closing, _deactivateCurrentChatRoom()]);
   }
 
-  Future<void> resumeConnection() async {
+  Future<void> resumeConnection() {
+    if (!_active) return Future.value();
     _foreground = true;
-    if (!_active || !_hasRepository || _socketSubscription == null) return;
+    _sessionRetryTimer?.cancel();
+    _sessionRetryTimer = null;
+    return _restoreConnection(++_resumeRevision);
+  }
+
+  Future<void> _restoreConnection(int revision) async {
+    _waitingForSession = true;
+    final ready = await ref.read(authNotifierProvider.notifier)
+        .ensureValidSession();
+    if (!_active || !_foreground || revision != _resumeRevision) return;
+    if (!ready) {
+      if (ref.read(authNotifierProvider).refreshToken != null) {
+        _sessionRetryTimer = Timer(const Duration(seconds: 2), () {
+          _sessionRetryTimer = null;
+          if (_active && _foreground && revision == _resumeRevision) {
+            unawaited(_restoreConnection(revision));
+          }
+        });
+      }
+      return;
+    }
+    _waitingForSession = false;
+    if (!_hasRepository || _socketSubscription == null) return;
     await _activateCurrentChatRoom();
-    if (_active && _foreground) await _chatRepository.reconnectWebSocket();
+    if (_active && _foreground && revision == _resumeRevision) {
+      await _chatRepository.reconnectWebSocket();
+    }
   }
 
   void authenticationChanged() {
@@ -182,7 +226,8 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
     final auth = ref.read(authNotifierProvider);
     if (!auth.isLoggedIn || auth.accessToken == null) {
       unawaited(disposeNotifier());
-    } else if (_foreground && _hasRepository && _socketSubscription != null) {
+    } else if (_foreground && !_waitingForSession &&
+        _hasRepository && _socketSubscription != null) {
       unawaited(_chatRepository.reconnectWebSocket());
     }
   }

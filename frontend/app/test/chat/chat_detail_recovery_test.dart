@@ -26,6 +26,15 @@ Map<String, dynamic> message(int id) => {
 
 class TestAuthService extends AuthService {
   final logoutGate = Completer<Map<String, dynamic>>();
+  Map<String, dynamic> refreshResponse = {'statusCode': 503};
+  int refreshCalls = 0;
+  @override
+  Future<Map<String, dynamic>> refreshAccessToken(
+      {required String refreshToken}) async {
+    refreshCalls++;
+    return refreshResponse;
+  }
+
   @override
   Future<Map<String, dynamic>> loginUser({
     required String username,
@@ -254,4 +263,108 @@ void main() {
       listener.close();
     },
   );
+  for (final outcome in [
+    'recover',
+    'auth-repaired',
+    'reconnect',
+    'pause',
+    'dispose'
+  ]) {
+    test(
+        'temporary foreground auth failure retains socket recovery until $outcome',
+        () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final sockets = <WebSocket>[];
+      server.listen((request) async {
+        final socket = await WebSocketTransformer.upgrade(request);
+        socket.listen((_) {}, onError: (Object _) {});
+        sockets.add(socket);
+      });
+      final service = TestAuthService();
+      late HistoryClient history;
+      late SocketMessageService socket;
+      final container = ProviderContainer(overrides: [
+        authServiceProvider.overrideWithValue(service),
+        authHttpClientProvider
+            .overrideWith((ref) => history = HistoryClient(ref)),
+        socketMessageServiceFactoryProvider.overrideWithValue(
+          ({required tokenProvider, required onConnected}) =>
+              socket = SocketMessageService(
+            tokenProvider: tokenProvider,
+            onConnected: onConnected,
+            socketUrl: 'ws://127.0.0.1:${server.port}',
+            initialRetryDelay: const Duration(milliseconds: 20),
+          ),
+        ),
+      ]);
+      addTearDown(() async {
+        container.dispose();
+        for (final connection in sockets) {
+          unawaited(connection.close());
+        }
+        await server.close(force: true);
+      });
+      final auth = container.read(authNotifierProvider.notifier);
+      await auth.initialization;
+      await auth.loginUser('initial-token', 'password');
+      final room = ChatRoom(
+          streamId: 7,
+          creatorId: 1,
+          type: 'meet',
+          name: 'test',
+          isMuted: false,
+          subscribers: [],
+          unreadCount: 0,
+          lastMessageContent: '',
+          time: '');
+      final provider = chatDetailNotifierProvider(room);
+      final listener = container.listen(provider, (_, __) {});
+      final notifier = container.read(provider.notifier);
+      await notifier.init();
+      expect(sockets, hasLength(1));
+      if (outcome != 'reconnect') await notifier.pauseConnection();
+      final expired = 'header.${base64Url.encode(utf8.encode(jsonEncode({
+            'exp': 1
+          })))}.signature';
+      await auth.loginUser(expired, 'password');
+      if (outcome == 'reconnect') {
+        await waitFor(() =>
+            service.refreshCalls > 0 &&
+            socket.connectionState == SocketConnectionState.reconnecting);
+      } else {
+        await notifier.resumeConnection();
+        expect(socket.connectionState, SocketConnectionState.disconnected);
+      }
+      expect(auth.state.isLoggedIn, isTrue);
+      final refreshes = service.refreshCalls;
+      history.newest = 2;
+      service.refreshResponse = {
+        'statusCode': 200,
+        'accessToken': 'recovered-token',
+        'refreshToken': 'rotated'
+      };
+      if (outcome == 'auth-repaired') {
+        await auth.refreshAccessToken();
+      } else if (outcome == 'pause') {
+        await notifier.pauseConnection();
+      } else if (outcome == 'dispose') {
+        await notifier.disposeNotifier();
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 2200));
+      if (outcome == 'recover' ||
+          outcome == 'auth-repaired' ||
+          outcome == 'reconnect') {
+        await waitFor(
+            () => socket.connectionState == SocketConnectionState.connected);
+        expect(sockets, hasLength(2));
+        expect(container.read(provider).messages.map((m) => m.id), [1, 2]);
+        expect(service.refreshCalls, greaterThan(refreshes));
+      } else {
+        expect(sockets, hasLength(1));
+        expect(service.refreshCalls, refreshes);
+      }
+      listener.close();
+    });
+  }
 }
