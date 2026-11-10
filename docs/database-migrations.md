@@ -53,7 +53,8 @@ revision을 stamp한다. stamp는 애플리케이션 테이블이나 데이터�
 차이를 확인하지 않은 수동 `alembic stamp`나 schema 검사를 우회한 stamp는 금지한다.
 현재 지원하는 기존 schema는 `profile_media` 도입 전 기준인 `20261106_0001`, 해당
 테이블까지 이미 있는 `20261106_0002`, 메시지 중복 방지와 outbox 객체까지 있는
-`20261106_0003`, random-chat queue까지 있는 `20261106_0004`다. 도구는 넷 중 정확히
+`20261106_0003`, random-chat queue까지 있는 `20261106_0004`, story media까지 있는
+`20261108_0005`, AI 태깅 체크포인트까지 있는 `20261110_0006`이다. 도구는 이 중 정확히
 일치하는 revision을 기록하며, 그 밖의 부분 일치 상태를 임의로 추정하지 않는다.
 
 이전 outbox 독립 migration을 일부 적용한 DB는 지원하는 동결 schema 중 어느 것과도
@@ -81,7 +82,10 @@ queue가 없고 나머지가 `0003`과 일치하는 DB에서 이전 배포 절�
 하지 않는다. 이후 변경은 `20261106_0002`, `20261106_0003`처럼 앞 revision을 잇는
 별도 파일로 적용한다. `20261106_0003`은 `message.client_message_id`, 발신자별 중복
 방지 index와 `message_outbox`를 버전 이력에 편입한다. `20261106_0004`는
-`random_chat_queue`와 FIFO·만료 index를 편입한다.
+`random_chat_queue`와 FIFO·만료 index를 편입한다. `20261108_0005`는 story media
+소유권을, `20261110_0006`은 [AI 태깅 체크포인트](ai-tagging-recovery.md)를 추가한다.
+`0006`은 다음 QA를 탐색하는 사용자·메시지 ID 복합 인덱스도 추가한다.
+기존 태그를 완료 증거로 추정하거나 변경하지 않으며 체크포인트는 빈 상태로 시작한다.
 
 표준 `alembic check`는 Alembic autogenerate가 지원하는 테이블, 컬럼, 타입, 제약과
 인덱스 차이를 검사한다. CHECK 식, PostgreSQL enum label, generated 식, primary key와
