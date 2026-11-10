@@ -29,6 +29,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
   bool _isInitialLoading = true;
   bool _isInitialized = false;
   bool _openingMatchedRoom = false;
+  int _resumeRevision = 0;
 
   @override
   void initState() {
@@ -58,12 +59,24 @@ class _ChatPageState extends ConsumerState<ChatPage>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final controller = ref.read(randomChatQueueProvider.notifier);
     if (state == AppLifecycleState.resumed) {
-      if (ref.read(bottomNavIndexProvider) == 2) controller.resume();
+      _resumeChat();
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
+      _resumeRevision++;
       controller.pause();
+    }
+  }
+
+  Future<void> _resumeChat() async {
+    final revision = ++_resumeRevision;
+    final ready = await ref.read(authNotifierProvider.notifier).ensureValidSession();
+    if (!mounted || revision != _resumeRevision || !ready) return;
+    await _fetchRooms(showError: true);
+    if (!mounted || revision != _resumeRevision) return;
+    if (ref.read(bottomNavIndexProvider) == 2) {
+      await ref.read(randomChatQueueProvider.notifier).resume();
     }
   }
 

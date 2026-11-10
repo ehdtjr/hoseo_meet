@@ -49,6 +49,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   Future<void> _presenceTask = Future.value();
   MapNotifier? _mapNotifier;
   bool _foreground = true;
+  int _resumeRevision = 0;
   int? _recoveryAnchor;
   bool get _active => !_isDisposed && mounted;
   late final ChatRepository _chatRepository;
@@ -73,10 +74,12 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
         readService: MessageReadService(client),
         activateService: ActivateDeactivateService(client),
         socketService: ref.read(socketMessageServiceFactoryProvider)(
-          tokenProvider: () {
-            if (!_active) return null;
-            final auth = ref.read(authNotifierProvider);
-            return auth.isLoggedIn ? auth.accessToken : null;
+          tokenProvider: () async {
+            if (!_active || !_foreground) return null;
+            final ready = await ref.read(authNotifierProvider.notifier)
+                .ensureValidSession();
+            if (!_active || !_foreground || !ready) return null;
+            return ref.read(authNotifierProvider).accessToken;
           },
           onConnected: _recoverMessages,
         ),
@@ -164,6 +167,7 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   }
 
   Future<void> pauseConnection() async {
+    _resumeRevision++;
     _foreground = false;
     if (!_hasRepository || !_active) return;
     final closing = _chatRepository.closeWebSocket();
@@ -171,10 +175,18 @@ class ChatDetailNotifier extends StateNotifier<ChatDetailState> {
   }
 
   Future<void> resumeConnection() async {
+    if (!_active) return;
+    final revision = ++_resumeRevision;
+    _foreground = false;
+    final ready = await ref.read(authNotifierProvider.notifier)
+        .ensureValidSession();
+    if (!_active || revision != _resumeRevision || !ready) return;
     _foreground = true;
-    if (!_active || !_hasRepository || _socketSubscription == null) return;
+    if (!_hasRepository || _socketSubscription == null) return;
     await _activateCurrentChatRoom();
-    if (_active && _foreground) await _chatRepository.reconnectWebSocket();
+    if (_active && _foreground && revision == _resumeRevision) {
+      await _chatRepository.reconnectWebSocket();
+    }
   }
 
   void authenticationChanged() {

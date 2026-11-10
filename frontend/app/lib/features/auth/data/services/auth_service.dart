@@ -60,7 +60,7 @@ class AuthService {
         Uri.parse(_refreshEndpoint),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({"refresh_token": refreshToken}),
-      );
+      ).timeout(const Duration(seconds: 15));
       print('[AuthService] refresh code: ${response.statusCode}');
 
       if (response.statusCode == 200) {
