@@ -1,7 +1,8 @@
+import asyncio
 from io import BytesIO
 
 from app.core.local_storage import LocalStorage
-from app.core.media_permissions import reject_profile_url_delete, verify_profile_key
+from app.core.media_permissions import reject_profile_url_delete, verify_profile_key, verify_story_key
 from typing import Optional
 from urllib.parse import urlsplit
 
@@ -99,6 +100,20 @@ class S3Manager:
         verify_profile_key(key, uploader_id)
         if self.local:
             return await self.local.delete_profile_file(key, uploader_id=uploader_id)
+        async with await self._get_client() as s3_client:
+            await s3_client.delete_object(Bucket=self.bucket_name, Key=key)
+
+    def media_url(self, key: str, backend: str) -> str:
+        if backend == "local":
+            return LocalStorage().url(key)
+        return f"{settings.CLOUD_FRONT_DOMAIN_URL.rstrip('/')}/{key}"
+
+    async def delete_story_file(self, key: str, *, uploader_id: int) -> None:
+        # Internal callers supply a locked server-owned ledger record.
+        verify_story_key(key, uploader_id)
+        if self.local:
+            await asyncio.to_thread(self.local.path(key).unlink, missing_ok=True)
+            return
         async with await self._get_client() as s3_client:
             await s3_client.delete_object(Bucket=self.bucket_name, Key=key)
 

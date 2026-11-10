@@ -29,7 +29,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 BASELINE_REVISION = "20261106_0001"
 PROFILE_MEDIA_REVISION = "20261106_0002"
 MESSAGE_OUTBOX_REVISION = "20261106_0003"
-HEAD_REVISION = "20261106_0004"
+RANDOM_CHAT_REVISION = "20261106_0004"
+HEAD_REVISION = "20261108_0005"
 DATABASE_NAME = "migration_test_db"
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_DIR = BACKEND_ROOT / "app" / "alembic"
@@ -154,6 +155,7 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
         BASELINE_REVISION,
         PROFILE_MEDIA_REVISION,
         MESSAGE_OUTBOX_REVISION,
+        RANDOM_CHAT_REVISION,
         HEAD_REVISION,
     ):
         raise ValueError(f"Unsupported legacy fixture revision: {revision}")
@@ -165,6 +167,7 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
     if revision in (
         PROFILE_MEDIA_REVISION,
         MESSAGE_OUTBOX_REVISION,
+        RANDOM_CHAT_REVISION,
         HEAD_REVISION,
     ):
         profile_media = ScriptDirectory.from_config(_alembic_config()).get_revision(
@@ -172,18 +175,21 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
         )
         assert profile_media is not None
         profile_media.module.add_table(baseline_metadata)
-    if revision in (MESSAGE_OUTBOX_REVISION, HEAD_REVISION):
+    if revision in (MESSAGE_OUTBOX_REVISION, RANDOM_CHAT_REVISION, HEAD_REVISION):
         outbox = ScriptDirectory.from_config(_alembic_config()).get_revision(
             MESSAGE_OUTBOX_REVISION
         )
         assert outbox is not None
         outbox.module.extend_schema(baseline_metadata)
-    if revision == HEAD_REVISION:
+    if revision in (RANDOM_CHAT_REVISION, HEAD_REVISION):
         random_chat = ScriptDirectory.from_config(_alembic_config()).get_revision(
-            HEAD_REVISION
+            RANDOM_CHAT_REVISION
         )
         assert random_chat is not None
         random_chat.module.extend_schema(baseline_metadata)
+    if revision == HEAD_REVISION:
+        story_media = ScriptDirectory.from_config(_alembic_config()).get_revision(HEAD_REVISION)
+        story_media.module.add_table(baseline_metadata)
 
     engine = create_async_engine(TEST_URL)
     try:
@@ -207,7 +213,7 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
                     "gender": "other",
                 },
             )
-            if revision in (MESSAGE_OUTBOX_REVISION, HEAD_REVISION):
+            if revision in (MESSAGE_OUTBOX_REVISION, RANDOM_CHAT_REVISION, HEAD_REVISION):
                 user_id = await connection.scalar(
                     text(
                         'SELECT id FROM "user" '
@@ -248,7 +254,7 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
                         "payload": "migration-outbox-marker",
                     },
                 )
-                if revision == HEAD_REVISION:
+                if revision in (RANDOM_CHAT_REVISION, HEAD_REVISION):
                     await connection.execute(
                         text(
                             "INSERT INTO random_chat_queue "
@@ -592,6 +598,7 @@ def test_failed_revision_rolls_back_and_can_be_retried(
         "20261106_0002_profile_media.py",
         "20261106_0003_message_outbox.py",
         "20261106_0004_random_chat_queue.py",
+        "20261108_0005_story_media.py",
     ):
         shutil.copy2(
             ALEMBIC_DIR / "versions" / revision_file, versions_dir / revision_file
@@ -604,7 +611,7 @@ def test_failed_revision_rolls_back_and_can_be_retried(
             import sqlalchemy as sa
 
             revision = "probe_005"
-            down_revision = "20261106_0004"
+            down_revision = "20261108_0005"
             branch_labels = None
             depends_on = None
 
@@ -749,3 +756,20 @@ def test_offline_sql_targets_public_with_shadow_first_in_search_path() -> None:
     command.upgrade(online_config, "head")
     command.check(online_config)
     assert asyncio.run(_strict_application_schema_drift()) == []
+
+
+@pytest.mark.parametrize('tracked', [True, False])
+def test_previous_random_chat_schema_adds_empty_story_ledger(tracked: bool) -> None:
+    asyncio.run(_create_legacy_schema(revision=RANDOM_CHAT_REVISION))
+    if tracked:
+        command.stamp(_alembic_config(), RANDOM_CHAT_REVISION)
+    else:
+        result = _run_adoption()
+        assert result.returncode == 0, result.stderr
+        assert _sql('SELECT version_num FROM public.alembic_version') == [RANDOM_CHAT_REVISION]
+    command.upgrade(_alembic_config(), 'head')
+    assert _sql('SELECT version_num FROM public.alembic_version') == [HEAD_REVISION]
+    assert _sql('SELECT count(*) FROM public.story_media') == [0]
+    _assert_random_chat_queue_marker()
+    _assert_pending_outbox_marker()
+    command.check(_alembic_config())

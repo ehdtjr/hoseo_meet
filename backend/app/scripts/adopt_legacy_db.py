@@ -22,6 +22,7 @@ BASELINE = "20261106_0001"
 PROFILE_MEDIA = "20261106_0002"
 MESSAGE_OUTBOX = "20261106_0003"
 RANDOM_CHAT_QUEUE = "20261106_0004"
+STORY_MEDIA = "20261108_0005"
 
 
 def adopt(connection, config):
@@ -42,15 +43,18 @@ def adopt(connection, config):
     tables = set(inspector.get_table_names())
     # Require every earlier revision when recognizing a later table. Partially
     # applied legacy scripts must fail comparison rather than skip migrations.
-    if tables & {"profile_media", "message_outbox", "random_chat_queue"}:
+    if tables & {"profile_media", "message_outbox", "random_chat_queue", "story_media"}:
         scripts.get_revision(PROFILE_MEDIA).module.add_table(metadata)
         revision = PROFILE_MEDIA
-    if tables & {"message_outbox", "random_chat_queue"}:
+    if tables & {"message_outbox", "random_chat_queue", "story_media"}:
         scripts.get_revision(MESSAGE_OUTBOX).module.extend_schema(metadata)
         revision = MESSAGE_OUTBOX
-    if "random_chat_queue" in tables:
+    if tables & {"random_chat_queue", "story_media"}:
         scripts.get_revision(RANDOM_CHAT_QUEUE).module.extend_schema(metadata)
         revision = RANDOM_CHAT_QUEUE
+    if "story_media" in tables:
+        scripts.get_revision(STORY_MEDIA).module.add_table(metadata)
+        revision = STORY_MEDIA
     migration_context = MigrationContext.configure(
         connection,
         opts={

@@ -143,7 +143,7 @@ class TestProfileMediaRoutes(BaseTest):
         self.assertEqual(self.storage.local.path(legacy_key).read_bytes(), b'legacy')
 
     async def test_database_failure_preserves_old_profile_and_cleans_new_file(self):
-        with patch('sqlalchemy.ext.asyncio.AsyncSession.commit',
+        with patch('sqlalchemy.ext.asyncio.AsyncSession.flush',
                    new=AsyncMock(side_effect=RuntimeError('synthetic database failure'))):
             response = await self.client.post('/api/v1/users/me/profile', headers=self.b_auth,
                                               files={'file': ('new.webp', b'new', 'image/webp')})
@@ -212,3 +212,20 @@ class TestProfileMediaRoutes(BaseTest):
                                           files={'file': ('new.txt', b'new', 'text/plain')})
         self.assertEqual(response.status_code, 400)
         await self.assert_b_intact()
+
+
+    async def test_lost_commit_ack_keeps_committed_profile_file(self):
+        from sqlalchemy.ext.asyncio import AsyncSession
+        original = AsyncSession.commit
+
+        async def commit_then_fail(db):
+            await original(db)
+            raise RuntimeError('lost acknowledgement')
+
+        with patch.object(AsyncSession, 'commit', new=commit_then_fail):
+            response = await self.client.post('/api/v1/users/me/profile', headers=self.b_auth,
+                                              files={'file': ('new.webp', b'committed', 'image/webp')})
+        self.assertEqual(response.status_code, 500)
+        record = await self.record(self.b_id)
+        self.assertNotEqual(record.key, self.b_key)
+        self.assertEqual(self.storage.local.path(record.key).read_bytes(), b'committed')

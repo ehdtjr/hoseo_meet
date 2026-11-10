@@ -1,3 +1,5 @@
+import asyncio
+import threading
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -85,3 +87,31 @@ class TestLocalStorage(IsolatedAsyncioTestCase):
             with self.assertRaises(HTTPException):
                 await self.storage.delete_profile_file(key, uploader_id=2)
             self.assertEqual(target.read_bytes(), b'outside')
+
+
+    async def test_partial_copy_failure_removes_temporary_and_destination(self):
+        def fail(source, destination):
+            destination.write(b'partial')
+            raise OSError('synthetic interrupted copy')
+
+        with patch('app.core.local_storage.shutil.copyfileobj', side_effect=fail):
+            with self.assertRaises(OSError):
+                await self.storage.upload_byte_file(BytesIO(b'data'), 'test/image.png')
+        self.assertEqual([p for p in self.storage.root.rglob('*') if p.is_file()], [])
+
+    async def test_cancelled_copy_finishes_before_input_can_be_closed(self):
+        started, release = threading.Event(), threading.Event()
+
+        def wait_and_copy(source, destination):
+            started.set()
+            release.wait(timeout=5)
+            destination.write(source.read())
+
+        with patch('app.core.local_storage.shutil.copyfileobj', side_effect=wait_and_copy):
+            task = asyncio.create_task(self.storage.upload_byte_file(BytesIO(b'data'), 'test/image.png'))
+            await asyncio.to_thread(started.wait, 5)
+            task.cancel()
+            release.set()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+        self.assertEqual([p for p in self.storage.root.rglob('*') if p.is_file()], [])
