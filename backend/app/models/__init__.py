@@ -11,6 +11,7 @@ from app.models.story_media import StoryMedia
 from app.models.chat_bot import ChatBotMessage
 from app.models.term import Term, UserTermAgreement
 from app.models.tags import Tag, UserTag
+from app.models.tagging import UserTaggingCheckpoint
 from app.models.randomchat import RandomChatQueue
 
 __all__ = [
@@ -32,5 +33,6 @@ __all__ = [
     "UserTermAgreement",
     "Tag",
     "UserTag",
+    "UserTaggingCheckpoint",
     "RandomChatQueue",
 ]

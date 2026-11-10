@@ -3,20 +3,32 @@ import time
 
 import openai
 import requests
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, true
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session, aliased
 from sqlmodel import select
 
 from app.celery.db import sync_session_maker
 from app.celery.worker import app
 from app.core.config import settings
-from app.models import UserTag, Tag, ChatBotMessage
+from app.models import UserTag, Tag, ChatBotMessage, UserTaggingCheckpoint
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 openai.api_key = settings.OPENAI_API_KEY
+
+# Bump this when changing sentiment/keyword semantics. Existing tags are kept;
+# the new version re-examines the completed conversation from its first QA.
+ANALYSIS_VERSION = "qa-keyword-v1"
+CONVERSATION_END = "이제 대화는 여기까지야! 고마워 :)"
+TAGGING_INITIALIZATION_LOCK = 290029
+
+
+class TaggingAnalysisError(RuntimeError):
+    """A provider failure must never be checkpointed as a valid no-tag result."""
+
 
 candidate_keywords = [
     # 🍽 음식/음료
@@ -80,52 +92,35 @@ def trim_question_for_keyword(question: str) -> str:
     return question.strip()
 
 def analyze_sentiment(text: str) -> int:
-    try:
-        # 1. 분석 요청 보내기
-        response = requests.post(
-            settings.RUNPOD_SENTIMENT_API_URL,
-            json={"input": {"text": text}},
+    response = requests.post(
+        settings.RUNPOD_SENTIMENT_API_URL,
+        json={"input": {"text": text}},
+        headers={"Authorization": f"Bearer {settings.RUNPOD_API_KEY}"},
+        timeout=10,
+    )
+    response.raise_for_status()
+    request_id = response.json().get("id")
+    if not request_id:
+        raise TaggingAnalysisError("Missing sentiment request ID")
+
+    for _ in range(120):
+        time.sleep(1)
+        status_response = requests.get(
+            f"https://api.runpod.ai/v2/{settings.RUNPOD_ENDPOINT_ID}/status/{request_id}",
             headers={"Authorization": f"Bearer {settings.RUNPOD_API_KEY}"},
-            timeout=10
+            timeout=5,
         )
-        response.raise_for_status()
-        result = response.json()
+        status_response.raise_for_status()
+        result = status_response.json()
+        if result.get("status") == "COMPLETED":
+            sentiment = (result.get("output") or {}).get("sentiment")
+            if type(sentiment) is not int or sentiment not in (0, 1, 2):
+                raise TaggingAnalysisError("Invalid sentiment result")
+            return sentiment
+        if result.get("status") in {"FAILED", "CANCELLED"}:
+            raise TaggingAnalysisError("Sentiment job failed")
+    raise TaggingAnalysisError("Sentiment polling timed out")
 
-        request_id = result.get("id")
-        if not request_id:
-            logger.warning(f"[sentiment] ID 없음: {result}")
-            return -1
-
-        # 2. 최대 30초까지 폴링 (0.5초 간격)
-        for _ in range(120):
-            time.sleep(1)
-            status_response = requests.get(
-                f"https://api.runpod.ai/v2/{settings.RUNPOD_ENDPOINT_ID}/status/{request_id}",
-                headers={"Authorization": f"Bearer {settings.RUNPOD_API_KEY}"},
-                timeout=5
-            )
-            status_response.raise_for_status()
-            status_result = status_response.json()
-
-            status = status_result.get("status")
-            if status == "COMPLETED":
-                sentiment = status_result.get("output", {}).get("sentiment")
-                if sentiment is not None:
-                    return sentiment
-                else:
-                    logger.warning(f"[sentiment] 결과 도착했지만 sentiment 없음: {status_result}")
-                    return -1
-            elif status in {"FAILED", "CANCELLED"}:
-                logger.error(f"[sentiment] 처리 실패: {status_result}")
-                return -1
-
-        # 30초 동안 결과가 안 나오면 타임아웃
-        logger.warning(f"[sentiment] 30초 안에 완료되지 않음 (id: {request_id})")
-        return -1
-
-    except Exception as e:
-        logger.error(f"[sentiment] 외부 API 호출 실패: {e}")
-        return -1
 
 def keyword_with_sbert_then_gpt(text: str, sim_threshold=0.5):
     prompt = f"""
@@ -139,14 +134,16 @@ def keyword_with_sbert_then_gpt(text: str, sim_threshold=0.5):
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
     )
-    gpt_keyword = response.choices[0].message.content.strip()
-    logger.info(f"[keyword] GPT fallback → '{gpt_keyword}'")
+    gpt_keyword = (response.choices[0].message.content or "").strip()
+    if gpt_keyword not in candidate_keywords:
+        raise TaggingAnalysisError("Invalid keyword result")
     return gpt_keyword
 
 def analyze_qa_and_extract_keyword(question: str, answer: str):
     q_sent = analyze_sentiment(question)
     a_sent = analyze_sentiment(answer)
-    logger.debug(f"[sentiment] Q={q_sent}, A={a_sent}")
+    if q_sent not in (0, 1, 2) or a_sent not in (0, 1, 2):
+        raise TaggingAnalysisError("Invalid sentiment result")
 
     if q_sent == a_sent and q_sent in [0, 1]:
         combined = f"{trim_question_for_keyword(question)} {answer.strip()}"
@@ -155,83 +152,201 @@ def analyze_qa_and_extract_keyword(question: str, answer: str):
     return None
 
 def check_not_tag_user(db: Session):
-    # 1. 태그된 사용자 목록
-    tagged_user_subq = select(UserTag.user_id).distinct()
-
-    # 2. 사용자별 가장 마지막 메시지 ID 추출
+    """Find closed conversations with missing, failed, or outdated progress."""
     last_msg_subq = (
         select(
             ChatBotMessage.user_id,
-            func.max(ChatBotMessage.id).label("last_msg_id")
+            func.max(ChatBotMessage.id).label("last_msg_id"),
         )
         .group_by(ChatBotMessage.user_id)
         .subquery()
     )
-
-    # 3. 마지막 메시지 내용 필터링 + 태그 없는 사용자 조건 적용
+    checkpoint = UserTaggingCheckpoint
     query = (
         select(ChatBotMessage.user_id)
         .join(last_msg_subq, ChatBotMessage.id == last_msg_subq.c.last_msg_id)
+        .outerjoin(checkpoint, checkpoint.user_id == ChatBotMessage.user_id)
         .where(
-            ~ChatBotMessage.user_id.in_(tagged_user_subq),  # 태그 없는 사용자
-            ChatBotMessage.content.ilike("%이제 대화는 여기까지야! 고마워 :)%")  # 마지막 메시지 조건
+            ChatBotMessage.content.contains(CONVERSATION_END),
+            or_(
+                checkpoint.user_id.is_(None),
+                checkpoint.analysis_version != ANALYSIS_VERSION,
+                checkpoint.status != "completed",
+                checkpoint.target_message_id < ChatBotMessage.id,
+            ),
         )
+        .order_by(ChatBotMessage.user_id)
     )
+    return list(db.execute(query).scalars())
 
-    user_rows = db.execute(query).all()
-    user_ids = [row[0] for row in user_rows]
-
-    logger.info(f"[check_user] 조건에 맞는 사용자 수: {len(user_ids)} → {user_ids}")
-    return user_ids
 
 def save_user_tag(db: Session, user_id: int, keyword: str, score: float):
-    tag = db.query(Tag).filter_by(name=keyword).first()
-    if not tag:
-        tag = Tag(name=keyword)
-        db.add(tag)
-        db.flush()
-
-    exists = db.query(UserTag).filter_by(user_id=user_id, tag_id=tag.id).first()
+    """Flush the tag inside the caller's checkpoint transaction; never commit."""
+    # Different users can discover the same new keyword concurrently.
+    db.execute(
+        insert(Tag).values(name=keyword).on_conflict_do_nothing(index_elements=["name"])
+    )
+    tag_id = db.execute(select(Tag.id).where(Tag.name == keyword)).scalar_one()
+    exists = db.execute(
+        select(UserTag.id).where(UserTag.user_id == user_id, UserTag.tag_id == tag_id)
+    ).first()
     if not exists:
-        db.add(UserTag(user_id=user_id, tag_id=tag.id, score=score))
-        logger.info(f"[DB] 태그 저장 완료 → user_id={user_id}, tag='{keyword}', score={score}")
-    else:
-        logger.info(f"[DB] 이미 존재하는 태그 → user_id={user_id}, tag='{keyword}'")
+        db.add(UserTag(user_id=user_id, tag_id=tag_id, score=score))
+    db.flush()
 
-    db.commit()
+
+def _locked_checkpoint(db: Session, user_id: int, *, skip_locked=False):
+    # Reload after every commit, including when expire_on_commit=False. A
+    # concurrent worker may have advanced the cursor while we had no row lock.
+    return db.execute(
+        select(UserTaggingCheckpoint)
+        .where(UserTaggingCheckpoint.user_id == user_id)
+        .with_for_update(skip_locked=skip_locked)
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+
+
+def _next_qa(db: Session, user_id: int, after_id: int, target_id: int):
+    question = aliased(ChatBotMessage)
+    # Use an indexed seek for the immediate successor, including non-user
+    # messages. Filtering the successor's role before LIMIT would change QA
+    # adjacency by jumping over intervening assistant messages.
+    answer = (
+        select(ChatBotMessage.id, ChatBotMessage.role, ChatBotMessage.content)
+        .where(
+            ChatBotMessage.user_id == user_id,
+            ChatBotMessage.id > question.id,
+            ChatBotMessage.id <= target_id,
+        )
+        .order_by(ChatBotMessage.id).limit(1)
+        .correlate(question).lateral()
+    )
+    return db.execute(
+        select(question.content, answer.c.content, answer.c.id)
+        .select_from(question).join(answer, true())
+        .where(
+            question.user_id == user_id,
+            question.id > after_id,
+            question.id <= target_id,
+            question.role == "assistant",
+            answer.c.role == "user",
+        )
+        .order_by(question.id).limit(1)
+    ).first()
 
 
 def process_user_for_tagging(db: Session, user_id: int):
-    logger.info(f"[tagging] user_id={user_id} 분석 시작")
-    messages = db.execute(
-        select(ChatBotMessage)
-        .where(ChatBotMessage.user_id == user_id)
-        .order_by(ChatBotMessage.id)
-    ).scalars().all()
+    failed_cursor = None
+    try:
+        # Serialize initializers before the existence read: otherwise two
+        # workers can both see no row and the later INSERT can wait on a worker
+        # already doing paid analysis. This lock is released by the init commit.
+        if not db.scalar(select(func.pg_try_advisory_xact_lock(
+            TAGGING_INITIALIZATION_LOCK, user_id
+        ))):
+            db.rollback()
+            return
+        exists = db.scalar(select(UserTaggingCheckpoint.user_id).where(
+            UserTaggingCheckpoint.user_id == user_id
+        ))
+        if exists is None:
+            db.execute(
+                insert(UserTaggingCheckpoint).values(
+                    user_id=user_id,
+                    analysis_version=ANALYSIS_VERSION,
+                    status="pending",
+                    last_message_id=0,
+                    target_message_id=0,
+                ).on_conflict_do_nothing(index_elements=["user_id"])
+            )
+        db.commit()
+        while True:
+            checkpoint = _locked_checkpoint(db, user_id, skip_locked=True)
+            if checkpoint is None:
+                # Another worker owns this user's QA; try other users this run.
+                db.rollback()
+                return
+            if checkpoint.analysis_version != ANALYSIS_VERSION:
+                checkpoint.analysis_version = ANALYSIS_VERSION
+                checkpoint.last_message_id = 0
+                checkpoint.target_message_id = 0
+                checkpoint.status = "pending"
+                checkpoint.last_error = None
+                db.commit()
+                continue
+            failed_cursor = checkpoint.last_message_id
+            latest = db.execute(
+                select(ChatBotMessage)
+                .where(ChatBotMessage.user_id == user_id)
+                .order_by(ChatBotMessage.id.desc()).limit(1)
+            ).scalar_one_or_none()
+            if latest is None or CONVERSATION_END not in latest.content:
+                db.rollback()
+                return
+            if (checkpoint.status == "completed"
+                    and checkpoint.target_message_id >= latest.id):
+                db.rollback()
+                return
 
-    qa_pairs = [
-        (messages[i].content, messages[i + 1].content)
-        for i in range(len(messages) - 1)
-        if messages[i].role == "assistant" and messages[i + 1].role == "user"
-    ]
-    logger.info(f"[tagging] QA 페어 수: {len(qa_pairs)}")
+            checkpoint.target_message_id = latest.id
+            checkpoint.status = "running"
+            checkpoint.last_error = None
+            pair = _next_qa(db, user_id, checkpoint.last_message_id, latest.id)
+            if pair is None:
+                checkpoint.last_message_id = latest.id
+                checkpoint.status = "completed"
+                db.commit()
+                return
 
-    for q, a in qa_pairs:
-        result = analyze_qa_and_extract_keyword(q, a)
-        if result:
-            save_user_tag(db, user_id, result["keyword"], 0.0)
-        else:
-            logger.info("[tagging] 키워드 추출 실패")
+            question, answer, answer_id = pair
+            result = analyze_qa_and_extract_keyword(question, answer)
+            if result is not None:
+                keyword = result["keyword"]
+                if keyword not in candidate_keywords:
+                    raise TaggingAnalysisError("Invalid keyword result")
+                save_user_tag(db, user_id, keyword, 0.0)
+            # Valid no-tag results also advance. A tag and its cursor always
+            # commit together, so an interrupted QA is safe to retry.
+            checkpoint.last_message_id = answer_id
+            db.commit()
+    except Exception as error:
+        db.rollback()
+        try:
+            checkpoint = _locked_checkpoint(db, user_id, skip_locked=True)
+            # Do not overwrite a newer worker's successful commit, including
+            # when our commit succeeded but its acknowledgement was lost.
+            if (checkpoint is not None
+                    and checkpoint.analysis_version == ANALYSIS_VERSION
+                    and checkpoint.last_message_id == failed_cursor
+                    and checkpoint.status != "completed"):
+                checkpoint.status = "failed"
+                # Store only the type: provider errors may contain user text,
+                # credentials or request URLs.
+                checkpoint.last_error = type(error).__name__[:100]
+                db.commit()
+            else:
+                db.rollback()
+        except Exception:
+            db.rollback()
+            logger.error("Unable to record tagging failure: user_id=%s", user_id)
+        raise
+
 
 @app.task
 def process_user_tag():
     if not settings.AI_ENABLED:
         return
-    logger.info("[Celery] process_user_tag 시작")
+    # Discovery and every user get separate sessions. A failed transaction or
+    # disconnected DB connection must not poison the next user's session.
     with sync_session_maker() as session:
         user_ids = check_not_tag_user(session)
-        for user_id in user_ids:
+    for user_id in user_ids:
+        with sync_session_maker() as session:
             try:
                 process_user_for_tagging(session, user_id)
-            except Exception as e:
-                logger.exception(f"[Celery] 사용자 처리 중 오류 발생: user_id={user_id}")
+            except Exception as error:
+                session.rollback()
+                logger.error(
+                    "Tagging failed; retry on next run: user_id=%s error=%s",
+                    user_id, type(error).__name__,
+                )

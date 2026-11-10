@@ -23,6 +23,7 @@ PROFILE_MEDIA = "20261106_0002"
 MESSAGE_OUTBOX = "20261106_0003"
 RANDOM_CHAT_QUEUE = "20261106_0004"
 STORY_MEDIA = "20261108_0005"
+TAGGING_CHECKPOINT = "20261110_0006"
 
 
 def adopt(connection, config):
@@ -43,18 +44,22 @@ def adopt(connection, config):
     tables = set(inspector.get_table_names())
     # Require every earlier revision when recognizing a later table. Partially
     # applied legacy scripts must fail comparison rather than skip migrations.
-    if tables & {"profile_media", "message_outbox", "random_chat_queue", "story_media"}:
+    if tables & {"profile_media", "message_outbox", "random_chat_queue", "story_media", "user_tagging_checkpoint"}:
         scripts.get_revision(PROFILE_MEDIA).module.add_table(metadata)
         revision = PROFILE_MEDIA
-    if tables & {"message_outbox", "random_chat_queue", "story_media"}:
+    if tables & {"message_outbox", "random_chat_queue", "story_media", "user_tagging_checkpoint"}:
         scripts.get_revision(MESSAGE_OUTBOX).module.extend_schema(metadata)
         revision = MESSAGE_OUTBOX
-    if tables & {"random_chat_queue", "story_media"}:
+    if tables & {"random_chat_queue", "story_media", "user_tagging_checkpoint"}:
         scripts.get_revision(RANDOM_CHAT_QUEUE).module.extend_schema(metadata)
         revision = RANDOM_CHAT_QUEUE
-    if "story_media" in tables:
+    if tables & {"story_media", "user_tagging_checkpoint"}:
         scripts.get_revision(STORY_MEDIA).module.add_table(metadata)
         revision = STORY_MEDIA
+    if "user_tagging_checkpoint" in tables:
+        scripts.get_revision(TAGGING_CHECKPOINT).module.add_table(metadata)
+        scripts.get_revision(TAGGING_CHECKPOINT).module.add_message_index(metadata)
+        revision = TAGGING_CHECKPOINT
     migration_context = MigrationContext.configure(
         connection,
         opts={

@@ -30,7 +30,8 @@ BASELINE_REVISION = "20261106_0001"
 PROFILE_MEDIA_REVISION = "20261106_0002"
 MESSAGE_OUTBOX_REVISION = "20261106_0003"
 RANDOM_CHAT_REVISION = "20261106_0004"
-HEAD_REVISION = "20261108_0005"
+STORY_MEDIA_REVISION = "20261108_0005"
+HEAD_REVISION = "20261110_0006"
 DATABASE_NAME = "migration_test_db"
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_DIR = BACKEND_ROOT / "app" / "alembic"
@@ -151,45 +152,22 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
     # Existing unversioned installations match the frozen baseline, not today's
     # ORM metadata.  Loading it from the tracked revision also prevents this
     # fixture from silently changing when a model is edited later.
-    if revision not in (
-        BASELINE_REVISION,
-        PROFILE_MEDIA_REVISION,
-        MESSAGE_OUTBOX_REVISION,
-        RANDOM_CHAT_REVISION,
-        HEAD_REVISION,
-    ):
-        raise ValueError(f"Unsupported legacy fixture revision: {revision}")
-    baseline = ScriptDirectory.from_config(_alembic_config()).get_revision(
-        BASELINE_REVISION
+    revisions = (
+        BASELINE_REVISION, PROFILE_MEDIA_REVISION, MESSAGE_OUTBOX_REVISION,
+        RANDOM_CHAT_REVISION, STORY_MEDIA_REVISION, HEAD_REVISION,
     )
-    assert baseline is not None
-    baseline_metadata = baseline.module.schema()
-    if revision in (
-        PROFILE_MEDIA_REVISION,
-        MESSAGE_OUTBOX_REVISION,
-        RANDOM_CHAT_REVISION,
-        HEAD_REVISION,
-    ):
-        profile_media = ScriptDirectory.from_config(_alembic_config()).get_revision(
-            PROFILE_MEDIA_REVISION
-        )
-        assert profile_media is not None
-        profile_media.module.add_table(baseline_metadata)
-    if revision in (MESSAGE_OUTBOX_REVISION, RANDOM_CHAT_REVISION, HEAD_REVISION):
-        outbox = ScriptDirectory.from_config(_alembic_config()).get_revision(
-            MESSAGE_OUTBOX_REVISION
-        )
-        assert outbox is not None
-        outbox.module.extend_schema(baseline_metadata)
-    if revision in (RANDOM_CHAT_REVISION, HEAD_REVISION):
-        random_chat = ScriptDirectory.from_config(_alembic_config()).get_revision(
-            RANDOM_CHAT_REVISION
-        )
-        assert random_chat is not None
-        random_chat.module.extend_schema(baseline_metadata)
-    if revision == HEAD_REVISION:
-        story_media = ScriptDirectory.from_config(_alembic_config()).get_revision(HEAD_REVISION)
-        story_media.module.add_table(baseline_metadata)
+    if revision not in revisions:
+        raise ValueError(f"Unsupported legacy fixture revision: {revision}")
+    scripts = ScriptDirectory.from_config(_alembic_config())
+    baseline_metadata = scripts.get_revision(BASELINE_REVISION).module.schema()
+    for next_revision in revisions[1:revisions.index(revision) + 1]:
+        module = scripts.get_revision(next_revision).module
+        if next_revision in (MESSAGE_OUTBOX_REVISION, RANDOM_CHAT_REVISION):
+            module.extend_schema(baseline_metadata)
+        else:
+            module.add_table(baseline_metadata)
+            if next_revision == HEAD_REVISION:
+                module.add_message_index(baseline_metadata)
 
     engine = create_async_engine(TEST_URL)
     try:
@@ -213,7 +191,7 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
                     "gender": "other",
                 },
             )
-            if revision in (MESSAGE_OUTBOX_REVISION, RANDOM_CHAT_REVISION, HEAD_REVISION):
+            if revision in (MESSAGE_OUTBOX_REVISION, RANDOM_CHAT_REVISION, STORY_MEDIA_REVISION, HEAD_REVISION):
                 user_id = await connection.scalar(
                     text(
                         'SELECT id FROM "user" '
@@ -254,7 +232,7 @@ async def _create_legacy_schema(*, revision: str = BASELINE_REVISION) -> None:
                         "payload": "migration-outbox-marker",
                     },
                 )
-                if revision in (RANDOM_CHAT_REVISION, HEAD_REVISION):
+                if revision in (RANDOM_CHAT_REVISION, STORY_MEDIA_REVISION, HEAD_REVISION):
                     await connection.execute(
                         text(
                             "INSERT INTO random_chat_queue "
@@ -413,6 +391,28 @@ def test_unversioned_outbox_schema_upgrades_to_head() -> None:
         "random_chat_queue"
     ]
     _assert_pending_outbox_marker()
+
+
+@pytest.mark.parametrize("stamped", [False, True])
+def test_story_schema_upgrades_with_existing_tags_preserved(stamped) -> None:
+    asyncio.run(_create_legacy_schema(revision=STORY_MEDIA_REVISION))
+    _sql(
+        "INSERT INTO public.tag (id, name) VALUES (91, '커피')",
+        "INSERT INTO public.user_tag (user_id, tag_id, score) "
+        "SELECT id, 91, 0.75 FROM public.\"user\" "
+        "WHERE email = 'migration-marker@example.com'",
+    )
+    if stamped:
+        command.stamp(_alembic_config(), STORY_MEDIA_REVISION)
+    else:
+        result = _run_adoption()
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert _sql("SELECT version_num FROM public.alembic_version") == [STORY_MEDIA_REVISION]
+    command.upgrade(_alembic_config(), "head")
+    assert _sql("SELECT count(*) FROM public.user_tagging_checkpoint") == [0]
+    assert _sql("SELECT score FROM public.user_tag WHERE tag_id = 91") == [0.75]
+    command.check(_alembic_config())
+    assert asyncio.run(_strict_application_schema_drift()) == []
 
 
 def test_unversioned_current_schema_is_adopted_at_head() -> None:
@@ -599,6 +599,7 @@ def test_failed_revision_rolls_back_and_can_be_retried(
         "20261106_0003_message_outbox.py",
         "20261106_0004_random_chat_queue.py",
         "20261108_0005_story_media.py",
+        "20261110_0006_tagging_checkpoint.py",
     ):
         shutil.copy2(
             ALEMBIC_DIR / "versions" / revision_file, versions_dir / revision_file
@@ -611,7 +612,7 @@ def test_failed_revision_rolls_back_and_can_be_retried(
             import sqlalchemy as sa
 
             revision = "probe_005"
-            down_revision = "20261108_0005"
+            down_revision = "20261110_0006"
             branch_labels = None
             depends_on = None
 
