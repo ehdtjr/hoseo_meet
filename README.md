@@ -27,6 +27,8 @@ poetry run alembic revision --autogenerate -m "describe schema change"
 
 [채팅·위치 WebSocket 로그 정책과 검증](docs/websocket-logging.md)
 
+[Redis 이벤트 큐 보존·원자적 정리 정책과 검증](docs/event-queue-gc.md)
+
 [랜덤채팅 매칭 정책·API·DB 적용 절차](docs/randomchat-policy.md)
 
 [메시지 원자적 저장·재처리·기존 DB 마이그레이션](docs/message-outbox.md)
