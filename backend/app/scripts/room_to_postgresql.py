@@ -4,33 +4,33 @@ import csv
 
 from app.core.db import get_async_session_context
 from app.models.room_post import RoomPost, RoomPostImage
+from app.scripts.rental_csv import read_rentals
 
 
 async def load_room_posts_from_csv(csv_path: str) -> None:
+    rows = read_rentals(csv_path)
     async with get_async_session_context() as session:
-        with open(csv_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            room_posts = []
-            for row in reader:
-                # CSV 파일에서 경도와 위도를 읽어와서 WKT 문자열로 변환합니다.
-                lon = float(row["longitude"])
-                lat = float(row["latitude"])
-                location_wkt = f"POINT({lon} {lat})"
+        room_posts = []
+        for row in rows:
+            # CSV 파일에서 경도와 위도를 읽어와서 WKT 문자열로 변환합니다.
+            lon = float(row["longitude"])
+            lat = float(row["latitude"])
+            location_wkt = f"POINT({lon} {lat})"
 
-                post = RoomPost(
-                    name=row["name"],
-                    address=row["address"],
-                    contact=row.get("contact"),
-                    price=row.get("price"),
-                    fee=row.get("fee"),
-                    options=row.get("options"),
-                    gas_type=row.get("gas_type"),
-                    comment=row.get("comment"),
-                    place=row["place"],
-                    location=location_wkt
-                )
-                room_posts.append(post)
-            session.add_all(room_posts)
+            post = RoomPost(
+                name=row["name"],
+                address=row["address"],
+                contact=row.get("contact"),
+                price=row.get("price"),
+                fee=row.get("fee"),
+                options=row.get("options"),
+                gas_type=row.get("gas_type"),
+                comment=row.get("comment"),
+                place=row["place"],
+                location=location_wkt
+            )
+            room_posts.append(post)
+        session.add_all(room_posts)
         await session.commit()
 
 

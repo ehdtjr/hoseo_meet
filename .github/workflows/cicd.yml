@@ -7,6 +7,22 @@ on:
 permissions:
   contents: read
 jobs:
+  repository-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Test gates with synthetic conflicts, secrets and failed reports
+        run: python3 -m unittest discover -s scripts/tests -v
+      - name: Check every tracked text file for unresolved conflicts
+        run: python3 scripts/check_conflicts.py
+      - name: Check tracked credentials
+        run: python3 scripts/check_secrets.py
+      - name: Validate the canonical rental seed without loading a database
+        run: PYTHONPATH=backend python3 -m app.scripts.rental_csv backend/last_rental_data.csv
   admin-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -20,6 +36,7 @@ jobs:
           node-version: '22'
       - run: corepack yarn install --frozen-lockfile
       - run: corepack yarn test
+      - run: corepack yarn lint
   build-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -31,12 +48,20 @@ jobs:
         run: python3 scripts/local_env.py
       - name: Validate Compose before starting containers
         run: docker compose --profile test config -q
-      - name: Check tracked credentials
-        run: python3 scripts/check_secrets.py
       - name: Build API and admin (includes TypeScript build)
         run: docker compose build web admin
+      - name: Enforce backend static analysis baseline
+        run: |
+          docker compose --profile test run --rm --no-deps \
+            -v "$PWD:/repo:ro" -w /repo test \
+            python scripts/check_static_analysis.py backend --executable ruff
       - name: Collect and run the complete backend suite
-        run: docker compose --profile test run --rm test
+        run: |
+          mkdir -p "$RUNNER_TEMP/hoseo-reports"
+          docker compose --profile test run --rm \
+            -v "$RUNNER_TEMP/hoseo-reports:/reports" test \
+            python -m pytest app/tests -q -W error::RuntimeWarning --junitxml=/reports/backend.xml
+          python3 scripts/check_test_reports.py backend "$RUNNER_TEMP/hoseo-reports/backend.xml"
       - name: Verify migrations on a dedicated disposable database
         run: |
           docker compose --profile test up -d --wait test-db
@@ -44,7 +69,9 @@ jobs:
             --username test_user --maintenance-db test_db migration_test_db
           docker compose --profile test run --rm \
             -e MIGRATION_TEST_DATABASE_URL=postgresql+asyncpg://test_user:test_password@test-db:5432/migration_test_db \
-            test python -m pytest app/migration_tests -q
+            -v "$RUNNER_TEMP/hoseo-reports:/reports" \
+            test python -m pytest app/migration_tests -q --junitxml=/reports/migrations.xml
+          python3 scripts/check_test_reports.py migrations "$RUNNER_TEMP/hoseo-reports/migrations.xml"
       - name: Start and check core services
         run: |
           docker compose up -d --wait web admin celery-worker celery-beat mailpit
@@ -52,6 +79,12 @@ jobs:
       - name: Logs on failure
         if: failure()
         run: docker compose logs --no-color --tail 100
+      - name: Preserve backend execution reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: ${{ runner.temp }}/hoseo-reports/*.xml
       - name: Cleanup disposable CI project
         if: always()
         run: docker compose --profile test down -v --remove-orphans
@@ -71,10 +104,37 @@ jobs:
       - name: Prepare public-only local configuration
         run: cp .env.example .env
       - run: flutter pub get --enforce-lockfile
-      - run: flutter test --no-pub
+      - name: Enforce Flutter static analysis baseline
+        working-directory: .
+        run: python3 scripts/check_static_analysis.py flutter --executable dart
+      - name: Run every Flutter test and require failure paths without skips
+        run: |
+          flutter test --no-pub --machine > "$RUNNER_TEMP/flutter-tests.jsonl"
+          python3 ../../scripts/check_test_reports.py flutter "$RUNNER_TEMP/flutter-tests.jsonl"
       - name: Verify socket logs with synthetic private markers in JIT and AOT
         run: |
           dart --enable-asserts tool/check_websocket_logging.dart
           dart compile exe tool/check_websocket_logging.dart -o "$RUNNER_TEMP/websocket-log-check"
           "$RUNNER_TEMP/websocket-log-check"
       - run: flutter build bundle --debug --no-pub
+      - name: Preserve Flutter execution report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-test-report
+          path: ${{ runner.temp }}/flutter-tests.jsonl
+  quality-gate:
+    if: always()
+    needs: [repository-checks, admin-tests, build-and-test, flutter-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every check to succeed
+        env:
+          CHECK_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          checks = json.loads(os.environ['CHECK_RESULTS'])
+          assert all(check['result'] == 'success' for check in checks.values()), checks
+          PY
