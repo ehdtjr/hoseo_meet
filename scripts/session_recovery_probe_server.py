@@ -3,6 +3,7 @@
 
 Not a JWT validator or application server. Never use real accounts/credentials.
 Control: POST /control {"mode": "ok"|"transient"|"reject", "expire": true}.
+Optional controls: login_ttl (seconds), queue_status (idle/waiting/matched).
 Evidence: GET /snapshot returns ordered sanitized events, never token strings.
 """
 import base64
@@ -12,7 +13,8 @@ import threading
 import time
 
 LOCK = threading.RLock()
-STATE = {"mode": "ok", "generation": 0, "expired": False, "events": []}
+STATE = {"mode": "ok", "generation": 0, "expired": False,
+         "queue_status": "idle", "login_ttl": 3, "events": []}
 
 
 def token(ttl):
@@ -46,12 +48,18 @@ class Handler(BaseHTTPRequestHandler):
                 if "mode" in control:
                     assert control["mode"] in ("ok", "transient", "reject")
                     STATE["mode"] = control["mode"]
+                if "login_ttl" in control:
+                    assert isinstance(control["login_ttl"], int) and 1 <= control["login_ttl"] <= 3600
+                    STATE["login_ttl"] = control["login_ttl"]
+                if "queue_status" in control:
+                    assert control["queue_status"] in ("idle", "waiting", "matched")
+                    STATE["queue_status"] = control["queue_status"]
                 if control.get("expire"):
                     STATE["expired"] = True
                 self.reply(200, {"ok": True})
             elif self.path.endswith("/auth/login"):
-                access = token(3)
-                self.event("login", generation=STATE["generation"], ttl=3)
+                access = token(STATE["login_ttl"])
+                self.event("login", generation=STATE["generation"], ttl=STATE["login_ttl"])
                 self.reply(200, {"access_token": access, "refresh_token": "synthetic-refresh"})
             elif self.path.endswith("/auth/refresh"):
                 mode = STATE["mode"]
@@ -90,7 +98,10 @@ class Handler(BaseHTTPRequestHandler):
                     "subscribers": [], "last_message": "No messages",
                 }]})
             elif self.path.endswith("/random/match/queue"):
-                self.reply(200, {"status": "idle"})
+                result = {"status": STATE["queue_status"]}
+                if STATE["queue_status"] == "matched":
+                    result["stream_id"] = 10
+                self.reply(200, result)
             else:
                 self.reply(404, {})
 
