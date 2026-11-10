@@ -1,0 +1,228 @@
+{
+  "recorded_at": "2026-11-10T00:30:29.057548+00:00",
+  "production_commit": "d3e53775be59435b496543a28b4a345bfa1ec73f",
+  "platform": {
+    "device": "emulator-5584",
+    "avd": "HoseoPatrol_API_35",
+    "android_api": 35,
+    "abi": "x86_64",
+    "application_id": "dev.hoseo.issue10",
+    "flutter": "3.32.1",
+    "dart": "3.8.1"
+  },
+  "scope": "Production auth, secure storage, HTTP, SessionLifecycle and ChatPage in an isolated Android entrypoint against a loopback synthetic API. No production account, API deployment or physical device proof.",
+  "source_sha256": {
+    "frontend/app/lib/commons/network/auth_http_client.dart": "658c93683c94aec85484bb011bb7d40afbb371868d7aa8dc82ad86b19fa3ffc9",
+    "frontend/app/lib/commons/services/session_lifecycle.dart": "0dbb82513ac844241c4bfbac95ef98861455f507d3ed7398df92b35bda33fd60",
+    "frontend/app/lib/features/auth/data/services/auth_service.dart": "be5f9e2f662189a0a1cac2c91fd84d5988bbd224575c03f17969a844c989bd7b",
+    "frontend/app/lib/features/auth/providers/auth_notifier.dart": "79851cb395a677cccd10765c1c4ac27bae9b150373ccb2152ce381cd69347741",
+    "frontend/app/lib/features/chat/presentation/pages/chat_detail_page.dart": "db08e2b564595d45192926649f63b08e205f42e385cd4780abc55e75c02b9fda",
+    "frontend/app/lib/features/chat/presentation/pages/chat_page.dart": "b769121b028942cb4995b9947e0587e202305dcaca30249345e3dcf6b97a60bd",
+    "frontend/app/lib/features/chat/providers/chat_detail_notifier.dart": "de31e0e258db66286664d5a3f5ee38af693d50d1e790a41bfb4db1c43c0d1799",
+    "frontend/app/lib/main.dart": "bcedc618c5c2c5365188f7fb5253984c1ecbae657323096cfee1e3a2167b5061"
+  },
+  "phases": {
+    "initial": {
+      "server_event_count": 5,
+      "generation": 1,
+      "mode": "ok",
+      "observed_ui": [
+        "모임\nSession recovery room v1\nNo messages"
+      ]
+    },
+    "resumed": {
+      "server_event_count": 8,
+      "generation": 2,
+      "mode": "ok",
+      "observed_ui": [
+        "모임\nSession recovery room v2\nNo messages"
+      ]
+    },
+    "transient": {
+      "server_event_count": 14,
+      "generation": 2,
+      "mode": "transient",
+      "observed_ui": [
+        "모임\nSession recovery room v2\nNo messages"
+      ]
+    },
+    "recovered": {
+      "server_event_count": 22,
+      "generation": 3,
+      "mode": "ok",
+      "observed_ui": [
+        "모임\nSession recovery room v3\nNo messages"
+      ]
+    },
+    "rejected": {
+      "server_event_count": 24,
+      "generation": 3,
+      "mode": "reject",
+      "observed_ui": [
+        "Probe signed out"
+      ]
+    }
+  },
+  "assertions": {
+    "single_login_for_all_phases": true,
+    "expired_resume_refresh_once_before_room_request": true,
+    "no_expired_request_on_first_resume": true,
+    "503_keeps_room_visible": true,
+    "recovery_without_login": true,
+    "credential_rejection_shows_signed_out": true,
+    "no_request_replay_after_rejection": true
+  },
+  "server_events": [
+    {
+      "event": "login",
+      "at": 1794270439.6806307,
+      "generation": 1,
+      "ttl": 3
+    },
+    {
+      "event": "request",
+      "at": 1794270440.538713,
+      "path": "/api/v1/users/me/subscriptions?lifetime_seconds=3600",
+      "valid": true,
+      "generation": 1
+    },
+    {
+      "event": "request",
+      "at": 1794270440.5390635,
+      "path": "/api/v1/random/match/queue",
+      "valid": true,
+      "generation": 1
+    },
+    {
+      "event": "request",
+      "at": 1794270440.5397677,
+      "path": "/api/v1/users/me/subscriptions?lifetime_seconds=3600",
+      "valid": true,
+      "generation": 1
+    },
+    {
+      "event": "request",
+      "at": 1794270440.5503418,
+      "path": "/api/v1/random/match/queue",
+      "valid": true,
+      "generation": 1
+    },
+    {
+      "event": "refresh",
+      "at": 1794270468.3183715,
+      "mode": "ok"
+    },
+    {
+      "event": "request",
+      "at": 1794270468.8125093,
+      "path": "/api/v1/users/me/subscriptions?lifetime_seconds=3600",
+      "valid": true,
+      "generation": 2
+    },
+    {
+      "event": "request",
+      "at": 1794270469.3144286,
+      "path": "/api/v1/random/match/queue",
+      "valid": true,
+      "generation": 2
+    },
+    {
+      "event": "request",
+      "at": 1794270501.860241,
+      "path": "/api/v1/users/me/subscriptions?lifetime_seconds=3600",
+      "valid": false,
+      "generation": 2
+    },
+    {
+      "event": "refresh",
+      "at": 1794270502.3655567,
+      "mode": "transient"
+    },
+    {
+      "event": "request",
+      "at": 1794270502.875756,
+      "path": "/api/v1/random/match/queue",
+      "valid": false,
+      "generation": 2
+    },
+    {
+      "event": "refresh",
+      "at": 1794270503.3804007,
+      "mode": "transient"
+    },
+    {
+      "event": "request",
+      "at": 1794270508.8825438,
+      "path": "/api/v1/random/match/queue",
+      "valid": false,
+      "generation": 2
+    },
+    {
+      "event": "refresh",
+      "at": 1794270509.3838017,
+      "mode": "transient"
+    },
+    {
+      "event": "request",
+      "at": 1794270513.8820486,
+      "path": "/api/v1/random/match/queue",
+      "valid": false,
+      "generation": 2
+    },
+    {
+      "event": "refresh",
+      "at": 1794270514.3835158,
+      "mode": "transient"
+    },
+    {
+      "event": "request",
+      "at": 1794270518.8821785,
+      "path": "/api/v1/random/match/queue",
+      "valid": false,
+      "generation": 2
+    },
+    {
+      "event": "refresh",
+      "at": 1794270519.384234,
+      "mode": "transient"
+    },
+    {
+      "event": "request",
+      "at": 1794270529.8403363,
+      "path": "/api/v1/users/me/subscriptions?lifetime_seconds=3600",
+      "valid": false,
+      "generation": 2
+    },
+    {
+      "event": "refresh",
+      "at": 1794270530.3400688,
+      "mode": "ok"
+    },
+    {
+      "event": "request",
+      "at": 1794270530.845111,
+      "path": "/api/v1/users/me/subscriptions?lifetime_seconds=3600",
+      "valid": true,
+      "generation": 3
+    },
+    {
+      "event": "request",
+      "at": 1794270531.3461866,
+      "path": "/api/v1/random/match/queue",
+      "valid": true,
+      "generation": 3
+    },
+    {
+      "event": "request",
+      "at": 1794270563.704701,
+      "path": "/api/v1/users/me/subscriptions?lifetime_seconds=3600",
+      "valid": false,
+      "generation": 3
+    },
+    {
+      "event": "refresh",
+      "at": 1794270564.1970768,
+      "mode": "reject"
+    }
+  ]
+}
